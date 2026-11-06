@@ -1,0 +1,306 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+
+import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
+import type {
+  Activity,
+  Circle,
+  CirclePreview,
+  Contribution,
+  Frequency,
+  Goal,
+  Member,
+  Round,
+  Swap,
+} from '@/lib/types';
+
+const MEMBER_SELECT = '*, profiles(*)';
+
+function must<T>(res: { data: T | null; error: unknown }): T {
+  if (res.error) throw res.error;
+  return res.data as T;
+}
+
+// ---------------------------------------------------------------- queries
+
+export type MyCircle = { membership: Member; circle: Circle; rounds: Round[]; contributions: Contribution[] };
+
+/** Everything the Home + Circles tabs need, in 3 round-trips. */
+export function useMyCircles() {
+  const { userId } = useAuth();
+  return useQuery({
+    queryKey: ['my-circles', userId],
+    enabled: !!userId,
+    queryFn: async (): Promise<MyCircle[]> => {
+      const memberships = must(
+        await supabase
+          .from('circle_members')
+          .select('*, profiles(*), circles(*)')
+          .eq('user_id', userId!)
+          .eq('status', 'approved')
+          .order('joined_at', { ascending: false }),
+      ) as (Member & { circles: Circle })[];
+      const ids = memberships.map((m) => m.circle_id);
+      if (!ids.length) return [];
+      const [rounds, contributions] = await Promise.all([
+        supabase.from('rounds').select('*').in('circle_id', ids).order('round_no'),
+        supabase.from('contributions').select('*').in('circle_id', ids).eq('user_id', userId!),
+      ]);
+      const rs = must(rounds) as Round[];
+      const ks = must(contributions) as Contribution[];
+      return memberships.map(({ circles, ...membership }) => ({
+        membership: membership as Member,
+        circle: circles,
+        rounds: rs.filter((r) => r.circle_id === circles.id),
+        contributions: ks.filter((k) => k.circle_id === circles.id),
+      }));
+    },
+  });
+}
+
+export type CircleDetail = {
+  circle: Circle;
+  members: Member[];
+  rounds: Round[];
+  contributions: Contribution[];
+  swaps: Swap[];
+};
+
+export function useCircle(id: string | undefined) {
+  return useQuery({
+    queryKey: ['circle', id],
+    enabled: !!id,
+    queryFn: async (): Promise<CircleDetail> => {
+      const [c, m, r, k, s] = await Promise.all([
+        supabase.from('circles').select('*').eq('id', id!).single(),
+        supabase.from('circle_members').select(MEMBER_SELECT).eq('circle_id', id!).order('joined_at'),
+        supabase.from('rounds').select('*').eq('circle_id', id!).order('round_no'),
+        supabase.from('contributions').select('*').eq('circle_id', id!),
+        supabase.from('swap_requests').select('*').eq('circle_id', id!).order('created_at', { ascending: false }),
+      ]);
+      return {
+        circle: must(c) as Circle,
+        members: must(m) as Member[],
+        rounds: must(r) as Round[],
+        contributions: must(k) as Contribution[],
+        swaps: must(s) as Swap[],
+      };
+    },
+  });
+}
+
+export function useActivity(circleId?: string) {
+  const { userId } = useAuth();
+  return useQuery({
+    queryKey: ['activity', userId, circleId ?? 'all'],
+    enabled: !!userId,
+    queryFn: async () => {
+      let q = supabase
+        .from('activity')
+        .select('*, circles(name, emoji, color), profiles(full_name, avatar_emoji)')
+        .order('created_at', { ascending: false })
+        .limit(80);
+      if (circleId) q = q.eq('circle_id', circleId);
+      return must(await q) as Activity[];
+    },
+  });
+}
+
+export function useGoals() {
+  const { userId } = useAuth();
+  return useQuery({
+    queryKey: ['goals', userId],
+    enabled: !!userId,
+    queryFn: async () =>
+      must(await supabase.from('goals').select('*').order('created_at', { ascending: false })) as Goal[],
+  });
+}
+
+export function usePreview(code: string) {
+  const clean = code.trim().toUpperCase();
+  return useQuery({
+    queryKey: ['preview', clean],
+    enabled: clean.length === 6,
+    retry: false,
+    queryFn: async () => {
+      const rows = must(await supabase.rpc('preview_circle', { p_code: clean })) as CirclePreview[];
+      return rows[0] ?? null;
+    },
+  });
+}
+
+/** Signed URL for a private receipt. */
+export function useReceiptUrl(path: string | null | undefined) {
+  return useQuery({
+    queryKey: ['receipt', path],
+    enabled: !!path,
+    staleTime: 50 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.storage.from('receipts').createSignedUrl(path!, 3600);
+      if (error) throw error;
+      return data.signedUrl;
+    },
+  });
+}
+
+// ---------------------------------------------------------------- realtime
+
+/** Invalidate cached queries whenever a row the user can see changes. */
+export function useRealtimeSync() {
+  const qc = useQueryClient();
+  const { userId } = useAuth();
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase.channel(`sync-${userId}`);
+    const tables = ['circles', 'circle_members', 'rounds', 'contributions', 'swap_requests', 'activity'];
+    for (const table of tables) {
+      channel.on('postgres_changes', { event: '*', schema: 'public', table }, (payload) => {
+        const row = (payload.new && Object.keys(payload.new).length ? payload.new : payload.old) as {
+          circle_id?: string;
+          id?: string;
+        };
+        const circleId = table === 'circles' ? row?.id : row?.circle_id;
+        if (circleId) qc.invalidateQueries({ queryKey: ['circle', circleId] });
+        qc.invalidateQueries({ queryKey: ['my-circles'] });
+        if (table === 'activity') qc.invalidateQueries({ queryKey: ['activity'] });
+      });
+    }
+    channel.subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc, userId]);
+}
+
+// ---------------------------------------------------------------- mutations
+
+function useInvalidate() {
+  const qc = useQueryClient();
+  return (circleId?: string) => {
+    if (circleId) qc.invalidateQueries({ queryKey: ['circle', circleId] });
+    qc.invalidateQueries({ queryKey: ['my-circles'] });
+    qc.invalidateQueries({ queryKey: ['activity'] });
+  };
+}
+
+async function rpc<T = unknown>(fn: string, args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.rpc(fn, args);
+  if (error) throw error;
+  return data as T;
+}
+
+export type NewCircle = {
+  name: string;
+  emoji: string;
+  color: string;
+  amount: number;
+  slots: number;
+  frequency: Frequency;
+  start_date: string;
+  late_fee: number;
+  grace_days: number;
+  rules: string;
+  order_mode: 'draw' | 'manual';
+};
+
+export function useCreateCircle() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (c: NewCircle) =>
+      rpc<string>('create_circle', {
+        p_name: c.name,
+        p_emoji: c.emoji,
+        p_color: c.color,
+        p_amount: c.amount,
+        p_slots: c.slots,
+        p_frequency: c.frequency,
+        p_start_date: c.start_date,
+        p_late_fee: c.late_fee,
+        p_grace_days: c.grace_days,
+        p_rules: c.rules,
+        p_order_mode: c.order_mode,
+      }),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useJoinCircle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { code: string; hati: boolean }) => rpc<string>('request_join', { p_code: v.code, p_hati: v.hati }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['preview'] }),
+  });
+}
+
+/** Generic circle action — every RPC that only needs invalidation afterwards. */
+export function useCircleAction(circleId: string) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ fn, args }: { fn: string; args: Record<string, unknown> }) => rpc(fn, args),
+    onSuccess: () => invalidate(circleId),
+  });
+}
+
+export function useSubmitProof(circleId: string) {
+  const { userId } = useAuth();
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: async (v: { contributionId: string; uri: string; mime?: string | null; note?: string }) => {
+      const ext = v.mime?.includes('png') ? 'png' : 'jpg';
+      const path = `${circleId}/${userId}/${v.contributionId}-${Date.now()}.${ext}`;
+      const body = await (await fetch(v.uri)).arrayBuffer();
+      const up = await supabase.storage
+        .from('receipts')
+        .upload(path, body, { contentType: v.mime ?? `image/${ext}`, upsert: false });
+      if (up.error) throw up.error;
+      await rpc('submit_proof', { p_contribution: v.contributionId, p_proof_path: path, p_note: v.note ?? null });
+    },
+    onSuccess: () => invalidate(circleId),
+  });
+}
+
+export function useNudge() {
+  return useMutation({
+    mutationFn: async (roundId: string) => {
+      const { data, error } = await supabase.functions.invoke('push', { body: { mode: 'nudge', round_id: roundId } });
+      if (error) throw error;
+      return data as { sent: number };
+    },
+  });
+}
+
+export function useUpdateProfile() {
+  const { userId, refreshProfile } = useAuth();
+  return useMutation({
+    mutationFn: async (patch: Partial<{ full_name: string; avatar_emoji: string; gcash_number: string | null; push_token: string | null }>) => {
+      const { error } = await supabase.from('profiles').update(patch).eq('id', userId!);
+      if (error) throw error;
+    },
+    onSuccess: () => refreshProfile(),
+  });
+}
+
+export function useSaveGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (g: { id?: string; title: string; target: number; emoji: string; circle_id: string | null }) => {
+      const { error } = g.id
+        ? await supabase.from('goals').update(g).eq('id', g.id)
+        : await supabase.from('goals').insert(g);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
+  });
+}
+
+export function useDeleteGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('goals').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
+  });
+}

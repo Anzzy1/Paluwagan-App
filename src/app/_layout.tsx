@@ -1,18 +1,81 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+  useFonts,
+} from '@expo-google-fonts/plus-jakarta-sans';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { PrefsProvider, useColors, useIsDark } from '@/lib/prefs';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
+});
+
+export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  });
+
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <PrefsProvider>
+          <AuthProvider>{fontsLoaded ? <RootNavigator /> : null}</AuthProvider>
+        </PrefsProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+function RootNavigator() {
+  const { session, initializing, profile, profileLoading } = useAuth();
+  const dark = useIsDark();
+  const c = useColors();
+  const ready = !initializing && !profileLoading;
+
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync();
+  }, [ready]);
+
+  if (!ready) return null;
+
+  const signedIn = !!session;
+  const profileDone = !!profile?.full_name;
+  const navTheme = dark ? DarkTheme : DefaultTheme;
+
+  return (
+    <ThemeProvider value={{ ...navTheme, colors: { ...navTheme.colors, background: c.bg } }}>
+      <StatusBar style={dark ? 'light' : 'dark'} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
+        <Stack.Protected guard={!isSupabaseConfigured}>
+          <Stack.Screen name="not-configured" />
+        </Stack.Protected>
+        <Stack.Protected guard={isSupabaseConfigured && !signedIn}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+        <Stack.Protected guard={signedIn && !profileDone}>
+          <Stack.Screen name="setup" />
+        </Stack.Protected>
+        <Stack.Protected guard={signedIn && profileDone}>
+          <Stack.Screen name="(app)" />
+        </Stack.Protected>
+      </Stack>
     </ThemeProvider>
   );
 }
