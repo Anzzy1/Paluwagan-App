@@ -37,6 +37,7 @@ const P = (id: string, full_name: string, avatar_emoji: string, tiwala_score: nu
   phone: null,
   gcash_number: gcash ?? null,
   push_token: null,
+  avatar_url: null,
 });
 const me = P(DEMO_USER_ID, 'Juan Dela Cruz', '😎', 92, '0917 555 0101');
 const maria = P(uid(), 'Maria Santos', '🌻', 98, '0918 222 3344');

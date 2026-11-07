@@ -12,6 +12,8 @@ export type Profile = {
   id: string;
   full_name: string;
   avatar_emoji: string;
+  /** Public URL of the profile picture; null = show initials. */
+  avatar_url: string | null;
   phone: string | null;
   gcash_number: string | null;
   tiwala_score: number;

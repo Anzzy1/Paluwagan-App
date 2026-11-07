@@ -81,7 +81,7 @@ export default function Swaps() {
           return (
             <View key={s.id} style={[styles.rowPad, { borderTopColor: c.border, borderTopWidth: 1, gap: 12 }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Avatar name={from.profiles?.full_name} seed={from.user_id} size={32} />
+                <Avatar name={from.profiles?.full_name} seed={from.user_id} uri={from.profiles?.avatar_url} size={32} />
                 <View style={{ flex: 1 }}>
                   <Text variant="bodyBold" numberOfLines={1}>
                     {groupName(from.slot_group)} (#{roundOf(from.slot_group)?.round_no})

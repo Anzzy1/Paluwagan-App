@@ -1,26 +1,29 @@
 import { Feather } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { Mascot } from '@/components/Mascot';
 import { Avatar, Chip, Divider, IconButton, Input, ProgressRing, Stat } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { Columns, Screen } from '@/components/ui/Screen';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
-import { useMyCircles, useUpdateProfile } from '@/lib/api';
+import { useMyCircles, useSetAvatar, useUpdateProfile } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { peso, trustLabel } from '@/lib/format';
 import { useColors } from '@/lib/prefs';
 import { badgesFor, onTimeStreak } from '@/lib/rewards';
-import { notifyError } from '@/lib/alert';
+import { notify, notifyError } from '@/lib/alert';
 
 export default function ProfileTab() {
   const { profile, session, isDemo, isGuest } = useAuth();
   const circles = useMyCircles();
   const [edit, setEdit] = useState(false);
+  const [photo, setPhoto] = useState(false);
 
   const all = circles.data ?? [];
   const paid = all.flatMap((mc) => mc.contributions.filter((k) => k.status === 'confirmed' && !k.auto));
@@ -38,7 +41,14 @@ export default function ProfileTab() {
   const identity = (
     <Card style={{ gap: 16 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <Avatar name={profile?.full_name} seed={profile?.id} size={56} />
+        <PressableScale onPress={() => setPhoto(true)} scaleTo={0.95} accessibilityLabel="Change profile picture" disabled={isDemo} dimWhenDisabled={false}>
+          <Avatar name={profile?.full_name} seed={profile?.id} uri={profile?.avatar_url} size={64} />
+          {!isDemo && (
+            <View style={[styles.camBadge, { backgroundColor: c.brand, borderColor: c.surface }]}>
+              <Feather name="camera" size={12} color={c.onBrand} />
+            </View>
+          )}
+        </PressableScale>
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="h2">{profile?.full_name}</Text>
           <Text variant="small" tone="muted">
@@ -138,6 +148,7 @@ export default function ProfileTab() {
         }
       />
       <EditProfileSheet open={edit} onClose={() => setEdit(false)} />
+      <PhotoSheet open={photo} onClose={() => setPhoto(false)} />
     </Screen>
   );
 }
@@ -185,6 +196,49 @@ function EditProfileSheet({ open, onClose }: { open: boolean; onClose: () => voi
   );
 }
 
+function PhotoSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const c = useColors();
+  const { profile } = useAuth();
+  const setAvatar = useSetAvatar();
+  const [busy, setBusy] = useState<'pick' | 'remove' | null>(null);
+
+  const pick = async (camera: boolean) => {
+    const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 };
+    if (camera) {
+      const p = await ImagePicker.requestCameraPermissionsAsync();
+      if (!p.granted) return notify('Camera access needed', 'Allow camera access in your phone settings to take a photo.');
+    }
+    const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+    const a = res.canceled ? null : res.assets[0];
+    if (!a) return;
+    if (a.fileSize && a.fileSize > 5 * 1024 * 1024) return notify('Photo too large', 'Please choose a photo under 5 MB.');
+    setBusy('pick');
+    setAvatar.mutate(
+      { uri: a.uri, mime: a.mimeType },
+      { onSuccess: onClose, onError: (e) => notifyError(e, 'Couldn’t upload photo'), onSettled: () => setBusy(null) },
+    );
+  };
+  const remove = () => {
+    setBusy('remove');
+    setAvatar.mutate(null, { onSuccess: onClose, onError: (e) => notifyError(e, 'Couldn’t remove photo'), onSettled: () => setBusy(null) });
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Profile picture">
+      <View style={{ alignItems: 'center', paddingVertical: 4 }}>
+        <Avatar name={profile?.full_name} seed={profile?.id} uri={profile?.avatar_url} size={96} ring={c.border} />
+      </View>
+      <Button title="Choose from library" icon="image" loading={busy === 'pick'} disabled={!!busy} onPress={() => pick(false)} />
+      {Platform.OS !== 'web' && <Button title="Take a photo" icon="camera" variant="secondary" disabled={!!busy} onPress={() => pick(true)} />}
+      {profile?.avatar_url && <Button title="Remove photo" icon="trash-2" variant="danger" loading={busy === 'remove'} disabled={!!busy} onPress={remove} />}
+      <Text variant="small" tone="faint" center>
+        Your photo is visible to members of your circles.
+      </Text>
+    </Sheet>
+  );
+}
+
 const styles = StyleSheet.create({
+  camBadge: { position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 });

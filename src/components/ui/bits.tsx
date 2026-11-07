@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import type { ComponentProps, ReactNode } from 'react';
 import { StyleSheet, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
 import Svg, { Circle as SvgCircle } from 'react-native-svg';
@@ -31,14 +32,28 @@ export function Avatar({
   seed,
   size = 36,
   ring,
+  uri,
 }: {
   name?: string | null;
   seed?: string;
   size?: number;
   ring?: string;
+  /** Profile picture URL; falls back to initials when missing. */
+  uri?: string | null;
 }) {
   const dark = useIsDark();
   const t = circleTints[tintNames[hash(seed ?? name ?? '') % tintNames.length]];
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        contentFit="cover"
+        transition={150}
+        accessibilityLabel={name ?? undefined}
+        style={{ width: size, height: size, borderRadius: size / 2, borderWidth: ring ? 2 : 0, borderColor: ring, backgroundColor: dark ? t.dark : t.light }}
+      />
+    );
+  }
   return (
     <View
       style={{
@@ -58,13 +73,13 @@ export function Avatar({
   );
 }
 
-export function AvatarStack({ people, size = 32, ring }: { people: { id: string; name?: string | null }[]; size?: number; ring?: string }) {
+export function AvatarStack({ people, size = 32, ring }: { people: { id: string; name?: string | null; uri?: string | null }[]; size?: number; ring?: string }) {
   const c = useColors();
   return (
     <View style={{ flexDirection: 'row' }}>
       {people.map((p, i) => (
         <View key={p.id} style={{ marginLeft: i ? -size * 0.3 : 0 }}>
-          <Avatar name={p.name} seed={p.id} size={size} ring={ring ?? c.surface} />
+          <Avatar name={p.name} seed={p.id} uri={p.uri} size={size} ring={ring ?? c.surface} />
         </View>
       ))}
     </View>

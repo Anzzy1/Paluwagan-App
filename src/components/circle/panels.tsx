@@ -133,7 +133,7 @@ export function FormingAdmin({ data }: { data: CircleDetail }) {
           </View>
           {pending.map((m) => (
             <View key={m.id} style={[styles.listRow, { borderTopColor: c.border }]}>
-              <Avatar name={m.profiles?.full_name} seed={m.user_id} />
+              <Avatar name={m.profiles?.full_name} seed={m.user_id} uri={m.profiles?.avatar_url} />
               <View style={{ flex: 1 }}>
                 <Text variant="bodyBold">{m.profiles?.full_name ?? 'Member'}</Text>
                 <Text variant="small" tone="muted">
@@ -222,7 +222,7 @@ export function Timeline({ data, myGroup }: { data: CircleDetail; myGroup?: stri
                 </Text>
               )}
             </View>
-            <AvatarStack people={rec.map((m) => ({ id: m.user_id, name: m.profiles?.full_name }))} size={28} />
+            <AvatarStack people={rec.map((m) => ({ id: m.user_id, name: m.profiles?.full_name, uri: m.profiles?.avatar_url }))} size={28} />
             <View style={{ flex: 1 }}>
               <Text variant="bodyBold" numberOfLines={1}>
                 {slotName(rec)}
@@ -264,7 +264,7 @@ export function MembersList({ data, userId }: { data: CircleDetail; userId: stri
               const k = current && data.contributions.find((x) => x.round_id === current.id && x.member_id === m.id);
               return (
                 <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Avatar name={m.profiles?.full_name} seed={m.user_id} size={34} />
+                  <Avatar name={m.profiles?.full_name} seed={m.user_id} uri={m.profiles?.avatar_url} size={34} />
                   <View style={{ flex: 1 }}>
                     <Text variant="bodyBold" numberOfLines={1}>
                       {m.profiles?.full_name ?? 'Member'}
@@ -367,7 +367,7 @@ export function SlotsProgress({ data }: { data: CircleDetail }) {
         </Text>
       </View>
       <ProgressBar progress={filled / data.circle.slots} height={8} />
-      <AvatarStack people={approved.map((m) => ({ id: m.user_id, name: m.profiles?.full_name }))} size={30} />
+      <AvatarStack people={approved.map((m) => ({ id: m.user_id, name: m.profiles?.full_name, uri: m.profiles?.avatar_url }))} size={30} />
     </Card>
   );
 }

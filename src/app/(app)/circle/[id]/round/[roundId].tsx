@@ -84,7 +84,7 @@ export default function RoundScreen() {
         </View>
         {recipients.map((m) => (
           <View key={m.id} style={[styles.row, { borderTopColor: c.border, borderTopWidth: 1 }]}>
-            <Avatar name={m.profiles?.full_name} seed={m.user_id} size={40} />
+            <Avatar name={m.profiles?.full_name} seed={m.user_id} uri={m.profiles?.avatar_url} size={40} />
             <View style={{ flex: 1 }}>
               <Text variant="bodyBold">{m.profiles?.full_name}</Text>
               <Text variant="small" tone="muted">
@@ -118,7 +118,7 @@ export default function RoundScreen() {
             hapticOnPress={false}
             scaleTo={0.995}
             style={[styles.row, { borderTopColor: c.border, borderTopWidth: 1 }, reviewable && { backgroundColor: c.infoBg }]}>
-            <Avatar name={m?.profiles?.full_name} seed={m?.user_id} size={36} />
+            <Avatar name={m?.profiles?.full_name} seed={m?.user_id} uri={m?.profiles?.avatar_url} size={36} />
             <View style={{ flex: 1 }}>
               <Text variant="bodyBold" numberOfLines={1}>
                 {m?.profiles?.full_name ?? 'Member'}

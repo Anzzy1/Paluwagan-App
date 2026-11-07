@@ -35,7 +35,7 @@ The app never holds money. Members pay each other directly through GCash, Maya o
 
 1. **Install:** `npm install`
 2. **Create a Supabase project** (free tier) at supabase.com.
-3. **Run the migrations:** in **SQL Editor**, run `supabase/migrations/0001_init.sql`, then `0002_english_messages.sql`, then `0003_ipon.sql`, then `0004_schedule_password.sql`, then `0005_payout_schedule.sql`.
+3. **Run the migrations:** in **SQL Editor**, run `supabase/migrations/0001_init.sql`, then `0002_english_messages.sql`, then `0003_ipon.sql`, then `0004_schedule_password.sql`, then `0005_payout_schedule.sql`, then `0006_avatars.sql`.
 4. **Email OTP codes:** go to Authentication → Email Templates → *Magic Link* and add `{{ .Token }}` to the template so users receive a 6-digit code.
    - Phone login is optional and needs an SMS provider (e.g. Twilio) under Authentication → Providers → Phone.
 5. **Env:** copy `.env.example` to `.env.local` and fill in your Project URL and publishable key (Settings → API).

@@ -323,6 +323,43 @@ export function useUpdateProfile() {
   });
 }
 
+/** Path inside the `avatars` bucket for one of our own public URLs, or null for anything else. */
+function avatarPath(url: string | null | undefined) {
+  const marker = '/storage/v1/object/public/avatars/';
+  const i = url?.indexOf(marker) ?? -1;
+  return url && i >= 0 ? decodeURIComponent(url.slice(i + marker.length).split('?')[0]) : null;
+}
+
+/** Upload a new profile picture (uri from the image picker), or pass null to remove it. */
+export function useSetAvatar() {
+  const { userId, profile, refreshProfile } = useAuth();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (img: { uri: string; mime?: string | null } | null) => {
+      assertLive();
+      const old = avatarPath(profile?.avatar_url);
+      let url: string | null = null;
+      if (img) {
+        const ext = img.mime?.includes('png') ? 'png' : img.mime?.includes('webp') ? 'webp' : 'jpg';
+        const path = `${userId}/${Date.now()}.${ext}`;
+        const body = await (await fetch(img.uri)).arrayBuffer();
+        const up = await supabase.storage.from('avatars').upload(path, body, { contentType: img.mime ?? `image/${ext}`, upsert: false });
+        if (up.error) throw up.error;
+        url = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+      }
+      const { error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', userId!);
+      if (error) throw error;
+      // Best effort: the old file is no longer referenced.
+      if (old) await supabase.storage.from('avatars').remove([old]);
+    },
+    onSuccess: async () => {
+      await refreshProfile();
+      // Member lists embed profiles, so refresh them to show the new photo everywhere.
+      qc.invalidateQueries();
+    },
+  });
+}
+
 export function useSaveGoal() {
   const qc = useQueryClient();
   return useMutation({

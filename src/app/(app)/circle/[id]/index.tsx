@@ -210,7 +210,7 @@ export default function CircleScreen() {
         </Text>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <AvatarStack people={recipients.map((m) => ({ id: m.user_id, name: m.profiles?.full_name }))} size={44} />
+        <AvatarStack people={recipients.map((m) => ({ id: m.user_id, name: m.profiles?.full_name, uri: m.profiles?.avatar_url }))} size={44} />
         <View style={{ flex: 1 }}>
           <Text variant="small" tone="muted">
             Payout recipient

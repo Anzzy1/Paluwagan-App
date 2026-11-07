@@ -97,7 +97,7 @@ export function PaySheet({
       </Text>
       {recipients.map((m) => (
         <Card key={m.id} style={styles.recipient}>
-          <Avatar name={m.profiles?.full_name} seed={m.user_id} size={40} />
+          <Avatar name={m.profiles?.full_name} seed={m.user_id} uri={m.profiles?.avatar_url} size={40} />
           <View style={{ flex: 1 }}>
             <Text variant="bodyBold">{m.profiles?.full_name}</Text>
             <Text variant="small" tone="muted">

@@ -25,7 +25,7 @@ import type { Member } from '@/lib/types';
 import { radius } from '@/theme/tokens';
 
 const sha256 = (s: string) => Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, s);
-const people = (ms: Member[]) => ms.map((m) => ({ id: m.user_id, name: m.profiles?.full_name }));
+const people = (ms: Member[]) => ms.map((m) => ({ id: m.user_id, name: m.profiles?.full_name, uri: m.profiles?.avatar_url }));
 
 export default function DrawScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

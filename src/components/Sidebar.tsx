@@ -123,7 +123,7 @@ export function Sidebar() {
       </View>
 
       <PressableScale hapticOnPress={false} onPress={() => router.navigate('/profile')} style={[styles.user, { borderTopColor: c.border }]}>
-        <Avatar name={profile?.full_name} seed={profile?.id} size={36} />
+        <Avatar name={profile?.full_name} seed={profile?.id} uri={profile?.avatar_url} size={36} />
         <View style={{ flex: 1 }}>
           <Text variant="smallBold" numberOfLines={1}>
             {profile?.full_name}
