@@ -30,11 +30,28 @@ function must<T>(res: { data: T | null; error: unknown }): T {
 export type MyCircle = { membership: Member; circle: Circle; rounds: Round[]; contributions: Contribution[] };
 
 /** Everything the Home + Circles tabs need, in 3 round-trips. */
+/** The user's paluwagan, without ones the admin deleted. */
 export function useMyCircles() {
+  return useMyCirclesQuery(activeOnly);
+}
+
+/** Paluwagan the user deleted as admin: the "Deleted" history, newest first. */
+export function useDeletedCircles() {
+  return useMyCirclesQuery(deletedByMe);
+}
+
+const activeOnly = (list: MyCircle[]) => list.filter((mc) => !mc.circle.deleted_at);
+const deletedByMe = (list: MyCircle[]) =>
+  list
+    .filter((mc) => mc.circle.deleted_at && mc.membership.role === 'admin')
+    .sort((a, b) => (b.circle.deleted_at ?? '').localeCompare(a.circle.deleted_at ?? ''));
+
+function useMyCirclesQuery(select: (list: MyCircle[]) => MyCircle[]) {
   const { userId } = useAuth();
   return useQuery({
     queryKey: ['my-circles', userId],
     enabled: !!userId,
+    select,
     queryFn: async ({ queryKey }): Promise<MyCircle[]> => {
       if (demoState.on) return demoQuery(queryKey) as never;
       const memberships = must(
@@ -259,13 +276,17 @@ export function useCreateCircle() {
   });
 }
 
-/** Admin only, before the paluwagan starts (forming/locked). Removes it for everyone. */
-export function useDeleteCircle() {
+/** Admin actions on a paluwagan's lifecycle: delete (to history), restore, delete forever, pause, resume. */
+export function useCircleLifecycle() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (circleId: string) => rpc('delete_circle', { p_circle: circleId }),
-    onSuccess: () => qc.invalidateQueries(),
-  });
+  const done = () => qc.invalidateQueries();
+  return {
+    remove: useMutation({ mutationFn: (id: string) => rpc('delete_circle', { p_circle: id }), onSuccess: done }),
+    restore: useMutation({ mutationFn: (id: string) => rpc('restore_circle', { p_circle: id }), onSuccess: done }),
+    purge: useMutation({ mutationFn: (id: string) => rpc('purge_circle', { p_circle: id }), onSuccess: done }),
+    pause: useMutation({ mutationFn: (v: { id: string; reason: string }) => rpc('pause_circle', { p_circle: v.id, p_reason: v.reason || null }), onSuccess: done }),
+    resume: useMutation({ mutationFn: (id: string) => rpc<number>('resume_circle', { p_circle: id }), onSuccess: done }),
+  };
 }
 
 export function useJoinCircle() {

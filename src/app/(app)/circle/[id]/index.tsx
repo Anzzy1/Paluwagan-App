@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ActivityList } from '@/components/ActivityList';
 import { FormingAdmin, InvitePanel, MembersList, RulesPanel, SlotsProgress, Timeline } from '@/components/circle/panels';
+import { DeleteCircleButton, DeletedPanel, PauseCircleButton, PausedPanel } from '@/components/circle/Lifecycle';
 import { PaySheet } from '@/components/circle/PaySheet';
 import { AvatarStack, Notice, ProgressBar, PurposeIcon, Segmented, StatusChip } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
@@ -12,7 +13,7 @@ import { Card, useTint } from '@/components/ui/Card';
 import { Columns, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { confirmAction, notify, notifyError } from '@/lib/alert';
-import { useActivity, useCircle, useCircleAction, useDeleteCircle, useNudge } from '@/lib/api';
+import { useActivity, useCircle, useCircleAction, useNudge } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { dueOf, hulogInRound, myNextContribution, plannedHulogPerSahod, recipientsOf } from '@/lib/derive';
 import { displayStatus, longDate, payoutShort, peso, potOf, relativeDue, shortDate, slotName } from '@/lib/format';
@@ -43,7 +44,6 @@ export default function CircleScreen() {
   const q = useCircle(id);
   const activity = useActivity(id);
   const action = useCircleAction(id);
-  const del = useDeleteCircle();
   const nudge = useNudge();
   const [tab, setTab] = useState<Tab>('timeline');
   const [payOpen, setPayOpen] = useState(false);
@@ -121,20 +121,7 @@ export default function CircleScreen() {
     </LinearGradient>
   );
 
-  const confirmDelete = () =>
-    confirmAction(
-      'Delete this paluwagan?',
-      'It will be removed for all members, along with its invites and activity. This can’t be undone.',
-      () =>
-        del.mutate(id, {
-          onSuccess: () => router.replace('/circles'),
-          onError: (e) => notifyError(e, 'Couldn’t delete'),
-        }),
-      { confirmText: 'Delete', destructive: true },
-    );
-  const deleteButton = isAdmin && (circle.status === 'forming' || circle.status === 'locked') && (
-    <Button title="Delete paluwagan" icon="trash-2" variant="ghost" loading={del.isPending} onPress={confirmDelete} style={{ marginTop: 4 }} />
-  );
+  const deleteButton = isAdmin && !circle.deleted_at && (circle.status === 'forming' || circle.status === 'locked') && <DeleteCircleButton circle={circle} />;
 
   // ---------------- status panels
   const forming = circle.status === 'forming' && (
@@ -338,11 +325,19 @@ export default function CircleScreen() {
     </>
   );
 
+  const lifecycle = circle.deleted_at ? (
+    <DeletedPanel circle={circle} isAdmin={isAdmin} />
+  ) : circle.paused_at ? (
+    <PausedPanel circle={circle} isAdmin={isAdmin} />
+  ) : null;
+
   const main = (
     <>
-      {forming}
-      {locked}
+      {lifecycle}
+      {!circle.deleted_at && forming}
+      {!circle.deleted_at && locked}
       {activeRound}
+      {isAdmin && circle.status === 'active' && !circle.paused_at && <PauseCircleButton circle={circle} />}
       {completed}
       {tabBody}
     </>

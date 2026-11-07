@@ -3,12 +3,13 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { CircleCard } from '@/components/circle/CircleCard';
+import { DeletedHistory } from '@/components/circle/DeletedHistory';
 import { ManagedCard } from '@/components/ManagedCard';
 import { EmptyState, Segmented } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
-import { useMyCircles } from '@/lib/api';
+import { useDeletedCircles, useMyCircles } from '@/lib/api';
 import { useManagedCircles } from '@/lib/local';
 import { useIsDesktop, useT } from '@/lib/prefs';
 
@@ -16,11 +17,12 @@ export default function CirclesTab() {
   const t = useT();
   const desktop = useIsDesktop();
   const q = useMyCircles();
-  const [filter, setFilter] = useState<'ongoing' | 'done'>('ongoing');
+  const deleted = useDeletedCircles().data ?? [];
+  const [filter, setFilter] = useState<'ongoing' | 'done' | 'deleted'>('ongoing');
   const all = q.data ?? [];
-  const list = all.filter((mc) => (filter === 'done' ? mc.circle.status === 'completed' : mc.circle.status !== 'completed'));
+  const list = filter === 'deleted' ? [] : all.filter((mc) => (filter === 'done' ? mc.circle.status === 'completed' : mc.circle.status !== 'completed'));
   const managedAll = useManagedCircles();
-  const managed = managedAll.filter((m) => (filter === 'done' ? m.status === 'completed' : m.status !== 'completed'));
+  const managed = filter === 'deleted' ? [] : managedAll.filter((m) => (filter === 'done' ? m.status === 'completed' : m.status !== 'completed'));
 
   const actions = (
     <>
@@ -32,17 +34,21 @@ export default function CirclesTab() {
   return (
     <Screen tabs title={t('circles.title')} subtitle={`${all.length} online · ${managedAll.length} managed on this device`} right={desktop ? actions : undefined} refreshing={q.isRefetching} onRefresh={q.refetch}>
       {!desktop && <View style={{ flexDirection: 'row', gap: 10 }}>{actions}</View>}
-      <View style={{ maxWidth: 360 }}>
+      <View style={{ maxWidth: 420 }}>
         <Segmented
           value={filter}
           onChange={setFilter}
           options={[
             { value: 'ongoing', label: 'Active' },
             { value: 'done', label: 'Completed' },
+            // Deleted history only appears once there's something in it.
+            ...(deleted.length || filter === 'deleted' ? [{ value: 'deleted' as const, label: `Deleted${deleted.length ? ` (${deleted.length})` : ''}` }] : []),
           ]}
         />
       </View>
-      {list.length === 0 && managed.length === 0 && !q.isPending ? (
+      {filter === 'deleted' ? (
+        <DeletedHistory items={deleted} />
+      ) : list.length === 0 && managed.length === 0 && !q.isPending ? (
         <Card>
           <EmptyState
             icon={filter === 'done' ? 'flag' : 'layers'}

@@ -35,6 +35,11 @@ export type Circle = {
   payout_frequency: Frequency | null;
   payout_interval_days: number | null;
   first_payout_date: string | null;
+  /** Soft-deleted by the admin (before it started); shown only in the admin's Deleted history. */
+  deleted_at?: string | null;
+  /** Paused by the admin for an emergency; dates shift on resume. */
+  paused_at?: string | null;
+  pause_reason?: string | null;
   late_fee: number;
   grace_days: number;
   rules: string;

@@ -44,6 +44,13 @@ export function CircleCard({ mc, style }: { mc: MyCircle; style?: ViewStyle }) {
               {peso(circle.amount)} · {payoutShort(circle)}
             </Text>
           </View>
+          {circle.paused_at && (
+            <View style={styles.pill}>
+              <Text variant="caption" color={W}>
+                Paused
+              </Text>
+            </View>
+          )}
           {mc.membership.role === 'admin' && (
             <View style={styles.pill}>
               <Text variant="caption" color={W}>

@@ -25,6 +25,14 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
       return { icon: 'users', tone: 'info', text: `${who} paired a split slot` };
     case 'circle_locked':
       return { icon: 'lock', tone: 'info', text: `${who} locked the paluwagan and published the draw commitment` };
+    case 'circle_deleted':
+      return { icon: 'trash-2', tone: 'danger', text: `${who} deleted the paluwagan` };
+    case 'circle_restored':
+      return { icon: 'rotate-ccw', tone: 'success', text: `${who} restored the paluwagan` };
+    case 'circle_paused':
+      return { icon: 'pause-circle', tone: 'warning', text: `${who} paused the paluwagan${p.reason ? `: “${p.reason}”` : ''}` };
+    case 'circle_resumed':
+      return { icon: 'play-circle', tone: 'success', text: `${who} resumed the paluwagan${Number(p.days) > 0 ? `. Dates moved ${p.days} day${Number(p.days) === 1 ? '' : 's'} later` : ''}` };
     case 'circle_unlocked':
       return { icon: 'unlock', tone: 'neutral', text: `${who} unlocked the paluwagan` };
     case 'draw_completed':

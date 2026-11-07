@@ -55,9 +55,11 @@ Deno.serve(async (req) => {
     const today = manilaToday();
     const { data, error } = await admin
       .from('contributions')
-      .select('id, amount, user_id, due_date, rounds!inner(due_date, round_no, circle_id), circles!inner(name, grace_days, status), profiles!contributions_user_id_fkey!inner(push_token)')
+      .select('id, amount, user_id, due_date, rounds!inner(due_date, round_no, circle_id), circles!inner(name, grace_days, status, paused_at, deleted_at), profiles!contributions_user_id_fkey!inner(push_token)')
       .in('status', ['pending', 'rejected'])
       .eq('circles.status', 'active')
+      .is('circles.paused_at', null)
+      .is('circles.deleted_at', null)
       .not('profiles.push_token', 'is', null);
     if (error) return json({ error: error.message }, 500);
 
