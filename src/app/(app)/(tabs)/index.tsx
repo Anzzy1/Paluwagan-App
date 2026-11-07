@@ -109,7 +109,12 @@ export default function Home() {
       repeatEvery={9000}
       actions={
         <>
-          {tip.cta && <BubbleButton primary label={tip.cta.label} iconRight="arrow-right" onPress={() => router.push(tip.cta!.href as never)} />}
+          {tip.cta ? (
+            <BubbleButton primary label={tip.cta.label} iconRight="arrow-right" onPress={() => router.push(tip.cta!.href as never)} />
+          ) : (
+            // Nothing urgent: keep a way to start a new paluwagan right here.
+            <BubbleButton primary label="New paluwagan" icon="plus" onPress={() => router.push('/create')} />
+          )}
           <BubbleButton label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => router.push('/assistant' as Href)} />
         </>
       }>
