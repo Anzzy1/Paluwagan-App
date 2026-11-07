@@ -148,13 +148,13 @@ export function BubbleButton({ label, icon, iconRight, onPress, primary, disable
       disabled={disabled}
       hapticOnPress={false}
       accessibilityLabel={label}
-      hitSlop={4}
+      hitSlop={6}
       style={[styles.btn, { backgroundColor: primary ? c.brand : c.surfaceAlt }]}>
-      {left ?? (icon && <Feather name={icon} size={16} color={primary ? c.onBrand : c.brandText} />)}
-      <Text variant="smallBold" color={fg} style={{ fontSize: 14 }}>
+      {left ?? (icon && <Feather name={icon} size={14} color={primary ? c.onBrand : c.brandText} />)}
+      <Text variant="smallBold" color={fg} style={{ fontSize: 13.5 }}>
         {label}
       </Text>
-      {iconRight && <Feather name={iconRight} size={16} color={fg} />}
+      {iconRight && <Feather name={iconRight} size={14} color={fg} />}
     </PressableScale>
   );
 }
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   bubble: { flex: 1, borderRadius: radius.lg, padding: 16, gap: 6, marginBottom: 16, marginLeft: 4 },
   tail: { position: 'absolute', left: -6, bottom: 22, width: 14, height: 14, transform: [{ rotate: '45deg' }], borderRadius: 3 },
   tag: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-  // 44px tall: comfortable tap target on phones.
-  btn: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 16, height: 44, borderRadius: 22 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  // Compact pill; hitSlop extends the touch area to ~48px so it stays easy to tap.
+  btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 14, height: 36, borderRadius: 18 },
 });

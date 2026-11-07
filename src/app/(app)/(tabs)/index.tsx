@@ -313,9 +313,27 @@ export default function Home() {
   const goalList = (goals.data ?? []).map((g) => goalProgress(g, deposits.data ?? [], list));
   const goalsBlock = (
     <Card style={{ gap: 16 }}>
-      <CardTitle title="Ipon goals" action={goalList.length ? 'See all' : 'Add'} onAction={() => (goalList.length ? router.push('/ipon' as Href) : setGoalSheet(true))} />
+      <View style={styles.cardTitle}>
+        <Text variant="h3">Ipon goals</Text>
+        <PressableScale onPress={() => setGoalSheet(true)} hapticOnPress={false} hitSlop={8} accessibilityLabel="New ipon goal" style={[styles.newGoal, { backgroundColor: c.brandSoft }]}>
+          <Feather name="plus" size={14} color={c.brandText} />
+          <Text variant="smallBold" tone="brand">
+            New goal
+          </Text>
+        </PressableScale>
+      </View>
       {goalList.length ? (
-        goalList.slice(0, 3).map((p) => <GoalRow key={p.goal.id} p={p} />)
+        <>
+          {goalList.slice(0, 3).map((p) => (
+            <GoalRow key={p.goal.id} p={p} />
+          ))}
+          <PressableScale onPress={() => router.push('/ipon' as Href)} hapticOnPress={false} style={styles.seeAll}>
+            <Text variant="smallBold" tone="brand">
+              See all goals
+            </Text>
+            <Feather name="chevron-right" size={15} color={c.brandText} />
+          </PressableScale>
+        </>
       ) : (
         <Text variant="small" tone="muted">
           Save on your own too. Add a goal like “Emergency fund” or “New phone”, set a plan, and log every hulog.
@@ -373,6 +391,8 @@ export default function Home() {
 const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   round: { width: 44, height: 44, borderRadius: 22, borderWidth: 0, alignItems: 'center', justifyContent: 'center' },
+  newGoal: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, height: 32, borderRadius: 16 },
+  seeAll: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: 4 },
   cardTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   actions: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
   action: { flex: 1, alignItems: 'center', gap: 8 },
