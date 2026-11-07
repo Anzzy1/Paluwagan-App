@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Avatar, Chip, CircleIcon, iconOf, IconButton, Input, Notice, ProgressBar, type IconName } from '@/components/ui/bits';
+import { Avatar, Chip, CircleIcon, IconButton, type IconName, Input, Notice, ProgressBar, PurposeIcon } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card, useTint } from '@/components/ui/Card';
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
@@ -126,17 +126,11 @@ function IconPicker({ value, onChange, color }: { value: string; onChange: (v: s
             hapticOnPress={false}
             onPress={() => onChange(icon)}
             accessibilityLabel={label}
-            style={[styles.iconTile, { flexBasis: desktop ? '18%' : '22%', backgroundColor: on ? t.soft : c.surface, borderColor: on ? t.strong : 'transparent' }]}>
-            {on ? (
-              <LinearGradient colors={t.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconBubble}>
-                <Feather name={icon} size={19} color="#fff" />
-              </LinearGradient>
-            ) : (
-              <View style={[styles.iconBubble, { backgroundColor: c.surfaceAlt }]}>
-                <Feather name={icon} size={19} color={c.textMuted} />
-              </View>
-            )}
-            <Text variant="caption" numberOfLines={1} color={on ? t.strong : c.textMuted}>
+            style={[styles.iconTile, { flexBasis: desktop ? '18%' : '22%', backgroundColor: on ? t.soft : 'transparent', borderColor: on ? t.strong : 'transparent' }]}>
+            <View style={[styles.iconBubble, { backgroundColor: on ? t.strong : t.soft }]}>
+              <PurposeIcon icon={icon} size={21} color={on ? '#fff' : t.strong} />
+            </View>
+            <Text variant="caption" numberOfLines={1} color={on ? t.strong : c.textMuted} style={on ? { fontWeight: '700' } : undefined}>
               {label}
             </Text>
           </PressableScale>
@@ -153,7 +147,7 @@ function CirclePreview({ name, icon, color, sub }: { name: string; icon: string;
     <LinearGradient colors={t.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.preview}>
       <View style={styles.previewDeco} />
       <View style={styles.previewIcon}>
-        <Feather name={iconOf(icon)} size={22} color="#fff" />
+        <PurposeIcon icon={icon} size={22} color="#fff" />
       </View>
       <View style={{ flex: 1 }}>
         <Text variant="h2" color="#fff" numberOfLines={1}>
@@ -742,7 +736,7 @@ export default function CreateCircle() {
 const styles = StyleSheet.create({
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   iconTile: { flexGrow: 1, alignItems: 'center', gap: 6, paddingVertical: 10, paddingHorizontal: 4, borderRadius: radius.md, borderWidth: 2 },
-  iconBubble: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+  iconBubble: { width: 44, height: 44, borderRadius: radius.sm + 2, alignItems: 'center', justifyContent: 'center' },
   preview: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: radius.lg, overflow: 'hidden' },
   previewDeco: { position: 'absolute', right: -30, top: -50, width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.14)' },
   previewIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' },

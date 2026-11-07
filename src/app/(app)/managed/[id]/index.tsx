@@ -7,7 +7,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import { AnimatedMascot } from '@/components/AnimatedMascot';
 import { DateHistory } from '@/components/managed/DateHistory';
 import { Mascot } from '@/components/Mascot';
-import { Avatar, Chip, iconOf, Notice, ProgressBar, Segmented } from '@/components/ui/bits';
+import { Avatar, Chip, Notice, ProgressBar, PurposeIcon, Segmented } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card, useTint } from '@/components/ui/Card';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
@@ -282,7 +282,7 @@ export default function ManagedCircle() {
       <View style={[styles.heroDeco, { right: 120, bottom: -120, width: 200, height: 200 }]} />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
         <View style={styles.heroIcon}>
-          <Feather name={iconOf(circle.emoji)} size={22} color="#fff" />
+          <PurposeIcon icon={circle.emoji} size={22} color="#fff" />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant={desktop ? 'display' : 'h1'} color="#fff" numberOfLines={2}>

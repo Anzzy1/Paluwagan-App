@@ -1,4 +1,4 @@
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import type { ComponentProps, ReactNode } from 'react';
 import { StyleSheet, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
@@ -18,6 +18,40 @@ export type IconName = ComponentProps<typeof Feather>['name'];
 /** Resolve a stored icon key (or a legacy emoji) to a Feather icon. */
 export function iconOf(key?: string | null): IconName {
   return key && key in Feather.glyphMap ? (key as IconName) : 'dollar-sign';
+}
+
+/**
+ * Purpose icons (what a paluwagan or goal is for) are stored as Feather names in the DB.
+ * They're drawn with filled Ionicons, which read bolder and more modern at small sizes.
+ */
+const PURPOSE_GLYPH: Record<string, ComponentProps<typeof Ionicons>['name']> = {
+  'dollar-sign': 'wallet',
+  home: 'home',
+  'book-open': 'school',
+  briefcase: 'briefcase',
+  umbrella: 'umbrella',
+  globe: 'airplane',
+  gift: 'gift',
+  heart: 'heart',
+  award: 'trophy',
+  smartphone: 'phone-portrait',
+  truck: 'car-sport',
+  'shopping-bag': 'bag-handle',
+  coffee: 'cafe',
+  activity: 'medkit',
+  zap: 'flash',
+  users: 'people',
+  sun: 'sunny',
+  music: 'musical-notes',
+  tool: 'construct',
+  star: 'star',
+};
+
+export function PurposeIcon({ icon, size = 20, color }: { icon?: string | null; size?: number; color: string }) {
+  const glyph = icon ? PURPOSE_GLYPH[icon] : undefined;
+  if (glyph || !icon || !(icon in Feather.glyphMap)) return <Ionicons name={glyph ?? 'wallet'} size={size} color={color} />;
+  // Older records with an icon outside the current set.
+  return <Feather name={icon as IconName} size={size} color={color} />;
 }
 
 // ---------------------------------------------------------------- Avatar (initials)
@@ -99,7 +133,7 @@ export function CircleIcon({ icon, color, size = 44 }: { icon?: string | null; c
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-      <Feather name={iconOf(icon)} size={size * 0.45} color={t.strong} />
+      <PurposeIcon icon={icon} size={Math.round(size * 0.5)} color={t.strong} />
     </View>
   );
 }

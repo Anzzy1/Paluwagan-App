@@ -2,7 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { Chip, Input, Segmented } from '@/components/ui/bits';
+import { Chip, Input, PurposeIcon, Segmented } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -14,7 +14,7 @@ import { daysUntil, longDate, peso, toISODate } from '@/lib/format';
 import { planLabel, planPer } from '@/lib/ipon';
 import { useColors } from '@/lib/prefs';
 import type { Goal, PlanFrequency } from '@/lib/types';
-import { circleIcons, radius } from '@/theme/tokens';
+import { circleIcons, iconChoices, radius } from '@/theme/tokens';
 
 const FREQS: PlanFrequency[] = ['daily', 'weekly', 'kinsenas', 'monthly'];
 const DAYS_PER: Record<PlanFrequency, number> = { daily: 1, weekly: 7, kinsenas: 15.2, monthly: 30.4 };
@@ -105,15 +105,16 @@ export function GoalSheet({
             key={name}
             hapticOnPress={false}
             onPress={() => setIcon(name)}
+            accessibilityLabel={iconChoices.find((x) => x.icon === name)?.label}
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: radius.sm,
+              width: 44,
+              height: 44,
+              borderRadius: radius.sm + 2,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: name === icon ? c.ink : c.surfaceAlt,
+              backgroundColor: name === icon ? c.brand : c.brandSoft,
             }}>
-            <Feather name={name} size={17} color={name === icon ? c.onInk : c.textMuted} />
+            <PurposeIcon icon={name} size={21} color={name === icon ? c.onBrand : c.brandText} />
           </PressableScale>
         ))}
       </View>

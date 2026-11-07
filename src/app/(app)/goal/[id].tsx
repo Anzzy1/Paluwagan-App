@@ -7,7 +7,7 @@ import { DepositSheet } from '@/components/ipon/DepositSheet';
 import { statusChip } from '@/components/ipon/GoalRow';
 import { GoalSheet } from '@/components/GoalSheet';
 import { Mascot } from '@/components/Mascot';
-import { Chip, EmptyState, IconButton, iconOf, ProgressRing } from '@/components/ui/bits';
+import { Chip, EmptyState, IconButton, ProgressRing, PurposeIcon } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Confetti } from '@/components/ui/Confetti';
@@ -86,7 +86,7 @@ export default function GoalDetail() {
     <Card style={{ alignItems: 'center', gap: 12, paddingVertical: 24 }}>
       <ProgressRing size={150} stroke={12} progress={p.progress} color={p.status === 'done' ? c.success : c.brand}>
         <View style={[styles.bigIcon, { backgroundColor: c.goldSoft }]}>
-          <Feather name={iconOf(goal.emoji)} size={26} color={c.gold} />
+          <PurposeIcon icon={goal.emoji} size={26} color={c.gold} />
         </View>
         <Text variant="h2" style={{ marginTop: 6 }}>
           {Math.round(p.progress * 100)}%

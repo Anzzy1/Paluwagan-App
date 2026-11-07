@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 
-import { iconOf } from '@/components/ui/bits';
+import { PurposeIcon } from '@/components/ui/bits';
 import { useTint } from '@/components/ui/Card';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
@@ -34,7 +34,7 @@ export function CircleCard({ mc, style }: { mc: MyCircle; style?: ViewStyle }) {
 
         <View style={styles.top}>
           <View style={styles.icon}>
-            <Feather name={iconOf(circle.emoji)} size={18} color={W} />
+            <PurposeIcon icon={circle.emoji} size={18} color={W} />
           </View>
           <View style={{ flex: 1 }}>
             <Text variant="h3" color={W} numberOfLines={1}>

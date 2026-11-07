@@ -1,4 +1,3 @@
-import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
@@ -7,7 +6,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { ActivityList } from '@/components/ActivityList';
 import { FormingAdmin, InvitePanel, MembersList, RulesPanel, SlotsProgress, Timeline } from '@/components/circle/panels';
 import { PaySheet } from '@/components/circle/PaySheet';
-import { AvatarStack, iconOf, Notice, ProgressBar, Segmented, StatusChip } from '@/components/ui/bits';
+import { AvatarStack, Notice, ProgressBar, PurposeIcon, Segmented, StatusChip } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card, useTint } from '@/components/ui/Card';
 import { Columns, Screen } from '@/components/ui/Screen';
@@ -91,7 +90,7 @@ export default function CircleScreen() {
       <View style={[styles.heroDeco, { right: 120, bottom: -120, width: 200, height: 200 }]} />
       <View style={styles.heroTop}>
         <View style={styles.heroIcon}>
-          <Feather name={iconOf(circle.emoji)} size={22} color="#fff" />
+          <PurposeIcon icon={circle.emoji} size={22} color="#fff" />
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant={desktop ? 'display' : 'h1'} color="#fff" numberOfLines={2}>

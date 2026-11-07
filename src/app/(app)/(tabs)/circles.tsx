@@ -51,7 +51,7 @@ export default function CirclesTab() {
           />
         </Card>
       ) : (
-        <View style={{ flexDirection: desktop ? 'row' : 'column', flexWrap: 'wrap', gap: 16 }}>
+        <View style={desktop ? { flexDirection: 'row', flexWrap: 'wrap', gap: 16 } : { gap: 16 }}>
           {list.map((mc) => (
             <View key={mc.circle.id} style={desktop ? { flexBasis: '48%', flexGrow: 1, maxWidth: '50%' } : undefined}>
               <CircleCard mc={mc} />

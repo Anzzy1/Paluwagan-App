@@ -7,7 +7,7 @@ import { StyleSheet, View } from 'react-native';
 import { GoalSheet } from '@/components/GoalSheet';
 import { GoalRow } from '@/components/ipon/GoalRow';
 import { InsightBand } from '@/components/InsightBand';
-import { EmptyState, iconOf } from '@/components/ui/bits';
+import { EmptyState, PurposeIcon } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -103,7 +103,7 @@ export default function Ipon() {
           return (
             <PressableScale key={d.id} onPress={() => router.push(`/goal/${d.goal_id}` as Href)} hapticOnPress={false} scaleTo={0.99} style={[styles.row, { borderTopColor: c.border }]}>
               <View style={[styles.rowIcon, { backgroundColor: plus ? c.brandSoft : c.surfaceAlt }]}>
-                <Feather name={plus ? iconOf(g?.emoji) : 'arrow-up-right'} size={16} color={plus ? c.brand : c.textMuted} />
+                {plus ? <PurposeIcon icon={g?.emoji} size={17} color={c.brandText} /> : <Feather name="arrow-up-right" size={16} color={c.textMuted} />}
               </View>
               <View style={{ flex: 1 }}>
                 <Text variant="bodyBold" numberOfLines={1}>

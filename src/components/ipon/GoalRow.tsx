@@ -1,8 +1,7 @@
-import { Feather } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
-import { Chip, iconOf, ProgressBar, type ChipTone } from '@/components/ui/bits';
+import { Chip, type ChipTone, ProgressBar, PurposeIcon } from '@/components/ui/bits';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { peso, shortDate } from '@/lib/format';
@@ -33,7 +32,7 @@ export function GoalRow({ p }: { p: GoalProgress }) {
     <PressableScale onPress={() => router.push(`/goal/${g.id}` as Href)} hapticOnPress={false} scaleTo={0.99} style={{ gap: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={[styles.icon, { backgroundColor: p.status === 'done' ? c.successBg : c.goldSoft }]}>
-          <Feather name={iconOf(g.emoji)} size={17} color={p.status === 'done' ? c.success : c.gold} />
+          <PurposeIcon icon={g.emoji} size={17} color={p.status === 'done' ? c.success : c.gold} />
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="bodyBold" numberOfLines={1}>

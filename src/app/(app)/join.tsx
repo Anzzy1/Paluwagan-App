@@ -8,7 +8,7 @@ import { useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, TextInput, View, type TextInputInstance } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Avatar, iconOf, IconButton, Input, Notice, ProgressBar, type IconName } from '@/components/ui/bits';
+import { Avatar, IconButton, type IconName, Input, Notice, ProgressBar, PurposeIcon } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card, useTint } from '@/components/ui/Card';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
@@ -155,7 +155,7 @@ function CircleHero({ p, onChange }: { p: CirclePreview; onChange: () => void })
       <View style={styles.heroDeco} />
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <View style={styles.heroIcon}>
-          <Feather name={iconOf(p.emoji)} size={22} color="#fff" />
+          <PurposeIcon icon={p.emoji} size={22} color="#fff" />
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="h2" color="#fff" numberOfLines={1}>
