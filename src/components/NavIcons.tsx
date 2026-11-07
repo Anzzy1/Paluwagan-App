@@ -1,16 +1,16 @@
 import Svg, { Circle, Path } from 'react-native-svg';
 
-export type NavIconName = 'home' | 'circles' | 'ipon' | 'assistant' | 'activity' | 'profile';
+export type NavIconName = 'home' | 'circles' | 'ipon' | 'assistant' | 'activity' | 'profile' | 'create' | 'join' | 'pay';
 
-type Props = { name: NavIconName; color: string; size?: number; active?: boolean };
+type Props = { name: NavIconName; color: string; size?: number; active?: boolean; /** Stroke width override for bolder glyphs. */ weight?: number };
 
 /**
  * Navigation icons: rounded outline when idle, "bulk" duotone (soft fill + solid detail) when active.
  * Drawn on a 24px grid so they stay crisp at any size.
  */
-export function NavIcon({ name, color, size = 24, active = false }: Props) {
+export function NavIcon({ name, color, size = 24, active = false, weight }: Props) {
   const soft = active ? 0.32 : 0;
-  const sw = active ? 1.9 : 1.8;
+  const sw = weight ?? (active ? 1.9 : 1.8);
   const stroke = { stroke: color, strokeWidth: sw, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
 
   return (
@@ -49,6 +49,27 @@ export function NavIcon({ name, color, size = 24, active = false }: Props) {
         <>
           <Path d="M12 4.2c4.4 0 8 3.1 8 7.1s-3.6 7.1-8 7.1c-1 0-2-.2-2.9-.5L5 19.6l1.1-3.6C4.8 14.7 4 13.1 4 11.3c0-4 3.6-7.1 8-7.1z" fill={color} fillOpacity={soft} {...stroke} />
           <Path d="M12 8.2c.3 1.6 1.1 2.4 2.7 2.7-1.6.3-2.4 1.1-2.7 2.7-.3-1.6-1.1-2.4-2.7-2.7 1.6-.3 2.4-1.1 2.7-2.7z" fill={color} stroke={color} strokeWidth={1.2} strokeLinejoin="round" />
+        </>
+      )}
+
+      {name === 'create' && (
+        <>
+          <Circle cx={12} cy={12} r={8.6} fill={color} fillOpacity={soft} {...stroke} />
+          <Path d="M12 8.2v7.6M8.2 12h7.6" {...stroke} />
+        </>
+      )}
+
+      {name === 'join' && (
+        <>
+          <Path d="M13.6 4h3.9a2.5 2.5 0 0 1 2.5 2.5v11a2.5 2.5 0 0 1-2.5 2.5h-3.9z" fill={color} fillOpacity={soft} {...stroke} />
+          <Path d="M4 12h10M10.6 8.4 14.2 12l-3.6 3.6" {...stroke} />
+        </>
+      )}
+
+      {name === 'pay' && (
+        <>
+          <Path d="M20.2 3.8 4.4 10.1c-.8.3-.8 1.4 0 1.7l5.9 2.1 2.1 5.9c.3.8 1.4.8 1.7 0z" fill={color} fillOpacity={soft} {...stroke} />
+          <Path d="m10.3 13.9 4.4-4.4" {...stroke} />
         </>
       )}
 

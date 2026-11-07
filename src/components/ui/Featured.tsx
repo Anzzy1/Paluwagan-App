@@ -3,9 +3,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
+import { NavIcon, type NavIconName } from '@/components/NavIcons';
 import type { IconName } from '@/components/ui/bits';
 import { Text } from '@/components/ui/Text';
-import { useColors } from '@/lib/prefs';
+import { useColors, useIsDark } from '@/lib/prefs';
 import { radius, tileGradients } from '@/theme/tokens';
 
 /** Soft mint-to-sky gradient card with a green overline — the app's "featured" surface. */
@@ -45,16 +46,34 @@ export function FeatureCard({
   );
 }
 
-/** Rounded-square icon tile with a green gradient and a white glyph. */
-export function IconTile({ icon, tone = 'green', size = 48 }: { icon: IconName; tone?: keyof typeof tileGradients; size?: number }) {
+/** Rounded-square icon tile: vivid gradient, glossy top light, coloured glow and a bold duotone glyph. */
+export function IconTile({ icon, tone = 'green', size = 48 }: { icon: NavIconName; tone?: keyof typeof tileGradients; size?: number }) {
+  const dark = useIsDark();
+  const t = tileGradients[tone];
+  const r = Math.round(size * 0.34);
   return (
-    <LinearGradient
-      colors={tileGradients[tone] as unknown as [string, string]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={{ width: size, height: size, borderRadius: Math.round(size * 0.32), alignItems: 'center', justifyContent: 'center' }}>
-      <Feather name={icon} size={Math.round(size * 0.42)} color="#FFFFFF" />
-    </LinearGradient>
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: r,
+        shadowColor: t.glow,
+        shadowOpacity: dark ? 0.5 : 0.38,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 5 },
+        elevation: 6,
+      }}>
+      <LinearGradient colors={t.grad as unknown as [string, string]} start={{ x: 0.15, y: 0 }} end={{ x: 0.85, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: r }]} />
+      <LinearGradient
+        colors={['rgba(255,255,255,0.26)', 'rgba(255,255,255,0)']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.6 }}
+        style={[StyleSheet.absoluteFill, { borderRadius: r, borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' }]}
+      />
+      <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
+        <NavIcon name={icon} size={Math.round(size * 0.52)} color="#FFFFFF" active weight={2.3} />
+      </View>
+    </View>
   );
 }
 

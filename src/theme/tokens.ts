@@ -91,13 +91,13 @@ export const font = {
   black: 'PlusJakartaSans_800ExtraBold',
 } as const;
 
-/** Green gradients for icon tiles (quick actions, categories). */
+/** Vivid gradients for icon tiles (quick actions). `glow` tints the soft shadow under each tile. */
 export const tileGradients = {
-  green: ['#3BD47E', '#13954A'],
-  emerald: ['#2DC6A0', '#0E8F72'],
-  olive: ['#9BC93A', '#5E9420'],
-  teal: ['#3FC1D6', '#1488A8'],
-  forest: ['#4F9A5E', '#24653A'],
+  green: { grad: ['#3EE58F', '#0E9F52'], glow: '#16A34A' },
+  blue: { grad: ['#62B0FF', '#2C5CF0'], glow: '#2F6FEB' },
+  orange: { grad: ['#FFC24D', '#FF7417'], glow: '#F2711C' },
+  pink: { grad: ['#FF86B6', '#EE3B7B'], glow: '#E5365F' },
+  purple: { grad: ['#B794FF', '#6C43F0'], glow: '#7350E8' },
 } as const;
 
 /** Icons offered for circles and goals, with what the money is for (stored in the `emoji` columns). */

@@ -12,6 +12,7 @@ import { BubbleButton, MascotBand, MASCOT_NAME } from '@/components/MascotBand';
 import { ProgressRing, type IconName } from '@/components/ui/bits';
 import { Card } from '@/components/ui/Card';
 import { IconTile } from '@/components/ui/Featured';
+import { type NavIconName } from '@/components/NavIcons';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
@@ -130,17 +131,17 @@ export default function Home() {
   );
 
   // ---------------- quick actions
-  const actions: { icon: IconName; label: string; tone: keyof typeof tileGradients; onPress: () => void }[] = [
-    { icon: 'plus', label: 'Create', tone: 'green', onPress: () => router.push('/create') },
-    { icon: 'log-in', label: 'Join', tone: 'emerald', onPress: () => router.push('/join') },
+  const actions: { icon: NavIconName; label: string; tone: keyof typeof tileGradients; onPress: () => void }[] = [
+    { icon: 'create', label: 'Create', tone: 'green', onPress: () => router.push('/create') },
+    { icon: 'join', label: 'Join', tone: 'blue', onPress: () => router.push('/join') },
     {
-      tone: 'olive',
-      icon: 'send',
+      tone: 'orange',
+      icon: 'pay',
       label: 'Pay',
       onPress: () => (dues[0] ? router.push(`/circle/${dues[0].mc.circle.id}/round/${dues[0].round.id}`) : router.push('/circles')),
     },
-    { icon: 'target', label: 'Ipon', tone: 'teal', onPress: () => router.push('/ipon' as Href) },
-    { icon: 'message-circle', label: `${MASCOT_NAME} AI`, tone: 'forest', onPress: () => router.push('/assistant' as Href) },
+    { icon: 'ipon', label: 'Ipon', tone: 'pink', onPress: () => router.push('/ipon' as Href) },
+    { icon: 'assistant', label: `${MASCOT_NAME} AI`, tone: 'purple', onPress: () => router.push('/assistant' as Href) },
   ];
   const quick = (
     <Card style={{ gap: 14 }}>
@@ -149,7 +150,7 @@ export default function Home() {
         {actions.map((a) => (
           <PressableScale key={a.label} onPress={a.onPress} style={styles.action}>
             <IconTile icon={a.icon} tone={a.tone} size={desktop ? 52 : 48} />
-            <Text variant="caption" numberOfLines={1}>
+            <Text variant="smallBold" numberOfLines={1} style={{ fontSize: 12 }}>
               {a.label}
             </Text>
           </PressableScale>
@@ -387,7 +388,7 @@ const styles = StyleSheet.create({
   streakCount: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   actions: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
-  action: { flex: 1, alignItems: 'center', gap: 6 },
+  action: { flex: 1, alignItems: 'center', gap: 8 },
   miniIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dueRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 12, borderTopWidth: 1 },
   dateBlock: { width: 46, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
