@@ -162,11 +162,37 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+type Photo = { uri: string; mime?: string | null };
+
+/** Opens the library or camera with a square crop. Returns null if cancelled or rejected. */
+async function pickPhoto(camera: boolean): Promise<Photo | null> {
+  const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 };
+  if (camera) {
+    const p = await ImagePicker.requestCameraPermissionsAsync();
+    if (!p.granted) {
+      notify('Camera access needed', 'Allow camera access in your phone settings to take a photo.');
+      return null;
+    }
+  }
+  const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+  const a = res.canceled ? null : res.assets[0];
+  if (!a) return null;
+  if (a.fileSize && a.fileSize > 5 * 1024 * 1024) {
+    notify('Photo too large', 'Please choose a photo under 5 MB.');
+    return null;
+  }
+  return { uri: a.uri, mime: a.mimeType };
+}
+
 function EditProfileSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const c = useColors();
   const { profile } = useAuth();
   const update = useUpdateProfile();
+  const setAvatar = useSetAvatar();
   const [name, setName] = useState('');
   const [gcash, setGcash] = useState('');
+  /** Staged photo change, applied on Save: a new photo, 'remove', or null for no change. */
+  const [photo, setPhoto] = useState<Photo | 'remove' | null>(null);
 
   const [wasOpen, setWasOpen] = useState(false);
   if (open !== wasOpen) {
@@ -174,24 +200,44 @@ function EditProfileSheet({ open, onClose }: { open: boolean; onClose: () => voi
     if (open && profile) {
       setName(profile.full_name);
       setGcash(profile.gcash_number ?? '');
+      setPhoto(null);
     }
   }
 
+  const preview = photo === 'remove' ? null : (photo?.uri ?? profile?.avatar_url);
+  const choose = async (camera: boolean) => {
+    const p = await pickPhoto(camera);
+    if (p) setPhoto(p);
+  };
+  const saving = update.isPending || setAvatar.isPending;
+  const save = async () => {
+    try {
+      if (photo) await setAvatar.mutateAsync(photo === 'remove' ? null : photo);
+      await update.mutateAsync({ full_name: name.trim(), gcash_number: gcash.trim() || null });
+      onClose();
+    } catch (e) {
+      notifyError(e, 'Couldn’t save');
+    }
+  };
+
   return (
     <Sheet open={open} onClose={onClose} title="Edit profile">
+      <View style={{ alignItems: 'center', gap: 12, paddingVertical: 4 }}>
+        <PressableScale onPress={() => choose(false)} scaleTo={0.95} accessibilityLabel="Choose profile picture">
+          <Avatar name={name || profile?.full_name} seed={profile?.id} uri={preview} size={92} ring={c.border} />
+          <View style={[styles.camBadge, styles.camBadgeLg, { backgroundColor: c.brand, borderColor: c.surface }]}>
+            <Feather name="camera" size={15} color={c.onBrand} />
+          </View>
+        </PressableScale>
+        <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <Button title={preview ? 'Change photo' : 'Upload photo'} icon="image" size="sm" variant="secondary" full={false} onPress={() => choose(false)} />
+          {Platform.OS !== 'web' && <Button title="Take photo" icon="camera" size="sm" variant="secondary" full={false} onPress={() => choose(true)} />}
+          {preview && <Button title="Remove" icon="trash-2" size="sm" variant="danger" full={false} onPress={() => setPhoto('remove')} />}
+        </View>
+      </View>
       <Input label="Full name" value={name} onChangeText={setName} />
       <Input label="GCash / Maya number" value={gcash} onChangeText={setGcash} keyboardType="phone-pad" />
-      <Button
-        title="Save changes"
-        loading={update.isPending}
-        disabled={name.trim().length < 2}
-        onPress={() =>
-          update.mutate(
-            { full_name: name.trim(), gcash_number: gcash.trim() || null },
-            { onSuccess: onClose, onError: (e) => notifyError(e, 'Couldn’t save') },
-          )
-        }
-      />
+      <Button title="Save changes" loading={saving} disabled={name.trim().length < 2 || saving} onPress={save} />
     </Sheet>
   );
 }
@@ -203,20 +249,10 @@ function PhotoSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [busy, setBusy] = useState<'pick' | 'remove' | null>(null);
 
   const pick = async (camera: boolean) => {
-    const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 };
-    if (camera) {
-      const p = await ImagePicker.requestCameraPermissionsAsync();
-      if (!p.granted) return notify('Camera access needed', 'Allow camera access in your phone settings to take a photo.');
-    }
-    const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-    const a = res.canceled ? null : res.assets[0];
-    if (!a) return;
-    if (a.fileSize && a.fileSize > 5 * 1024 * 1024) return notify('Photo too large', 'Please choose a photo under 5 MB.');
+    const p = await pickPhoto(camera);
+    if (!p) return;
     setBusy('pick');
-    setAvatar.mutate(
-      { uri: a.uri, mime: a.mimeType },
-      { onSuccess: onClose, onError: (e) => notifyError(e, 'Couldn’t upload photo'), onSettled: () => setBusy(null) },
-    );
+    setAvatar.mutate(p, { onSuccess: onClose, onError: (e) => notifyError(e, 'Couldn’t upload photo'), onSettled: () => setBusy(null) });
   };
   const remove = () => {
     setBusy('remove');
@@ -239,6 +275,7 @@ function PhotoSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  camBadgeLg: { width: 32, height: 32, borderRadius: 16, right: 0, bottom: 0 },
   camBadge: { position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 });
