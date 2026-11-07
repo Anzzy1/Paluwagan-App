@@ -9,7 +9,7 @@ import { GoalRow } from '@/components/ipon/GoalRow';
 import { ManagedCard } from '@/components/ManagedCard';
 import { Mascot } from '@/components/Mascot';
 import { BubbleButton, MascotBand, MASCOT_NAME } from '@/components/MascotBand';
-import { ProgressRing, type IconName } from '@/components/ui/bits';
+import { Avatar, ProgressRing, type IconName } from '@/components/ui/bits';
 import { Card } from '@/components/ui/Card';
 import { IconTile } from '@/components/ui/Featured';
 import { type NavIconName } from '@/components/NavIcons';
@@ -75,15 +75,8 @@ export default function Home() {
   const header = (
     <View style={{ gap: 14 }}>
       <View style={styles.headerRow}>
-        <PressableScale onPress={() => router.push('/profile')} hapticOnPress={false} style={[styles.round, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Feather name="zap" size={18} color={streak > 0 ? c.warning : c.textFaint} />
-          {streak > 0 && (
-            <View style={[styles.streakCount, { backgroundColor: c.warning }]}>
-              <Text variant="caption" color="#fff" style={{ fontSize: 10, lineHeight: 13 }}>
-                {streak}
-              </Text>
-            </View>
-          )}
+        <PressableScale onPress={() => router.push('/profile')} hapticOnPress={false} scaleTo={0.94} accessibilityLabel="Profile">
+          <Avatar name={profile?.full_name} seed={profile?.id} uri={profile?.avatar_url} size={44} ring={c.surface} />
         </PressableScale>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {[
@@ -384,7 +377,6 @@ export default function Home() {
 const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   round: { width: 44, height: 44, borderRadius: 22, borderWidth: 0, alignItems: 'center', justifyContent: 'center' },
-  streakCount: { position: 'absolute', top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   actions: { flexDirection: 'row', justifyContent: 'space-between', gap: 6 },
   action: { flex: 1, alignItems: 'center', gap: 8 },
