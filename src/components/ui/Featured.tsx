@@ -46,16 +46,12 @@ export function FeatureCard({
   );
 }
 
-/**
- * Rounded-square icon tile in the brand green. `solid` is the primary action (green fill, white glyph);
- * `soft` is a secondary action (mint fill, green glyph), mirroring the primary/secondary button pair.
- */
-export function IconTile({ icon, tone = 'soft', size = 48 }: { icon: NavIconName; tone?: 'solid' | 'soft'; size?: number }) {
+/** Rounded-square icon tile styled like the primary Button: solid brand green, same corner radius, white glyph. */
+export function IconTile({ icon, size = 48 }: { icon: NavIconName; size?: number }) {
   const c = useColors();
-  const solid = tone === 'solid';
   return (
-    <View style={{ width: size, height: size, borderRadius: Math.round(size * 0.32), backgroundColor: solid ? c.brand : c.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-      <NavIcon name={icon} size={Math.round(size * 0.5)} color={solid ? c.onBrand : c.brandDeep} active weight={2.2} />
+    <View style={{ width: size, height: size, borderRadius: radius.md, backgroundColor: c.brand, alignItems: 'center', justifyContent: 'center' }}>
+      <NavIcon name={icon} size={Math.round(size * 0.5)} color={c.onBrand} active weight={2.2} />
     </View>
   );
 }

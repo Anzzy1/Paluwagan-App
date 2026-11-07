@@ -131,17 +131,16 @@ export default function Home() {
   );
 
   // ---------------- quick actions
-  const actions: { icon: NavIconName; label: string; tone: 'solid' | 'soft'; onPress: () => void }[] = [
-    { icon: 'create', label: 'Create', tone: 'solid', onPress: () => router.push('/create') },
-    { icon: 'join', label: 'Join', tone: 'soft', onPress: () => router.push('/join') },
+  const actions: { icon: NavIconName; label: string; onPress: () => void }[] = [
+    { icon: 'create', label: 'Create', onPress: () => router.push('/create') },
+    { icon: 'join', label: 'Join', onPress: () => router.push('/join') },
     {
-      tone: 'soft',
       icon: 'pay',
       label: 'Pay',
       onPress: () => (dues[0] ? router.push(`/circle/${dues[0].mc.circle.id}/round/${dues[0].round.id}`) : router.push('/circles')),
     },
-    { icon: 'ipon', label: 'Ipon', tone: 'soft', onPress: () => router.push('/ipon' as Href) },
-    { icon: 'assistant', label: `${MASCOT_NAME} AI`, tone: 'soft', onPress: () => router.push('/assistant' as Href) },
+    { icon: 'ipon', label: 'Ipon', onPress: () => router.push('/ipon' as Href) },
+    { icon: 'assistant', label: `${MASCOT_NAME} AI`, onPress: () => router.push('/assistant' as Href) },
   ];
   const quick = (
     <Card style={{ gap: 14 }}>
@@ -149,7 +148,7 @@ export default function Home() {
       <View style={styles.actions}>
         {actions.map((a) => (
           <PressableScale key={a.label} onPress={a.onPress} style={styles.action}>
-            <IconTile icon={a.icon} tone={a.tone} size={desktop ? 52 : 48} />
+            <IconTile icon={a.icon} size={desktop ? 52 : 48} />
             <Text variant="smallBold" numberOfLines={1} style={{ fontSize: 12 }}>
               {a.label}
             </Text>

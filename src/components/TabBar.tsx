@@ -1,5 +1,4 @@
 import { Feather } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
@@ -67,7 +66,7 @@ function TabButton({ icon, label, index, onFocused, isFocused, onPress, ref: _re
   );
 }
 
-/** Mobile bottom navigation: floating bar with a sliding gradient pill, plus a round quick-add button. */
+/** Mobile bottom navigation: floating bar with a sliding brand-green pill, plus a round quick-add button. */
 export function TabBar() {
   const c = useColors();
   const dark = useIsDark();
@@ -91,8 +90,6 @@ export function TabBar() {
   const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
 
   const shadow = { shadowColor: c.shadow, shadowOpacity: dark ? 0 : 0.1, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 10 };
-  const glow = { shadowColor: c.brand, shadowOpacity: dark ? 0.45 : 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } };
-  const grad = (dark ? ['#4BE08D', '#1FA85C'] : ['#2BC864', '#12813B']) as [string, string];
 
   return (
     <>
@@ -100,21 +97,14 @@ export function TabBar() {
         <View
           onLayout={(e: LayoutChangeEvent) => setBarW(e.nativeEvent.layout.width)}
           style={[styles.bar, { backgroundColor: c.surface, borderColor: dark ? c.border : 'rgba(12,20,16,0.04)' }, shadow]}>
-          {tabW > 0 && (
-            <Animated.View pointerEvents="none" style={[styles.pill, { width: tabW - PILL_INSET * 2 }, glow, pillStyle]}>
-              <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 22 }]} />
-              <View style={styles.pillShine} />
-            </Animated.View>
-          )}
+          {tabW > 0 && <Animated.View pointerEvents="none" style={[styles.pill, { width: tabW - PILL_INSET * 2, backgroundColor: c.brand }, pillStyle]} />}
           {TABS.map((t, i) => (
             <TabTrigger key={t.name} name={t.name} asChild>
               <TabButton icon={t.icon} label={t.label} index={i} onFocused={setActive} />
             </TabTrigger>
           ))}
         </View>
-        <PressableScale onPress={() => setOpen(true)} scaleTo={0.9} accessibilityLabel="New circle" style={[styles.plus, glow, { shadowRadius: 12, shadowOpacity: 0.3, elevation: 8 }]}>
-          <LinearGradient colors={grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[StyleSheet.absoluteFill, { borderRadius: 31 }]} />
-          <View style={[styles.plusRing, { borderColor: 'rgba(255,255,255,0.28)' }]} />
+        <PressableScale onPress={() => setOpen(true)} scaleTo={0.9} accessibilityLabel="New circle" style={[styles.plus, { backgroundColor: c.brand }, shadow]}>
           <Feather name="plus" size={28} color={c.onBrand} />
         </PressableScale>
       </View>
@@ -127,9 +117,7 @@ const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 14, right: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
   bar: { flex: 1, flexDirection: 'row', borderRadius: 28, borderWidth: 1, paddingVertical: PAD_Y, paddingHorizontal: PAD_X },
   pill: { position: 'absolute', top: PAD_Y, bottom: PAD_Y, left: 0, borderRadius: 22 },
-  pillShine: { position: 'absolute', top: 0.5, left: 16, right: 16, height: 1, backgroundColor: 'rgba(255,255,255,0.45)' },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 1, paddingVertical: 6 },
   iconWrap: { height: ICON_H, alignItems: 'center', justifyContent: 'center' },
   plus: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center' },
-  plusRing: { position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderRadius: 27, borderWidth: 1 },
 });
