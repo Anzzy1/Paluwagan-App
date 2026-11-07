@@ -13,7 +13,7 @@ import { useAuth } from '@/lib/auth';
 import { describeActivity } from '@/lib/activityText';
 import { demoState } from '@/lib/demo';
 import { summarize, unpaid } from '@/lib/derive';
-import { daysUntil, payoutShort, peso } from '@/lib/format';
+import { daysUntil, payoutShort, pesoRaw as peso } from '@/lib/format';
 import { goalProgress, iponStreak, planPer } from '@/lib/ipon';
 import { managedSummary, potOfManaged, useManagedCircles } from '@/lib/local';
 import { onTimeStreak } from '@/lib/rewards';

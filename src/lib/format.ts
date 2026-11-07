@@ -1,6 +1,14 @@
+import { settings } from '@/lib/prefs';
 import type { Circle, Contribution, DisplayStatus, Frequency, Member, Round } from '@/lib/types';
 
+/** Formats pesos for display; shows ₱••• when "Hide amounts" is on. */
 export function peso(n: number | string, opts: { compact?: boolean } = {}): string {
+  if (settings.hideAmounts) return '₱•••';
+  return pesoRaw(n, opts);
+}
+
+/** Always the real figure (for data sent to the AI, exports, etc.). */
+export function pesoRaw(n: number | string, opts: { compact?: boolean } = {}): string {
   const v = Number(n) || 0;
   if (opts.compact && Math.abs(v) >= 1000) {
     const k = v / 1000;

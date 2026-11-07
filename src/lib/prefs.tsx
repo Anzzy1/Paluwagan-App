@@ -7,11 +7,29 @@ import { DESKTOP_BREAKPOINT, palette, type Colors } from '@/theme/tokens';
 
 export type ThemePref = 'system' | 'light' | 'dark';
 
+/** On/off device settings, stored in kv as '1'/'0'. */
+export type Toggles = { hideAmounts: boolean; haptics: boolean; celebrations: boolean; mascotTips: boolean; push: boolean };
+const TOGGLE_DEFAULTS: Toggles = { hideAmounts: false, haptics: true, celebrations: true, mascotTips: true, push: true };
+
+function readToggles(): Toggles {
+  const out = { ...TOGGLE_DEFAULTS };
+  for (const k of Object.keys(out) as (keyof Toggles)[]) {
+    const v = kv.get(`pref.${k}`);
+    if (v !== null) out[k] = v === '1';
+  }
+  return out;
+}
+
+/** Live copy for plain functions (peso, haptic) that can't use hooks. Updated by the provider. */
+export const settings: Toggles = readToggles();
+
 type Prefs = {
   themePref: ThemePref;
   setThemePref: (t: ThemePref) => void;
   onboarded: boolean;
   setOnboarded: (v: boolean) => void;
+  toggles: Toggles;
+  setToggle: (k: keyof Toggles, v: boolean) => void;
 };
 
 const PrefsContext = createContext<Prefs | null>(null);
@@ -19,6 +37,7 @@ const PrefsContext = createContext<Prefs | null>(null);
 export function PrefsProvider({ children }: { children: ReactNode }) {
   const [themePref, setThemeState] = useState<ThemePref>(() => (kv.get('theme') as ThemePref) || 'system');
   const [onboarded, setOnbState] = useState(() => kv.get('onboarded') === '1');
+  const [toggles, setToggles] = useState<Toggles>(() => ({ ...settings }));
 
   const setThemePref = useCallback((t: ThemePref) => {
     kv.set('theme', t);
@@ -29,9 +48,15 @@ export function PrefsProvider({ children }: { children: ReactNode }) {
     setOnbState(v);
   }, []);
 
+  const setToggle = useCallback((k: keyof Toggles, v: boolean) => {
+    kv.set(`pref.${k}`, v ? '1' : '0');
+    settings[k] = v;
+    setToggles((t) => ({ ...t, [k]: v }));
+  }, []);
+
   const value = useMemo(
-    () => ({ themePref, setThemePref, onboarded, setOnboarded }),
-    [themePref, setThemePref, onboarded, setOnboarded],
+    () => ({ themePref, setThemePref, onboarded, setOnboarded, toggles, setToggle }),
+    [themePref, setThemePref, onboarded, setOnboarded, toggles, setToggle],
   );
   return <PrefsContext.Provider value={value}>{children}</PrefsContext.Provider>;
 }

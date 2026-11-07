@@ -1,11 +1,12 @@
 import * as Haptics from 'expo-haptics';
 import { Platform, Pressable, type PressableProps, type StyleProp, type ViewStyle } from 'react-native';
+import { settings } from '@/lib/prefs';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function haptic(kind: 'light' | 'medium' | 'success' | 'warning' = 'light') {
-  if (Platform.OS === 'web') return;
+  if (Platform.OS === 'web' || !settings.haptics) return;
   if (kind === 'success') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   else if (kind === 'warning') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
   else Haptics.impactAsync(kind === 'medium' ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);

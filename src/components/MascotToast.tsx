@@ -9,7 +9,7 @@ import { MASCOT_NAME } from '@/components/MascotBand';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { dismissReaction, useReaction, type Reaction } from '@/lib/reactions';
-import { useColors, useIsDark, useIsDesktop } from '@/lib/prefs';
+import { useColors, useIsDark, useIsDesktop, usePrefs } from '@/lib/prefs';
 import { radius } from '@/theme/tokens';
 
 const SHOW_MS = 5200;
@@ -75,7 +75,8 @@ function Toast({ r }: { r: Reaction }) {
 /** Mount once near the root: shows Ipon's reaction cards as they come in. */
 export function MascotToastHost() {
   const r = useReaction();
-  if (!r) return null;
+  const { toggles } = usePrefs();
+  if (!r || !toggles.mascotTips) return null;
   return <Toast key={r.id} r={r} />;
 }
 

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 
+import { settings } from '@/lib/prefs';
 import { circleTints } from '@/theme/tokens';
 
 const COLORS = Object.values(circleTints).map((t) => t.strong);
@@ -51,7 +52,7 @@ function Piece({ i, run }: { i: number; run: number }) {
 
 /** Fire by changing `run` to a new non-zero number. */
 export function Confetti({ run, count = 60 }: { run: number; count?: number }) {
-  if (!run) return null;
+  if (!run || !settings.celebrations) return null;
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       {Array.from({ length: count }, (_, i) => (

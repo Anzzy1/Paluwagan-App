@@ -7,6 +7,7 @@ import { Platform } from 'react-native';
 
 import { useAuth } from '@/lib/auth';
 import { demoState } from '@/lib/demo';
+import { usePrefs } from '@/lib/prefs';
 import { supabase } from '@/lib/supabase';
 
 Notifications.setNotificationHandler({
@@ -25,9 +26,10 @@ Notifications.setNotificationHandler({
  */
 export function usePushRegistration() {
   const { userId, profile } = useAuth();
+  const { toggles } = usePrefs();
 
   useEffect(() => {
-    if (!userId || demoState.on || Platform.OS === 'web' || !Device.isDevice) return;
+    if (!toggles.push || !userId || demoState.on || Platform.OS === 'web' || !Device.isDevice) return;
     const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
     if (!projectId) return;
     let cancelled = false;
@@ -54,7 +56,7 @@ export function usePushRegistration() {
     return () => {
       cancelled = true;
     };
-  }, [userId, profile?.push_token]);
+  }, [toggles.push, userId, profile?.push_token]);
 
   // Tapping a notification deep-links into the circle.
   useEffect(() => {
@@ -65,4 +67,10 @@ export function usePushRegistration() {
     });
     return () => sub.remove();
   }, []);
+}
+
+/** Stops push to this account by removing the stored device token. */
+export async function disablePush(userId: string | null) {
+  if (!userId || demoState.on) return;
+  await supabase.from('profiles').update({ push_token: null }).eq('id', userId);
 }
