@@ -1,4 +1,3 @@
-import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -46,7 +45,7 @@ export function GoalSheet({
   const del = useDeleteGoal();
   const [title, setTitle] = useState('');
   const [target, setTarget] = useState('');
-  const [icon, setIcon] = useState<string>('star');
+  const [icon, setIcon] = useState<string>('dollar-sign');
   const [circleId, setCircleId] = useState<string | null>(null);
   const [deadline, setDeadline] = useState<string | null>(null);
   const [pickDate, setPickDate] = useState(false);
@@ -60,7 +59,7 @@ export function GoalSheet({
     if (open) {
       setTitle(goal?.title ?? '');
       setTarget(goal ? String(goal.target) : '');
-      setIcon(goal?.emoji && goal.emoji in Feather.glyphMap ? goal.emoji : 'star');
+      setIcon(goal?.emoji && (circleIcons as readonly string[]).includes(goal.emoji) ? goal.emoji : 'dollar-sign');
       setCircleId(goal?.circle_id ?? null);
       setDeadline(goal?.deadline ?? null);
       setPickDate(false);

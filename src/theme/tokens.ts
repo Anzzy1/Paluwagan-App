@@ -97,25 +97,13 @@ export const font = {
 /** Icons offered for circles and goals, with what the money is for (stored in the `emoji` columns). */
 export const iconChoices = [
   { icon: 'dollar-sign', label: 'Savings' },
+  { icon: 'umbrella', label: 'Emergency' },
   { icon: 'home', label: 'House' },
   { icon: 'book-open', label: 'School' },
   { icon: 'briefcase', label: 'Business' },
-  { icon: 'umbrella', label: 'Emergency' },
-  { icon: 'globe', label: 'Travel' },
-  { icon: 'gift', label: 'Gifts' },
-  { icon: 'heart', label: 'Wedding' },
-  { icon: 'award', label: 'Graduation' },
-  { icon: 'smartphone', label: 'Gadgets' },
   { icon: 'truck', label: 'Vehicle' },
-  { icon: 'shopping-bag', label: 'Shopping' },
-  { icon: 'coffee', label: 'Food' },
-  { icon: 'activity', label: 'Health' },
-  { icon: 'zap', label: 'Bills' },
+  { icon: 'globe', label: 'Travel' },
   { icon: 'users', label: 'Barkada' },
-  { icon: 'sun', label: 'Vacation' },
-  { icon: 'music', label: 'Events' },
-  { icon: 'tool', label: 'Repairs' },
-  { icon: 'star', label: 'Dream' },
 ] as const;
 export const circleIcons = iconChoices.map((x) => x.icon);
 
