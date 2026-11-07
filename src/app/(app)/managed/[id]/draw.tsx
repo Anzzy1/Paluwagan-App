@@ -30,7 +30,7 @@ export default function ManagedDraw() {
 
   if (!circle) {
     return (
-      <Screen back title="Circle not found">
+      <Screen back title="Paluwagan not found">
         <View />
       </Screen>
     );
@@ -126,10 +126,10 @@ export default function ManagedDraw() {
             main={
               <>
                 {done && (
-                  <Notice tone="success" icon="check-circle" title="Payout order is set!" body="The circle has started. Track payments from the circle page." />
+                  <Notice tone="success" icon="check-circle" title="Payout order is set!" body="The paluwagan has started. Track payments from the paluwagan page." />
                 )}
                 {results}
-                <Button title="Go to circle" icon="arrow-right" onPress={() => router.replace(`/managed/${circle.id}` as Href)} />
+                <Button title="Go to paluwagan" icon="arrow-right" onPress={() => router.replace(`/managed/${circle.id}` as Href)} />
               </>
             }
             side={

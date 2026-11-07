@@ -66,7 +66,7 @@ export default function NotConfigured() {
       subtitle={
         guestMode
           ? 'During testing the app opens on a guest account, so no sign-in is required. Supabase needs anonymous sign-ins turned on for that.'
-          : 'Paluwagan needs a Supabase project before it can store circles.'
+          : 'Paluwagan needs a Supabase project before it can store paluwagan.'
       }
       footer={footer}>
       <Steps steps={guestMode ? GUEST_STEPS : BACKEND_STEPS} />

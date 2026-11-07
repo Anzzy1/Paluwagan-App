@@ -265,7 +265,7 @@ export function useJoinCircle() {
     mutationFn: async (v: { code: string; hati: boolean; password: string }) => {
       const id = await rpc<string | null>('request_join', { p_code: v.code, p_hati: v.hati, p_password: v.password || null });
       // The server returns null (not an error) for a wrong password so it can count attempts.
-      if (!id) throw new Error('Incorrect password. Ask your circle admin for the right one.');
+      if (!id) throw new Error('Incorrect password. Ask your paluwagan admin for the right one.');
       return id;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['preview'] }),

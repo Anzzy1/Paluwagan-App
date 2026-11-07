@@ -11,13 +11,16 @@ import { haptic, PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { useColors, useIsDark } from '@/lib/prefs';
 
-const TABS: { name: string; icon: NavIconName; label: string }[] = [
+/** Paluwagan is the app's core, so it sits in the middle, a bit wider and highlighted. */
+const TABS: { name: string; icon: NavIconName; label: string; featured?: boolean }[] = [
   { name: 'index', icon: 'home', label: 'Home' },
-  { name: 'circles', icon: 'circles', label: 'Circles' },
   { name: 'ipon', icon: 'ipon', label: 'Ipon' },
+  { name: 'circles', icon: 'circles', label: 'Paluwagan', featured: true },
   { name: 'activity', icon: 'activity', label: 'Activity' },
   { name: 'profile', icon: 'profile', label: 'Profile' },
 ];
+const WEIGHT = (featured?: boolean) => (featured ? 1.6 : 1);
+const TOTAL_WEIGHT = TABS.reduce((s, t) => s + WEIGHT(t.featured), 0);
 
 const PAD_X = 5;
 const PAD_Y = 5;
@@ -26,9 +29,9 @@ const ICON_H = 26;
 const PILL_INSET = 1;
 const SPRING = { damping: 17, stiffness: 210, mass: 0.8 };
 
-type TabButtonProps = TabTriggerSlotProps & { icon: NavIconName; label: string; index: number; onFocused: (i: number) => void };
+type TabButtonProps = TabTriggerSlotProps & { icon: NavIconName; label: string; index: number; featured?: boolean; onFocused: (i: number) => void };
 
-function TabButton({ icon, label, index, onFocused, isFocused, onPress, ref: _ref, ...props }: TabButtonProps) {
+function TabButton({ icon, label, index, featured, onFocused, isFocused, onPress, ref: _ref, ...props }: TabButtonProps) {
   const c = useColors();
   const progress = useSharedValue(isFocused ? 1 : 0);
 
@@ -48,18 +51,18 @@ function TabButton({ icon, label, index, onFocused, isFocused, onPress, ref: _re
         if (!isFocused) haptic('light');
         onPress?.(e);
       }}
-      style={styles.tab}
+      style={[styles.tab, { flex: WEIGHT(featured) }]}
       accessibilityRole="tab"
       accessibilityLabel={label}
       accessibilityState={{ selected: isFocused }}>
       <Animated.View style={[styles.iconWrap, iconStyle]}>
-        <NavIcon name={icon} size={22} active={isFocused} color={isFocused ? c.onBrand : c.textFaint} />
+        <NavIcon name={icon} size={featured ? 25 : 22} active={isFocused || featured} color={isFocused ? c.onBrand : featured ? c.brandText : c.textFaint} />
       </Animated.View>
       <Text
         variant="caption"
         numberOfLines={1}
-        style={{ fontSize: 11, letterSpacing: 0.1, fontWeight: isFocused ? '700' : '500' }}
-        color={isFocused ? c.onBrand : c.textFaint}>
+        style={{ fontSize: featured ? 12 : 11, letterSpacing: featured ? 0 : 0.1, fontWeight: isFocused || featured ? '700' : '500' }}
+        color={isFocused ? c.onBrand : featured ? c.brandText : c.textFaint}>
         {label}
       </Text>
     </Pressable>
@@ -75,19 +78,23 @@ export function TabBar() {
   const [barW, setBarW] = useState(0);
   const [active, setActive] = useState(0);
   const x = useSharedValue(0);
+  const w = useSharedValue(0);
   const placed = useRef(false);
 
-  const tabW = barW > 0 ? (barW - PAD_X * 2) / TABS.length : 0;
+  const unit = barW > 0 ? (barW - PAD_X * 2) / TOTAL_WEIGHT : 0;
 
   useEffect(() => {
-    if (!tabW) return;
-    const target = PAD_X + active * tabW + PILL_INSET;
-    // First placement jumps; after that the pill glides between tabs.
-    x.set(placed.current ? withSpring(target, SPRING) : target);
+    if (!unit) return;
+    const before = TABS.slice(0, active).reduce((s, t) => s + WEIGHT(t.featured), 0);
+    const targetX = PAD_X + before * unit + PILL_INSET;
+    const targetW = WEIGHT(TABS[active].featured) * unit - PILL_INSET * 2;
+    // First placement jumps; after that the pill glides (and stretches) between tabs.
+    x.set(placed.current ? withSpring(targetX, SPRING) : targetX);
+    w.set(placed.current ? withSpring(targetW, SPRING) : targetW);
     placed.current = true;
-  }, [active, tabW, x]);
+  }, [active, unit, x, w]);
 
-  const pillStyle = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }));
+  const pillStyle = useAnimatedStyle(() => ({ width: w.get(), transform: [{ translateX: x.get() }] }));
 
   const shadow = { shadowColor: c.shadow, shadowOpacity: dark ? 0 : 0.1, shadowRadius: 22, shadowOffset: { width: 0, height: 10 }, elevation: 10 };
 
@@ -97,14 +104,14 @@ export function TabBar() {
         <View
           onLayout={(e: LayoutChangeEvent) => setBarW(e.nativeEvent.layout.width)}
           style={[styles.bar, { backgroundColor: c.surface, borderColor: dark ? c.border : 'rgba(12,20,16,0.04)' }, shadow]}>
-          {tabW > 0 && <Animated.View pointerEvents="none" style={[styles.pill, { width: tabW - PILL_INSET * 2, backgroundColor: c.brand }, pillStyle]} />}
+          {unit > 0 && <Animated.View pointerEvents="none" style={[styles.pill, { backgroundColor: c.brand }, pillStyle]} />}
           {TABS.map((t, i) => (
             <TabTrigger key={t.name} name={t.name} asChild>
-              <TabButton icon={t.icon} label={t.label} index={i} onFocused={setActive} />
+              <TabButton icon={t.icon} label={t.label} index={i} featured={t.featured} onFocused={setActive} />
             </TabTrigger>
           ))}
         </View>
-        <PressableScale onPress={() => setOpen(true)} scaleTo={0.9} accessibilityLabel="New circle" style={[styles.plus, { backgroundColor: c.brand }, shadow]}>
+        <PressableScale onPress={() => setOpen(true)} scaleTo={0.9} accessibilityLabel="New paluwagan" style={[styles.plus, { backgroundColor: c.brand }, shadow]}>
           <Feather name="plus" size={28} color={c.onBrand} />
         </PressableScale>
       </View>
@@ -114,10 +121,10 @@ export function TabBar() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: 14, right: 14, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  wrap: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
   bar: { flex: 1, flexDirection: 'row', borderRadius: 28, borderWidth: 1, paddingVertical: PAD_Y, paddingHorizontal: PAD_X },
   pill: { position: 'absolute', top: PAD_Y, bottom: PAD_Y, left: 0, borderRadius: 22 },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 1, paddingVertical: 6 },
   iconWrap: { height: ICON_H, alignItems: 'center', justifyContent: 'center' },
-  plus: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center' },
+  plus: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
 });

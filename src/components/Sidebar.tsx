@@ -21,7 +21,7 @@ type Item = { href: '/' | '/circles' | '/ipon' | '/assistant' | '/activity' | '/
 
 const ITEMS: Item[] = [
   { href: '/', icon: 'home', label: 'Home' },
-  { href: '/circles', icon: 'circles', label: 'Circles' },
+  { href: '/circles', icon: 'circles', label: 'Paluwagan' },
   { href: '/ipon', icon: 'ipon', label: 'Ipon' },
   { href: '/assistant', icon: 'assistant', label: 'Ask Ipon' },
   { href: '/activity', icon: 'activity', label: 'Activity' },
@@ -46,7 +46,7 @@ export function Sidebar() {
         <Logo />
       </View>
 
-      <Button title="New circle" icon="plus" size="md" onPress={() => setOpen(true)} />
+      <Button title="New paluwagan" icon="plus" size="md" onPress={() => setOpen(true)} />
 
       <View style={{ gap: 4 }}>
         {ITEMS.map((it) => {
@@ -70,7 +70,7 @@ export function Sidebar() {
       {(!!circles.data?.length || managed.length > 0) && (
         <View style={{ gap: 4 }}>
           <Text variant="overline" tone="faint" style={{ paddingHorizontal: 12, marginBottom: 4 }}>
-            My circles
+            My paluwagan
           </Text>
           {managed.slice(0, 4).map((m) => {
             const active = path.startsWith(`/managed/${m.id}`);

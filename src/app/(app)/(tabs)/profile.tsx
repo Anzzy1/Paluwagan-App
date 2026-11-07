@@ -122,7 +122,7 @@ export default function ProfileTab() {
           <Chip label={tl.label} tone={tl.tone} />
         </View>
         <Text variant="small" tone="muted">
-          Based on your on-time contributions across all circles. Admins see this when you request to join.
+          Based on your on-time contributions across all paluwagan. Admins see this when you request to join.
         </Text>
       </View>
       <Mascot size={64} mood={score >= 85 ? 'excited' : score >= 70 ? 'happy' : 'worried'} pose={score >= 85 ? 'cheer' : 'coin'} />
@@ -141,7 +141,7 @@ export default function ProfileTab() {
         }
         side={
           <View style={styles.stats}>
-            <Stat label="Circles" value={String(all.length)} />
+            <Stat label="Paluwagan" value={String(all.length)} />
             <Stat label="On-time rate" value={paid.length ? `${Math.round((onTime / paid.length) * 100)}%` : '—'} />
             <Stat label="Received" value={peso(received, { compact: true })} />
           </View>
@@ -268,7 +268,7 @@ function PhotoSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
       {Platform.OS !== 'web' && <Button title="Take a photo" icon="camera" variant="secondary" disabled={!!busy} onPress={() => pick(true)} />}
       {profile?.avatar_url && <Button title="Remove photo" icon="trash-2" variant="danger" loading={busy === 'remove'} disabled={!!busy} onPress={remove} />}
       <Text variant="small" tone="faint" center>
-        Your photo is visible to members of your circles.
+        Your photo is visible to members of your paluwagan.
       </Text>
     </Sheet>
   );

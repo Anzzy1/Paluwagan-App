@@ -32,8 +32,8 @@ export function NewCircleSheet({ open, onClose }: { open: boolean; onClose: () =
     setTimeout(() => router.push(path), 160);
   };
   return (
-    <Sheet open={open} onClose={onClose} title="Get started" subtitle="Start a new circle or join an existing one.">
-      <Option icon="plus" title="Create a circle" body="You’ll be the admin and can invite members." onPress={() => go('/create')} />
+    <Sheet open={open} onClose={onClose} title="Get started" subtitle="Start a new paluwagan or join an existing one.">
+      <Option icon="plus" title="Create a paluwagan" body="You’ll be the admin and can invite members." onPress={() => go('/create')} />
       <Option icon="log-in" title="Join with a code" body="Enter a 6-character invite code or scan a QR." onPress={() => go('/join')} />
     </Sheet>
   );

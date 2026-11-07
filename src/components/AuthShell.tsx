@@ -15,7 +15,7 @@ const FEATURES: { icon: IconName; title: string; body: string }[] = [
   { icon: 'shuffle', title: 'Verifiable draw', body: 'Payout order is committed before the draw and can be checked by every member.' },
   { icon: 'file-text', title: 'Proof of payment', body: 'Members upload receipts; recipients confirm every transfer.' },
   { icon: 'bell', title: 'Automatic reminders', body: 'Notifications before each due date, with one-tap nudges.' },
-  { icon: 'shield', title: 'Trust Score', body: 'An on-time payment record that follows each member across circles.' },
+  { icon: 'shield', title: 'Trust Score', body: 'An on-time payment record that follows each member across paluwagan.' },
 ];
 
 /** Auth screens: split layout on desktop, single column on mobile. */
@@ -61,7 +61,7 @@ export function AuthShell({
                 <Text variant="smallBold" color="#16A34A">
                   Hi! I’m Ipon.
                 </Text>
-                <Text variant="small">I’ll keep your circle fair and everyone on time.</Text>
+                <Text variant="small">I’ll keep your paluwagan fair and everyone on time.</Text>
               </View>
             </View>
             <Text variant="display" color="#FFFFFF" style={{ fontSize: 40, lineHeight: 46 }}>

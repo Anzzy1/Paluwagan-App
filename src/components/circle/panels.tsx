@@ -101,7 +101,7 @@ export function InvitePanel({ circle, isAdmin }: { circle: Pick<CircleDetail['ci
         </Text>
         {circle.has_password && (
           <Text variant="small" tone="muted" center>
-            Members will also need the circle password.
+            Members will also need the paluwagan password.
           </Text>
         )}
       </Sheet>

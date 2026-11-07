@@ -24,8 +24,8 @@ export default function CirclesTab() {
 
   const actions = (
     <>
-      <Button title={t('circles.join')} icon="log-in" size="md" variant="secondary" full={false} onPress={() => router.push('/join')} />
-      <Button title={t('circles.create')} icon="plus" size="md" full={false} onPress={() => router.push('/create')} />
+      <Button title={t('circles.join')} icon="log-in" size="md" variant="secondary" full={false} style={desktop ? undefined : { flex: 1, paddingHorizontal: 12 }} onPress={() => router.push('/join')} />
+      <Button title={t('circles.create')} icon="plus" size="md" full={false} style={desktop ? undefined : { flex: 1, paddingHorizontal: 12 }} onPress={() => router.push('/create')} />
     </>
   );
 
@@ -46,8 +46,8 @@ export default function CirclesTab() {
         <Card>
           <EmptyState
             icon={filter === 'done' ? 'flag' : 'layers'}
-            title={filter === 'done' ? 'No completed circles' : t('home.noCircles')}
-            body={filter === 'done' ? 'Circles you finish will appear here.' : t('home.noCirclesBody')}
+            title={filter === 'done' ? 'No completed paluwagan' : t('home.noCircles')}
+            body={filter === 'done' ? 'Paluwagan you finish will appear here.' : t('home.noCirclesBody')}
           />
         </Card>
       ) : (

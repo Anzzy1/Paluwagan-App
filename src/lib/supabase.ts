@@ -28,7 +28,7 @@ if (Platform.OS !== 'web') {
 /** Turn a PostgREST / RPC error into a readable message. */
 export function errMsg(e: unknown): string {
   if (!e) return 'Unknown error';
-  if (typeof e === 'string') return e;
-  if (typeof e === 'object' && e && 'message' in e) return String((e as { message: unknown }).message);
-  return String(e);
+  const raw = typeof e === 'string' ? e : typeof e === 'object' && 'message' in e ? String((e as { message: unknown }).message) : String(e);
+  // Database messages still say "circle"; the app calls it a paluwagan.
+  return raw.replace(/\b([Cc])ircles?\b/g, (_m, c: string) => (c === 'C' ? 'Paluwagan' : 'paluwagan'));
 }

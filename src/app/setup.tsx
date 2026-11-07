@@ -26,7 +26,7 @@ export default function Setup() {
   return (
     <AuthShell
       title={t('setup.title')}
-      subtitle="Members of your circles will see this information."
+      subtitle="Members of your paluwagan will see this information."
       footer={<Button title={t('setup.cta')} onPress={save} disabled={name.trim().length < 2} loading={update.isPending} />}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
         <Avatar name={name || '?'} seed={userId ?? undefined} size={56} />

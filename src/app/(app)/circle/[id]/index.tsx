@@ -58,8 +58,8 @@ export default function CircleScreen() {
   }
   if (q.error || !q.data) {
     return (
-      <Screen back title="Circle unavailable">
-        <Text tone="muted">You don’t have access to this circle, or it no longer exists.</Text>
+      <Screen back title="Paluwagan unavailable">
+        <Text tone="muted">You don’t have access to this paluwagan, or it no longer exists.</Text>
       </Screen>
     );
   }
@@ -136,10 +136,10 @@ export default function CircleScreen() {
             loading={action.isPending}
             onPress={() =>
               run(
-                'Lock this circle?',
+                'Lock this paluwagan?',
                 'No one else will be able to join. A secret seed is generated now and its fingerprint (hash) is shown to every member before the draw, proving the result can’t be changed.',
                 'lock_circle',
-                'Lock circle',
+                'Lock paluwagan',
               )
             }
           />
@@ -150,7 +150,7 @@ export default function CircleScreen() {
           )}
         </View>
       ) : (
-        <Button title={t('circle.leave')} variant="ghost" onPress={() => run('Leave this circle?', 'You can request to join again while it’s still open.', 'leave_circle', 'Leave')} />
+        <Button title={t('circle.leave')} variant="ghost" onPress={() => run('Leave this paluwagan?', 'You can request to join again while it’s still open.', 'leave_circle', 'Leave')} />
       )}
     </>
   );
@@ -163,7 +163,7 @@ export default function CircleScreen() {
       {circle.order_mode === 'draw' ? (
         <>
           <Text tone="muted">
-            This commitment was published when the circle was locked. After the draw, anyone can confirm the revealed seed matches it.
+            This commitment was published when the paluwagan was locked. After the draw, anyone can confirm the revealed seed matches it.
           </Text>
           <View style={[styles.hash, { backgroundColor: c.surfaceAlt }]}>
             <Text variant="caption" tone="faint">
@@ -189,7 +189,7 @@ export default function CircleScreen() {
           <Button
             title={t('circle.unlock')}
             variant="secondary"
-            onPress={() => run('Unlock this circle?', 'The circle will reopen for members and the commitment will be discarded.', 'unlock_circle', 'Unlock')}
+            onPress={() => run('Unlock this paluwagan?', 'The paluwagan will reopen for members and the commitment will be discarded.', 'unlock_circle', 'Unlock')}
             style={desktop ? { flex: 1 } : undefined}
           />
         </View>
@@ -288,7 +288,7 @@ export default function CircleScreen() {
   );
 
   const completed = circle.status === 'completed' && (
-    <Notice tone="success" icon="flag" title="This circle is complete" body={`All ${rounds.length} rounds have been paid out. Thank you for contributing on time.`} />
+    <Notice tone="success" icon="flag" title="This paluwagan is complete" body={`All ${rounds.length} rounds have been paid out. Thank you for contributing on time.`} />
   );
 
   const tabs: { value: Tab; label: string }[] = desktop

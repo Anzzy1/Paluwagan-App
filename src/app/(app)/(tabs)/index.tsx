@@ -171,7 +171,7 @@ export default function Home() {
           {s ? peso(s.myPayout) : '—'}
         </Text>
         <Text variant="caption" tone={s?.roundsAway === 0 ? 'brand' : 'muted'}>
-          {s ? (s.roundsAway === 0 ? 'This round!' : `In ${s.roundsAway} ${s.roundsAway === 1 ? 'round' : 'rounds'}`) : 'Join a circle to start'}
+          {s ? (s.roundsAway === 0 ? 'This round!' : `In ${s.roundsAway} ${s.roundsAway === 1 ? 'round' : 'rounds'}`) : 'Join a paluwagan to start'}
         </Text>
       </Card>
       <Card style={{ flex: 1, gap: 10 }} onPress={() => router.push('/profile')}>
@@ -265,7 +265,7 @@ export default function Home() {
   // ---------------- circles
   const circlesBlock = list.length || managed.length ? (
     <View style={{ gap: 12 }}>
-      <CardTitle title="My circles" action="See all" onAction={() => router.push('/circles')} />
+      <CardTitle title="My paluwagan" action="See all" onAction={() => router.push('/circles')} />
       {desktop ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
           {list.slice(0, 4).map((mc) => (
@@ -294,7 +294,7 @@ export default function Home() {
     <Card style={{ alignItems: 'center', gap: 12, paddingVertical: 26 }}>
       <Mascot size={96} mood="excited" pose="cheer" />
       <Text variant="h2" center>
-        Start your first circle
+        Start your first paluwagan
       </Text>
       <Text tone="muted" center style={{ maxWidth: 340 }}>
         Invite people you trust, run a fair draw, and track every contribution together.
@@ -303,7 +303,7 @@ export default function Home() {
         <PressableScale onPress={() => router.push('/create')} style={[styles.pillBtn, { backgroundColor: c.ink }]}>
           <Feather name="plus" size={16} color={c.onInk} />
           <Text variant="bodyBold" color={c.onInk}>
-            New circle
+            New paluwagan
           </Text>
         </PressableScale>
         <PressableScale onPress={() => router.push('/join')} style={[styles.pillBtn, { backgroundColor: c.surfaceAlt }]}>

@@ -13,7 +13,7 @@ export default function ActivityTab() {
     <Screen
       tabs
       title={t('tab.activity')}
-      subtitle="An audit trail of every action across your circles. Entries can’t be edited or deleted."
+      subtitle="An audit trail of every action across your paluwagan. Entries can’t be edited or deleted."
       refreshing={q.isRefetching}
       onRefresh={q.refetch}>
       <Card style={{ maxWidth: 760 }}>

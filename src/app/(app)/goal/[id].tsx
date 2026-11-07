@@ -135,7 +135,7 @@ export default function GoalDetail() {
         <View style={{ flex: 1 }}>
           <Text variant="h3">Smart plan</Text>
           <Text variant="small" tone="muted">
-            Ipon fits a plan around your circle dues and paydays.
+            Ipon fits a plan around your paluwagan dues and paydays.
           </Text>
         </View>
       </View>

@@ -32,11 +32,11 @@ export function badgesFor(circles: MyCircle[], profile: Profile | null): Badge[]
     { id: 'first', title: 'First Hulog', body: 'Make your first contribution', icon: 'check', color: '#16A34A', earned: paid.length >= 1 },
     { id: 'streak3', title: 'On a Roll', body: '3 on-time payments in a row', icon: 'zap', color: '#F2711C', earned: streak >= 3 },
     { id: 'ontime10', title: 'Always On Time', body: '10 on-time payments', icon: 'clock', color: '#2F6FEB', earned: onTime >= 10 },
-    { id: 'starter', title: 'Circle Starter', body: 'Create your own circle', icon: 'plus-circle', color: '#7350E8', earned: admin },
+    { id: 'starter', title: 'Paluwagan Starter', body: 'Create your own paluwagan', icon: 'plus-circle', color: '#7350E8', earned: admin },
     { id: 'payout', title: 'Payday!', body: 'Receive your first payout', icon: 'gift', color: '#E5365F', earned: payout },
     { id: 'trusted', title: 'Trusted', body: 'Reach a Trust Score of 90', icon: 'shield', color: '#D9961A', earned: (profile?.tiwala_score ?? 0) >= 90 },
-    { id: 'social', title: 'Barkada Builder', body: 'Join 3 circles', icon: 'users', color: '#16A34A', earned: circles.length >= 3 },
-    { id: 'finisher', title: 'Finisher', body: 'Complete a whole circle', icon: 'flag', color: '#13201B', earned: finished },
+    { id: 'social', title: 'Barkada Builder', body: 'Join 3 paluwagan', icon: 'users', color: '#16A34A', earned: circles.length >= 3 },
+    { id: 'finisher', title: 'Finisher', body: 'Complete a whole paluwagan', icon: 'flag', color: '#13201B', earned: finished },
   ];
 }
 
@@ -48,8 +48,8 @@ export function homeTip(circles: MyCircle[], firstName: string): Tip {
     return {
       mood: 'happy',
       pose: 'coin',
-      text: `Hi ${firstName}! I’m Ipon. Start a circle with people you trust, and I’ll keep everyone on track.`,
-      cta: { label: 'Create a circle', href: '/create' },
+      text: `Hi ${firstName}! I’m Ipon. Start a paluwagan with people you trust, and I’ll keep everyone on track.`,
+      cta: { label: 'Create a paluwagan', href: '/create' },
     };
   }
   const dues = circles

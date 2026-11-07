@@ -123,7 +123,7 @@ export function reactToPayout(recipient: string, pot: number, nextRound: number 
     pose: 'cheer',
     action: 'cheer',
     title: 'Payout released!',
-    text: nextRound ? `${peso(pot)} handed to ${recipient}. On to round ${nextRound}!` : `${peso(pot)} handed to ${recipient}. That was the last round. Circle complete!`,
+    text: nextRound ? `${peso(pot)} handed to ${recipient}. On to round ${nextRound}!` : `${peso(pot)} handed to ${recipient}. That was the last round. Paluwagan complete!`,
   });
 }
 

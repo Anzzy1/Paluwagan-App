@@ -12,7 +12,7 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
   const p = a.payload as Record<string, string | number | boolean | undefined>;
   switch (a.type) {
     case 'circle_created':
-      return { icon: 'plus-circle', tone: 'brand', text: `${who} created the circle` };
+      return { icon: 'plus-circle', tone: 'brand', text: `${who} created the paluwagan` };
     case 'member_requested':
       return { icon: 'user-plus', tone: 'info', text: `${who} requested to join${p.hati ? ' (split slot)' : ''}` };
     case 'member_approved':
@@ -20,13 +20,13 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
     case 'member_rejected':
       return { icon: 'user-x', tone: 'neutral', text: `${who} declined a join request` };
     case 'member_left':
-      return { icon: 'log-out', tone: 'neutral', text: `${who} left the circle` };
+      return { icon: 'log-out', tone: 'neutral', text: `${who} left the paluwagan` };
     case 'hati_paired':
       return { icon: 'users', tone: 'info', text: `${who} paired a split slot` };
     case 'circle_locked':
-      return { icon: 'lock', tone: 'info', text: `${who} locked the circle and published the draw commitment` };
+      return { icon: 'lock', tone: 'info', text: `${who} locked the paluwagan and published the draw commitment` };
     case 'circle_unlocked':
-      return { icon: 'unlock', tone: 'neutral', text: `${who} unlocked the circle` };
+      return { icon: 'unlock', tone: 'neutral', text: `${who} unlocked the paluwagan` };
     case 'draw_completed':
       return { icon: 'shuffle', tone: 'brand', text: 'The draw was completed and the payout order is set' };
     case 'order_set':
@@ -40,7 +40,7 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
     case 'round_completed':
       return { icon: 'award', tone: 'success', text: `Round ${p.round_no} is fully paid` };
     case 'circle_completed':
-      return { icon: 'flag', tone: 'brand', text: 'All rounds are complete. The circle has finished.' };
+      return { icon: 'flag', tone: 'brand', text: 'All rounds are complete. The paluwagan has finished.' };
     case 'swap_requested':
       return { icon: 'repeat', tone: 'info', text: `${who} requested a turn swap` };
     case 'swap_accepted':

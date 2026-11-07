@@ -40,7 +40,7 @@ export default function SettingsScreen() {
   const confirmNewGuest = () =>
     confirmAction(
       'Start as a new test user?',
-      'You’ll get a fresh guest account. The current guest can’t be restored, but circles it joined keep its records. Tip: use a private/incognito window to test as several members at once.',
+      'You’ll get a fresh guest account. The current guest can’t be restored, but paluwagan it joined keep its records. Tip: use a private/incognito window to test as several members at once.',
       newGuest,
       { confirmText: 'Start fresh', destructive: true },
     );
@@ -112,7 +112,7 @@ export default function SettingsScreen() {
           {isDemo ? (
             <Row icon="log-out" title="Exit sample data" subtitle="Go back to your own account" onPress={signOut} />
           ) : (
-            <Row icon="eye" title="Preview with sample data" subtitle="See the app filled with example circles" onPress={enterDemo} />
+            <Row icon="eye" title="Preview with sample data" subtitle="See the app filled with example paluwagan" onPress={enterDemo} />
           )}
           {(isGuest || isDemo) && (
             <>

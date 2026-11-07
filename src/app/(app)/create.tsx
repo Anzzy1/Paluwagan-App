@@ -23,7 +23,7 @@ import { circleIcons, circleTints, font, iconChoices, radius, tintNames, type Ci
 const DEFAULT_RULES = [
   '1. Contributions are due on or before each due date. Upload proof of payment in the app.',
   '2. The payout recipient confirms each payment once received.',
-  '3. Members who have received their payout must continue contributing until the circle ends.',
+  '3. Members who have received their payout must continue contributing until the paluwagan ends.',
   '4. Turn swaps require consent from both members and approval from the admin.',
 ].join('\n');
 
@@ -157,7 +157,7 @@ function CirclePreview({ name, icon, color, sub }: { name: string; icon: string;
       </View>
       <View style={{ flex: 1 }}>
         <Text variant="h2" color="#fff" numberOfLines={1}>
-          {name.trim() || 'Your circle'}
+          {name.trim() || 'Your paluwagan'}
         </Text>
         <Text variant="small" color="rgba(255,255,255,0.85)">
           {sub}
@@ -314,14 +314,14 @@ export default function CreateCircle() {
         first_payout_date: payout?.first_date ?? null,
         password,
       },
-      { onSuccess: (id) => router.replace(`/circle/${id}`), onError: (e) => notifyError(e, 'Couldn’t create circle') },
+      { onSuccess: (id) => router.replace(`/circle/${id}`), onError: (e) => notifyError(e, 'Couldn’t create paluwagan') },
     );
 
   const footer = (
     <View style={{ flexDirection: 'row', gap: 10 }}>
       {step > 0 && <Button title="Back" variant="secondary" onPress={() => setStep(step - 1)} style={{ flex: 1 }} />}
       <Button
-        title={last ? (managed ? 'Create managed circle' : 'Create circle') : 'Continue'}
+        title={last ? (managed ? 'Create managed paluwagan' : 'Create paluwagan') : 'Continue'}
         iconRight={last ? undefined : 'arrow-right'}
         onPress={() => (last ? submit() : setStep(step + 1))}
         disabled={!canNext}
@@ -337,7 +337,7 @@ export default function CreateCircle() {
         <CircleIcon icon={icon} color={color} size={44} />
         <View style={{ flex: 1 }}>
           <Text variant="h3" numberOfLines={1}>
-            {name || 'Untitled circle'}
+            {name || 'Untitled paluwagan'}
           </Text>
           <Text variant="small" tone="muted">
             {slotCount} {managed ? 'members' : 'slots'} · {payoutShort({ ...sched, payout })}
@@ -374,11 +374,11 @@ export default function CreateCircle() {
     <Animated.View key={step} entering={FadeIn.duration(220)} style={{ gap: 18 }}>
       {step === 0 && (
         <>
-          <Text variant="h2">How will this circle run?</Text>
+          <Text variant="h2">How will this paluwagan run?</Text>
           <TypeCard
             selected={!managed}
             icon="wifi"
-            title="Online circle"
+            title="Online paluwagan"
             body="Every member uses the app. They join with an invite code, upload receipts and confirm payments themselves."
             onPress={() => {
               setKind('online');
@@ -401,9 +401,9 @@ export default function CreateCircle() {
       {step === 1 && (
         <>
           <CirclePreview name={name} icon={icon} color={color} sub={`${peso(amt)} · ${scheduleShort(sched)}`} />
-          <Input label="Circle name" placeholder="e.g. Team Savings 2026" value={name} onChangeText={setName} maxLength={40} autoFocus />
+          <Input label="Paluwagan name" placeholder="e.g. Team Savings 2026" value={name} onChangeText={setName} maxLength={40} autoFocus />
           <View style={{ gap: 8 }}>
-            <Text variant="smallBold">What is this circle for?</Text>
+            <Text variant="smallBold">What is this paluwagan for?</Text>
             <IconPicker value={icon} onChange={setIcon} color={color} />
           </View>
           <View style={{ gap: 8 }}>
@@ -432,7 +432,7 @@ export default function CreateCircle() {
               <View style={{ padding: 16, gap: 2 }}>
                 <Text variant="bodyBold">Members ({memberNames.length})</Text>
                 <Text variant="small" tone="muted">
-                  Add everyone in the circle, including yourself if you’re joining. One payout round per member.
+                  Add everyone in the paluwagan, including yourself if you’re joining. One payout round per member.
                 </Text>
               </View>
               {memberNames.map((n, i) => (
@@ -706,7 +706,7 @@ export default function CreateCircle() {
             </Card>
           )}
           <Input
-            label={managed ? 'Rules & notes (optional)' : 'Circle agreement'}
+            label={managed ? 'Rules & notes (optional)' : 'Paluwagan agreement'}
             value={rules}
             onChangeText={setRules}
             multiline
@@ -729,7 +729,7 @@ export default function CreateCircle() {
   return (
     <Screen
       back
-      title="New circle"
+      title="New paluwagan"
       subtitle={`Step ${step + 1} of ${STEPS.length} · ${STEPS[step]}`}
       narrow={!desktop}
       footer={footer}>

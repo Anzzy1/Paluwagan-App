@@ -13,10 +13,10 @@ export function InsightBand() {
   const insight = useAiInsight();
 
   const text = insight.isPending
-    ? 'Looking at your circles and ipon…'
+    ? 'Looking at your paluwagan and ipon…'
     : insight.error
       ? insight.error.message
-      : (insight.data ?? 'Want a quick read on your savings? I’ll look at your circles and goals and tell you what to do next.');
+      : (insight.data ?? 'Want a quick read on your savings? I’ll look at your paluwagan and goals and tell you what to do next.');
 
   return (
     <MascotBand

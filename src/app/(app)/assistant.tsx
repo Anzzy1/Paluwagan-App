@@ -91,7 +91,7 @@ export default function Assistant() {
           <View style={{ flex: 1 }}>
             <Text variant="h3">Ipon</Text>
             <Text variant="caption" tone={send.isPending ? 'brand' : 'faint'}>
-              {send.isPending ? 'Typing…' : 'AI money buddy · knows your circles & ipon'}
+              {send.isPending ? 'Typing…' : 'AI money buddy · knows your paluwagan & ipon'}
             </Text>
           </View>
           {messages.length > 0 && (
@@ -110,7 +110,7 @@ export default function Assistant() {
                 Hi {firstName(profile?.full_name)}! Ask me anything about your money.
               </Text>
               <Text tone="muted" center style={{ maxWidth: 440 }}>
-                I can see your circles, dues, payouts and ipon goals, so my advice fits your real situation.
+                I can see your paluwagan, dues, payouts and ipon goals, so my advice fits your real situation.
               </Text>
               <View style={styles.suggestions}>
                 {SUGGESTIONS.map((s) => (

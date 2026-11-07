@@ -97,7 +97,7 @@ export default function DrawScreen() {
               <Card style={{ gap: 10 }}>
                 <Text variant="h3">Commitment</Text>
                 <Text variant="small" tone="muted">
-                  Published when the circle was locked. After the draw, the seed is revealed and anyone can confirm it produces this hash and the same payout order.
+                  Published when the paluwagan was locked. After the draw, the seed is revealed and anyone can confirm it produces this hash and the same payout order.
                 </Text>
                 <View style={[styles.mono, { backgroundColor: c.surfaceAlt }]}>
                   <Text variant="mono" selectable>
@@ -413,7 +413,7 @@ function ManualOrder({ circleId, slots, isAdmin }: { circleId: string; slots: { 
       footer={
         isAdmin ? (
           <Button
-            title="Save order and start circle"
+            title="Save order and start paluwagan"
             loading={action.isPending}
             onPress={() => action.mutate({ fn: 'set_manual_order', args: { p_circle: circleId, p_order: order.map((s) => s.group) } }, { onError: (e) => notifyError(e) })}
           />

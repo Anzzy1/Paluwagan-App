@@ -213,7 +213,7 @@ export function createManagedCircle(input: NewManaged): string {
     draw_style: null,
     drawn_at: null,
     rounds: [],
-    log: [{ at: new Date().toISOString(), text: 'Circle created' }],
+    log: [{ at: new Date().toISOString(), text: 'Paluwagan created' }],
     created_at: new Date().toISOString(),
   };
   commit([c, ...state]);
@@ -240,7 +240,7 @@ export function renameMember(id: string, memberId: string, name: string) {
 /** Commit-reveal style: random seed, published hash, deterministic shuffle (same algorithm as online). */
 export async function prepareDraw(id: string): Promise<{ seed: string; hash: string; order: string[] }> {
   const c = state.find((x) => x.id === id);
-  if (!c) throw new Error('Circle not found');
+  if (!c) throw new Error('Paluwagan not found');
   if (c.members.length < 2) throw new Error('Add at least 2 members first');
   const bytes = Crypto.getRandomBytes(32);
   const seed = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
@@ -314,7 +314,7 @@ export function releasePayout(id: string, roundNo: number) {
       return r;
     });
     const done = rounds.every((r) => r.status === 'completed');
-    return log({ ...c, rounds, status: done ? 'completed' : c.status }, done ? `Payout released to ${name}. Circle complete!` : `Payout released to ${name}`);
+    return log({ ...c, rounds, status: done ? 'completed' : c.status }, done ? `Payout released to ${name}. Paluwagan complete!` : `Payout released to ${name}`);
   });
 }
 

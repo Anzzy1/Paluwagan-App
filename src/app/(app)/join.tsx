@@ -258,7 +258,7 @@ export default function Join() {
       {
         onSuccess: () => {
           haptic('success');
-          notify('Request sent', 'The admin will review your request. The circle will appear in your list once you’re approved.');
+          notify('Request sent', 'The admin will review your request. The paluwagan will appear in your list once you’re approved.');
           router.back();
         },
         onError: (e) => notifyError(e, 'Couldn’t send request'),
@@ -323,7 +323,7 @@ export default function Join() {
           </View>
         )}
         {code.length === 6 && preview.isFetched && !preview.isFetching && !p && (
-          <Notice tone="danger" icon="x-circle" title={`No circle found for ${code}`} body="Check the code with your admin and try again." />
+          <Notice tone="danger" icon="x-circle" title={`No paluwagan found for ${code}`} body="Check the code with your admin and try again." />
         )}
       </Card>
 
@@ -362,22 +362,22 @@ export default function Join() {
         <View style={{ flex: 1 }}>
           <Text variant="bodyBold">{p.admin_name}</Text>
           <Text variant="small" tone="muted">
-            Circle admin · Trust Score {p.admin_tiwala} ({trustLabel(p.admin_tiwala).label})
+            Paluwagan admin · Trust Score {p.admin_tiwala} ({trustLabel(p.admin_tiwala).label})
           </Text>
         </View>
         <Feather name="shield" size={20} color={c.brand} />
       </Card>
 
       {looksLikeScam(p.rules + ' ' + p.name) && (
-        <Notice tone="warning" icon="alert-triangle" title="This circle mentions interest or returns" body="A legitimate paluwagan has no interest. Only join if you personally know and trust the admin." />
+        <Notice tone="warning" icon="alert-triangle" title="This paluwagan mentions interest or returns" body="A legitimate paluwagan has no interest. Only join if you personally know and trust the admin." />
       )}
 
       {p.my_status === 'pending' ? (
         <Notice tone="info" icon="clock" title="Request pending" body="The admin hasn’t reviewed your request yet." />
       ) : p.my_status === 'approved' ? (
-        <Button title="Open circle" onPress={() => router.replace(`/circle/${p.id}`)} />
+        <Button title="Open paluwagan" onPress={() => router.replace(`/circle/${p.id}`)} />
       ) : p.status !== 'forming' ? (
-        <Notice tone="info" icon="lock" title="This circle has already started" body="It’s no longer accepting new members." />
+        <Notice tone="info" icon="lock" title="This paluwagan has already started" body="It’s no longer accepting new members." />
       ) : (
         <>
           {p.has_password && (
@@ -387,7 +387,7 @@ export default function Join() {
                   <Feather name="lock" size={16} color={c.brand} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text variant="h3">Circle password</Text>
+                  <Text variant="h3">Paluwagan password</Text>
                   <Text variant="small" tone="muted">
                     Ask {p.admin_name.split(' ')[0]} for the password.
                   </Text>
@@ -416,14 +416,14 @@ export default function Join() {
           </PressableScale>
 
           <Card style={{ gap: 10 }}>
-            <Text variant="h3">Circle agreement</Text>
+            <Text variant="h3">Paluwagan agreement</Text>
             <Text variant="small" tone="muted" style={{ lineHeight: 20 }}>
               {p.rules || 'No additional rules.'}
             </Text>
             <PressableScale onPress={() => setAgree(!agree)} hapticOnPress={false} style={[styles.agree, { backgroundColor: agree ? c.brandSoft : c.surfaceAlt }]}>
               <Feather name={agree ? 'check-square' : 'square'} size={20} color={agree ? c.brand : c.textFaint} />
               <Text variant="small" style={{ flex: 1 }}>
-                I accept the circle agreement. My name and the time of acceptance will be recorded.
+                I accept the paluwagan agreement. My name and the time of acceptance will be recorded.
               </Text>
             </PressableScale>
           </Card>
@@ -436,8 +436,8 @@ export default function Join() {
     <Screen
       back
       narrow
-      title="Join a circle"
-      subtitle={p ? 'Review the circle before you request to join.' : 'Use the code, link or QR code from your circle admin.'}
+      title="Join a paluwagan"
+      subtitle={p ? 'Review the paluwagan before you request to join.' : 'Use the code, link or QR code from your paluwagan admin.'}
       footer={canRequest ? <Button title="Request to join" icon="send" onPress={submit} disabled={!ready} loading={join.isPending} /> : undefined}>
       <View style={{ gap: 16, maxWidth: desktop ? 640 : undefined }}>{p ? details : finder}</View>
     </Screen>

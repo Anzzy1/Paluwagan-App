@@ -12,8 +12,8 @@ export default function TabsLayout() {
       {/* Declares the routes; the visible navigation is <TabBar/> (mobile) or <Sidebar/> (desktop). */}
       <TabList style={{ display: 'none' }}>
         <TabTrigger name="index" href="/" />
-        <TabTrigger name="circles" href="/circles" />
         <TabTrigger name="ipon" href="/ipon" />
+        <TabTrigger name="circles" href="/circles" />
         <TabTrigger name="activity" href="/activity" />
         <TabTrigger name="profile" href="/profile" />
       </TabList>

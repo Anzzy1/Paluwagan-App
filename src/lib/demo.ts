@@ -11,7 +11,7 @@ export const DEMO_USER_ID = '00000000-0000-4000-8000-00000000aaaa';
 
 export class DemoError extends Error {
   constructor() {
-    super('This is a demo with sample data. Sign in to create and manage real circles.');
+    super('This is a demo with sample data. Sign in to create and manage real paluwagan.');
   }
 }
 export function assertLive() {
@@ -62,7 +62,7 @@ function circle(c: Partial<Circle> & Pick<Circle, 'id' | 'name' | 'emoji' | 'col
     late_fee: 50,
     grace_days: 1,
     rules:
-      '1. Contributions are due on or before each due date. Upload proof of payment in the app.\n2. The payout recipient confirms each payment once received.\n3. Members who have received their payout must keep contributing until the circle ends.\n4. Turn swaps require consent from both members and approval from the admin.',
+      '1. Contributions are due on or before each due date. Upload proof of payment in the app.\n2. The payout recipient confirms each payment once received.\n3. Members who have received their payout must keep contributing until the paluwagan ends.\n4. Turn swaps require consent from both members and approval from the admin.',
     order_mode: 'draw',
     invite_code: 'DEMO01',
     seed_hash: null,
@@ -363,7 +363,7 @@ export async function demoQuery(key: readonly unknown[]): Promise<unknown> {
       return d.myCircles;
     case 'circle': {
       const detail = d.details[key[1] as string];
-      if (!detail) throw new Error('This circle isn’t part of the demo.');
+      if (!detail) throw new Error('This paluwagan isn’t part of the demo.');
       return detail;
     }
     case 'activity':

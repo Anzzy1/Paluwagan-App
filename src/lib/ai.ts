@@ -44,7 +44,7 @@ export function useAiContext(): string {
   }
   for (const m of managed) {
     const s = managedSummary(m);
-    lines.push(`- ${m.name} (offline circle I organise): ${peso(m.amount)} ${payoutShort(m).toLowerCase()}, ${m.members.length} members, pot ${peso(potOfManaged(m))}, status ${m.status}${s.current ? `, round ${s.current.round_no} due ${s.current.due_date}, ${s.paidCount}/${m.members.length} paid, recipient ${s.recipient?.name ?? '—'}` : ''}${s.overdue ? ' (OVERDUE)' : ''}`);
+    lines.push(`- ${m.name} (offline paluwagan I organise): ${peso(m.amount)} ${payoutShort(m).toLowerCase()}, ${m.members.length} members, pot ${peso(potOfManaged(m))}, status ${m.status}${s.current ? `, round ${s.current.round_no} due ${s.current.due_date}, ${s.paidCount}/${m.members.length} paid, recipient ${s.recipient?.name ?? '—'}` : ''}${s.overdue ? ' (OVERDUE)' : ''}`);
   }
 
   const dues = circles

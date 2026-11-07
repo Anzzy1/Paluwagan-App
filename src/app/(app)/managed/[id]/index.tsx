@@ -267,8 +267,8 @@ export default function ManagedCircle() {
 
   if (!circle) {
     return (
-      <Screen back title="Circle not found">
-        <Text tone="muted">This managed circle isn’t on this device.</Text>
+      <Screen back title="Paluwagan not found">
+        <Text tone="muted">This managed paluwagan isn’t on this device.</Text>
       </Screen>
     );
   }
@@ -313,7 +313,7 @@ export default function ManagedCircle() {
       <Notice
         tone="info"
         icon="smartphone"
-        title="You manage this circle on this device"
+        title="You manage this paluwagan on this device"
         body="Members don’t need the app. Add everyone below, then run a fun draw together to decide the payout order."
       />
       <MembersEditor circle={circle} />
@@ -332,7 +332,7 @@ export default function ManagedCircle() {
       {circle.status === 'completed' && (
         <Card style={{ alignItems: 'center', gap: 8, paddingVertical: 24 }}>
           <Mascot size={110} mood="excited" pose="cheer" />
-          <Text variant="h2">Circle complete!</Text>
+          <Text variant="h2">Paluwagan complete!</Text>
           <Text tone="muted" center>
             All {circle.rounds.length} payouts have been released. Great job keeping everyone on track.
           </Text>
@@ -402,12 +402,12 @@ export default function ManagedCircle() {
         </Card>
       ) : null}
       <Button
-        title="Delete circle"
+        title="Delete paluwagan"
         icon="trash-2"
         variant="danger"
         size="md"
         onPress={() =>
-          confirmAction('Delete this circle?', 'It will be removed from this device. This can’t be undone.', () => {
+          confirmAction('Delete this paluwagan?', 'It will be removed from this device. This can’t be undone.', () => {
             deleteManagedCircle(circle.id);
             router.replace('/circles');
           }, { confirmText: 'Delete', destructive: true })

@@ -163,9 +163,9 @@ export function GoalSheet({
         )}
       </View>
 
-      <Text variant="smallBold">Link to a circle (optional)</Text>
+      <Text variant="smallBold">Link to a paluwagan (optional)</Text>
       <Text variant="small" tone="faint" style={{ marginTop: -6 }}>
-        What you pay into the circle counts toward this goal.
+        What you pay into the paluwagan counts toward this goal.
       </Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         <PressableScale hapticOnPress={false} onPress={() => setCircleId(null)}>
