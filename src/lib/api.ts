@@ -259,6 +259,15 @@ export function useCreateCircle() {
   });
 }
 
+/** Admin only, before the paluwagan starts (forming/locked). Removes it for everyone. */
+export function useDeleteCircle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (circleId: string) => rpc('delete_circle', { p_circle: circleId }),
+    onSuccess: () => qc.invalidateQueries(),
+  });
+}
+
 export function useJoinCircle() {
   const qc = useQueryClient();
   return useMutation({

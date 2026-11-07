@@ -17,5 +17,6 @@ run < supabase/migrations/0003_ipon.sql
 run < supabase/migrations/0004_schedule_password.sql
 run < supabase/migrations/0005_payout_schedule.sql
 run < supabase/migrations/0006_avatars.sql
+run < supabase/migrations/0007_delete_circle.sql
 run < supabase/tests/01_flow_test.sql
 run < supabase/tests/02_schedule_password_test.sql
