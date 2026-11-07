@@ -143,12 +143,18 @@ export function BubbleButton({ label, icon, iconRight, onPress, primary, disable
   const c = useColors();
   const fg = primary ? c.onBrand : c.text;
   return (
-    <PressableScale onPress={onPress} disabled={disabled} hapticOnPress={false} style={[styles.btn, { backgroundColor: primary ? c.brand : c.surfaceAlt }]}>
-      {left ?? (icon && <Feather name={icon} size={13} color={primary ? c.onBrand : c.brand} />)}
-      <Text variant="caption" color={fg} style={{ fontSize: 12.5 }}>
+    <PressableScale
+      onPress={onPress}
+      disabled={disabled}
+      hapticOnPress={false}
+      accessibilityLabel={label}
+      hitSlop={4}
+      style={[styles.btn, { backgroundColor: primary ? c.brand : c.surfaceAlt }]}>
+      {left ?? (icon && <Feather name={icon} size={16} color={primary ? c.onBrand : c.brandText} />)}
+      <Text variant="smallBold" color={fg} style={{ fontSize: 14 }}>
         {label}
       </Text>
-      {iconRight && <Feather name={iconRight} size={13} color={fg} />}
+      {iconRight && <Feather name={iconRight} size={16} color={fg} />}
     </PressableScale>
   );
 }
@@ -157,9 +163,10 @@ const styles = StyleSheet.create({
   band: { borderRadius: radius.xl, flexDirection: 'row', alignItems: 'flex-end', paddingRight: 14, paddingTop: 16, overflow: 'hidden', minHeight: 140 },
   shadow: { position: 'absolute', left: '22%', right: '22%', bottom: 6, height: 12, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.16)' },
   mascot: { marginLeft: 2, marginBottom: -8 },
-  bubble: { flex: 1, borderRadius: radius.lg, padding: 14, gap: 5, marginBottom: 16, marginLeft: 4 },
+  bubble: { flex: 1, borderRadius: radius.lg, padding: 16, gap: 6, marginBottom: 16, marginLeft: 4 },
   tail: { position: 'absolute', left: -6, bottom: 22, width: 14, height: 14, transform: [{ rotate: '45deg' }], borderRadius: 3 },
   tag: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
-  btn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 11, height: 30, borderRadius: 15 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  // 44px tall: comfortable tap target on phones.
+  btn: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 16, height: 44, borderRadius: 22 },
 });
