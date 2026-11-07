@@ -24,7 +24,7 @@ import { useColors, useIsDesktop } from '@/lib/prefs';
 import { homeTip, onTimeStreak } from '@/lib/rewards';
 import { goalProgress } from '@/lib/ipon';
 import { useManagedCircles } from '@/lib/local';
-import { radius, tileColors } from '@/theme/tokens';
+import { radius } from '@/theme/tokens';
 
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
@@ -131,17 +131,17 @@ export default function Home() {
   );
 
   // ---------------- quick actions
-  const actions: { icon: NavIconName; label: string; tone: keyof typeof tileColors; onPress: () => void }[] = [
-    { icon: 'create', label: 'Create', tone: 'green', onPress: () => router.push('/create') },
-    { icon: 'join', label: 'Join', tone: 'blue', onPress: () => router.push('/join') },
+  const actions: { icon: NavIconName; label: string; tone: 'solid' | 'soft'; onPress: () => void }[] = [
+    { icon: 'create', label: 'Create', tone: 'solid', onPress: () => router.push('/create') },
+    { icon: 'join', label: 'Join', tone: 'soft', onPress: () => router.push('/join') },
     {
-      tone: 'orange',
+      tone: 'soft',
       icon: 'pay',
       label: 'Pay',
       onPress: () => (dues[0] ? router.push(`/circle/${dues[0].mc.circle.id}/round/${dues[0].round.id}`) : router.push('/circles')),
     },
-    { icon: 'ipon', label: 'Ipon', tone: 'pink', onPress: () => router.push('/ipon' as Href) },
-    { icon: 'assistant', label: `${MASCOT_NAME} AI`, tone: 'purple', onPress: () => router.push('/assistant' as Href) },
+    { icon: 'ipon', label: 'Ipon', tone: 'soft', onPress: () => router.push('/ipon' as Href) },
+    { icon: 'assistant', label: `${MASCOT_NAME} AI`, tone: 'soft', onPress: () => router.push('/assistant' as Href) },
   ];
   const quick = (
     <Card style={{ gap: 14 }}>

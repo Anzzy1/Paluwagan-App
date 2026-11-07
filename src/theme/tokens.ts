@@ -91,15 +91,6 @@ export const font = {
   black: 'PlusJakartaSans_800ExtraBold',
 } as const;
 
-/** Solid colours for icon tiles (quick actions): saturated but flat, no gradients or glow. */
-export const tileColors = {
-  green: '#16A34A',
-  blue: '#2563EB',
-  orange: '#F2711C',
-  pink: '#E0457B',
-  purple: '#7C4DDB',
-} as const;
-
 /** Icons offered for circles and goals, with what the money is for (stored in the `emoji` columns). */
 export const iconChoices = [
   { icon: 'dollar-sign', label: 'Savings' },

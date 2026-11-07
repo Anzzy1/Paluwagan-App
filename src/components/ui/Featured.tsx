@@ -7,7 +7,7 @@ import { NavIcon, type NavIconName } from '@/components/NavIcons';
 import type { IconName } from '@/components/ui/bits';
 import { Text } from '@/components/ui/Text';
 import { useColors } from '@/lib/prefs';
-import { radius, tileColors } from '@/theme/tokens';
+import { radius } from '@/theme/tokens';
 
 /** Soft mint-to-sky gradient card with a green overline — the app's "featured" surface. */
 export function FeatureCard({
@@ -46,11 +46,16 @@ export function FeatureCard({
   );
 }
 
-/** Rounded-square icon tile: flat solid colour with a bold white duotone glyph. */
-export function IconTile({ icon, tone = 'green', size = 48 }: { icon: NavIconName; tone?: keyof typeof tileColors; size?: number }) {
+/**
+ * Rounded-square icon tile in the brand green. `solid` is the primary action (green fill, white glyph);
+ * `soft` is a secondary action (mint fill, green glyph), mirroring the primary/secondary button pair.
+ */
+export function IconTile({ icon, tone = 'soft', size = 48 }: { icon: NavIconName; tone?: 'solid' | 'soft'; size?: number }) {
+  const c = useColors();
+  const solid = tone === 'solid';
   return (
-    <View style={{ width: size, height: size, borderRadius: Math.round(size * 0.32), backgroundColor: tileColors[tone], alignItems: 'center', justifyContent: 'center' }}>
-      <NavIcon name={icon} size={Math.round(size * 0.5)} color="#FFFFFF" active weight={2.2} />
+    <View style={{ width: size, height: size, borderRadius: Math.round(size * 0.32), backgroundColor: solid ? c.brand : c.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+      <NavIcon name={icon} size={Math.round(size * 0.5)} color={solid ? c.onBrand : c.brandDeep} active weight={2.2} />
     </View>
   );
 }
