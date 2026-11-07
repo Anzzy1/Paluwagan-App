@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { DRAW_STYLES } from '@/components/draw/common';
-import { DrawStage, DrawStylePicker } from '@/components/draw/DrawStage';
+import { DrawReplayList, DrawStage, DrawStylePicker } from '@/components/draw/DrawStage';
 import { VerifyCard } from '@/components/draw/VerifyCard';
 import { Mascot } from '@/components/Mascot';
 import { Avatar, Notice } from '@/components/ui/bits';
@@ -142,22 +142,14 @@ export default function ManagedDraw() {
                   <Text variant="small" tone="muted">
                     Show the same result again with any game.
                   </Text>
-                  <View style={{ gap: 8 }}>
-                    {DRAW_STYLES.map((d) => (
-                      <Button
-                        key={d.id}
-                        title={`${d.emoji}  ${d.title}`}
-                        variant="secondary"
-                        size="md"
-                        onPress={() => {
-                          setStyle(d.id);
-                          setDone(false);
-                          setPlaying(false);
-                          setTimeout(() => setPlaying(true), 0);
-                        }}
-                      />
-                    ))}
-                  </View>
+                  <DrawReplayList
+                    onPick={(id) => {
+                      setStyle(id);
+                      setDone(false);
+                      setPlaying(false);
+                      setTimeout(() => setPlaying(true), 0);
+                    }}
+                  />
                 </Card>
               </>
             }

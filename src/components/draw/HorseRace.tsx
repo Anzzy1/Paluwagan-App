@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming, ZoomIn } from 'react-native-reanimated';
@@ -9,6 +10,8 @@ import { Text } from '@/components/ui/Text';
 import { useColors } from '@/lib/prefs';
 import { radius } from '@/theme/tokens';
 
+/** Width of the lane number + name column. */
+const GUTTER = 96;
 const HORSE = 34;
 
 /** Deterministic pseudo-random per lane so the race looks lively but stays reproducible. */
@@ -20,7 +23,7 @@ function rnd(seed: number) {
 function Lane({ name, color, rank, index, trackWidth, go }: { name: string; color: string; rank: number; index: number; trackWidth: number; go: number }) {
   const c = useColors();
   const x = useSharedValue(0);
-  const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() * Math.max(0, trackWidth - HORSE - 8) }] }));
+  const style = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() * Math.max(0, trackWidth - GUTTER - HORSE - 26) }] }));
 
   useEffect(() => {
     if (!go) return;
@@ -48,10 +51,10 @@ function Lane({ name, color, rank, index, trackWidth, go }: { name: string; colo
         </Text>
       </View>
       <Text variant="caption" numberOfLines={1} style={styles.laneName}>
-        {shortName(name, 12)}
+        {shortName(name, 8)}
       </Text>
       <Animated.View style={[styles.horse, style]}>
-        <Text style={{ fontSize: 28, lineHeight: 34, transform: [{ scaleX: -1 }] }}>🏇</Text>
+        <MaterialCommunityIcons name="horse-variant-fast" size={32} color={color} />
         <View style={[styles.saddle, { backgroundColor: color }]} />
       </Animated.View>
     </View>
@@ -157,9 +160,10 @@ export function HorseRace({ participants, order, onDone }: DrawGameProps) {
 const styles = StyleSheet.create({
   track: { borderWidth: 1, borderRadius: radius.lg, overflow: 'hidden' },
   lane: { height: 46, justifyContent: 'center', borderBottomWidth: 1 },
-  laneNo: { position: 'absolute', left: 8, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
-  laneName: { position: 'absolute', left: 34, top: 2, opacity: 0.6, zIndex: 1 },
-  horse: { position: 'absolute', left: 4, top: 6, width: HORSE, height: HORSE, alignItems: 'center' },
+  // Number + name sit in a fixed left gutter; horses run in the space after it.
+  laneNo: { position: 'absolute', left: 8, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', zIndex: 2 },
+  laneName: { position: 'absolute', left: 36, width: GUTTER - 40, zIndex: 1 },
+  horse: { position: 'absolute', left: GUTTER, top: 6, width: HORSE, height: HORSE, alignItems: 'center' },
   saddle: { position: 'absolute', bottom: 0, width: 14, height: 4, borderRadius: 2 },
   finish: { position: 'absolute', right: 10, top: 0, bottom: 0, width: 12, flexDirection: 'row', flexWrap: 'wrap', zIndex: 0, opacity: 0.8 },
   countWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.55)' },

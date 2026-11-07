@@ -6,7 +6,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { DRAW_STYLES } from '@/components/draw/common';
-import { DrawStage, DrawStylePicker } from '@/components/draw/DrawStage';
+import { DrawReplayList, DrawStage, DrawStylePicker } from '@/components/draw/DrawStage';
 import { Confetti } from '@/components/ui/Confetti';
 import { AvatarStack, IconButton } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
@@ -173,18 +173,12 @@ export default function DrawScreen() {
                   <Text variant="small" tone="muted">
                     Watch the same fair result again with any game.
                   </Text>
-                  {DRAW_STYLES.map((d) => (
-                    <Button
-                      key={d.id}
-                      title={`${d.emoji}  ${d.title}`}
-                      variant="secondary"
-                      size="md"
-                      onPress={() => {
-                        setStyle(d.id);
-                        setPlaying(true);
-                      }}
-                    />
-                  ))}
+                  <DrawReplayList
+                    onPick={(id) => {
+                      setStyle(id);
+                      setPlaying(true);
+                    }}
+                  />
                 </Card>
               )}
               {circle.order_mode === 'draw' && circle.seed && circle.seed_hash ? (
