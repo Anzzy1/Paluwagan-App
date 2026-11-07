@@ -117,7 +117,7 @@ export default function Home() {
           <BubbleButton label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => router.push('/assistant' as Href)} />
         </>
       }>
-      <Text variant="small" style={{ lineHeight: 19 }}>
+      <Text variant="body" style={{ lineHeight: 22 }}>
         {tip.text}
       </Text>
     </MascotBand>

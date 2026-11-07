@@ -40,7 +40,7 @@ export function InsightBand() {
           <BubbleButton label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => router.push('/assistant' as Href)} />
         </>
       }>
-      <Text variant="small" tone={insight.error ? 'danger' : 'default'} style={{ lineHeight: 19 }}>
+      <Text variant="body" tone={insight.error ? 'danger' : 'default'} style={{ lineHeight: 22 }}>
         {text}
       </Text>
     </MascotBand>

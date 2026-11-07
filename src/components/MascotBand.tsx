@@ -90,12 +90,12 @@ export function MascotBand({
         <View style={[styles.bubble, { backgroundColor: c.surface }]}>
           <View style={[styles.tail, { backgroundColor: c.surface }]} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text variant="smallBold" tone="brand">
+            <Text variant="bodyBold" tone="brand" style={{ fontSize: 14 }}>
               {title}
             </Text>
             {tag && (
               <View style={[styles.tag, { backgroundColor: c.brandSoft }]}>
-                <Text variant="caption" tone="brand" style={{ fontSize: 10, lineHeight: 13 }}>
+                <Text variant="caption" tone="brand" style={{ fontSize: 11, lineHeight: 14 }}>
                   {tag}
                 </Text>
               </View>
