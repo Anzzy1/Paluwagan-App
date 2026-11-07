@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
 import { useAuth } from '@/lib/auth';
+import { demoState } from '@/lib/demo';
 import { supabase } from '@/lib/supabase';
 
 Notifications.setNotificationHandler({
@@ -26,7 +27,7 @@ export function usePushRegistration() {
   const { userId, profile } = useAuth();
 
   useEffect(() => {
-    if (!userId || Platform.OS === 'web' || !Device.isDevice) return;
+    if (!userId || demoState.on || Platform.OS === 'web' || !Device.isDevice) return;
     const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
     if (!projectId) return;
     let cancelled = false;
@@ -34,7 +35,7 @@ export function usePushRegistration() {
       try {
         if (Platform.OS === 'android') {
           await Notifications.setNotificationChannelAsync('default', {
-            name: 'Paalala',
+            name: 'Payment reminders',
             // eslint-disable-next-line import/namespace -- enum is re-exported via export *
             importance: Notifications.AndroidImportance.HIGH,
           });

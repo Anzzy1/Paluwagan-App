@@ -2,23 +2,22 @@ import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { PaySheet } from '@/components/circle/PaySheet';
-import { Confetti } from '@/components/ui/Confetti';
-import { Avatar, Input, ProgressRing, StatusChip } from '@/components/ui/bits';
+import { Avatar, Chip, Input, ProgressRing, StatusChip } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
-import { Screen } from '@/components/ui/Screen';
+import { Columns, Screen } from '@/components/ui/Screen';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
+import { notifyError } from '@/lib/alert';
 import { useCircle, useCircleAction, useReceiptUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { recipientsOf } from '@/lib/derive';
-import { displayStatus, longDate, peso, potOf, slotName, timeAgo } from '@/lib/format';
+import { dueOf, hulogInRound, myNextContribution, recipientsOf } from '@/lib/derive';
+import { displayStatus, longDate, peso, potOf, relativeDue, shortDate, timeAgo } from '@/lib/format';
 import { useColors } from '@/lib/prefs';
-import { errMsg } from '@/lib/supabase';
 import type { Contribution, Member } from '@/lib/types';
 import { radius } from '@/theme/tokens';
 
@@ -29,7 +28,6 @@ export default function RoundScreen() {
   const q = useCircle(id);
   const [review, setReview] = useState<Contribution | null>(null);
   const [payOpen, setPayOpen] = useState(false);
-  const [confetti, setConfetti] = useState(0);
 
   if (!q.data) {
     return (
@@ -42,7 +40,7 @@ export default function RoundScreen() {
   const round = rounds.find((r) => r.id === roundId);
   if (!round) {
     return (
-      <Screen back title="Walang round">
+      <Screen back title="Round not found">
         <View />
       </Screen>
     );
@@ -52,101 +50,104 @@ export default function RoundScreen() {
   const canReview = me?.role === 'admin' || me?.slot_group === round.slot_group;
   const ks = contributions
     .filter((k) => k.round_id === round.id)
-    .sort((a, b) => Number(b.status === 'submitted') - Number(a.status === 'submitted'));
+    .sort((a, b) => Number(b.status === 'submitted') - Number(a.status === 'submitted') || dueOf(a, round).localeCompare(dueOf(b, round)));
+  const perSahod = hulogInRound(contributions, round);
   const memberById = new Map(members.map((m) => [m.id, m]));
   const paid = ks.filter((k) => k.status === 'confirmed');
   const collected = paid.reduce((s, k) => s + Number(k.amount), 0);
-  const myK = ks.find((k) => k.member_id === me?.id);
+  const pot = potOf(circle) * perSahod;
+  const myK = myNextContribution(contributions, round, me?.id);
+  const pendingReview = ks.filter((k) => k.status === 'submitted').length;
+
+  const summary = (
+    <>
+      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+        <ProgressRing size={84} stroke={8} progress={collected / pot} color={c.success}>
+          <Text variant="h3">{Math.round((collected / pot) * 100)}%</Text>
+        </ProgressRing>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="caption" tone="muted">
+            Collected
+          </Text>
+          <Text variant="h1" style={{ fontVariant: ['tabular-nums'] }}>
+            {peso(collected)}
+          </Text>
+          <Text variant="small" tone="muted">
+            of {peso(pot)} · {paid.length}/{ks.length} payments
+          </Text>
+        </View>
+      </Card>
+      <Card padded={false}>
+        <View style={styles.head}>
+          <Text variant="h3">Recipient</Text>
+          <Chip label={round.status === 'completed' ? 'Paid out' : round.status === 'active' ? 'Current round' : 'Upcoming'} tone={round.status === 'completed' ? 'success' : round.status === 'active' ? 'brand' : 'neutral'} />
+        </View>
+        {recipients.map((m) => (
+          <View key={m.id} style={[styles.row, { borderTopColor: c.border, borderTopWidth: 1 }]}>
+            <Avatar name={m.profiles?.full_name} seed={m.user_id} size={40} />
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyBold">{m.profiles?.full_name}</Text>
+              <Text variant="small" tone="muted">
+                {m.profiles?.gcash_number ? `GCash / Maya · ${m.profiles.gcash_number}` : 'No payment number on file'}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </Card>
+      {myK && !myK.auto && (myK.status === 'pending' || myK.status === 'rejected') && round.status !== 'completed' && (
+        <Button title={`Pay ${peso(myK.amount)}`} icon="send" onPress={() => setPayOpen(true)} />
+      )}
+    </>
+  );
+
+  const list = (
+    <Card padded={false}>
+      <View style={styles.head}>
+        <Text variant="h3">Contributions</Text>
+        {canReview && pendingReview > 0 && <Chip label={`${pendingReview} to review`} tone="info" />}
+      </View>
+      {ks.map((k) => {
+        const m = memberById.get(k.member_id);
+        const reviewable = canReview && k.status === 'submitted';
+        return (
+          <PressableScale
+            key={k.id}
+            disabled={!reviewable && !k.proof_path}
+            dimWhenDisabled={false}
+            onPress={() => setReview(k)}
+            hapticOnPress={false}
+            scaleTo={0.995}
+            style={[styles.row, { borderTopColor: c.border, borderTopWidth: 1 }, reviewable && { backgroundColor: c.infoBg }]}>
+            <Avatar name={m?.profiles?.full_name} seed={m?.user_id} size={36} />
+            <View style={{ flex: 1 }}>
+              <Text variant="bodyBold" numberOfLines={1}>
+                {m?.profiles?.full_name ?? 'Member'}
+                {m?.user_id === userId ? ' (you)' : ''}
+              </Text>
+              <Text variant="small" tone="muted">
+                {perSahod > 1 ? `${shortDate(dueOf(k, round))} · ` : ''}
+                {k.auto
+                  ? 'Recipient’s own share'
+                  : k.submitted_at
+                    ? `${peso(k.amount)} · submitted ${timeAgo(k.submitted_at)}${k.on_time === false ? ' · late' : ''}`
+                    : peso(k.amount)}
+              </Text>
+            </View>
+            {k.auto ? <Chip label="Recipient" tone="brand" /> : <StatusChip status={displayStatus(k, round, circle)} />}
+            {reviewable && <Feather name="chevron-right" size={16} color={c.info} />}
+          </PressableScale>
+        );
+      })}
+    </Card>
+  );
 
   return (
     <View style={{ flex: 1 }}>
-      <Screen back title={`Round ${round.round_no}`} subtitle={`Due ${longDate(round.due_date)}`} refreshing={q.isRefetching} onRefresh={q.refetch}>
-        <Card tint={circle.color} style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-          <ProgressRing size={92} stroke={10} progress={collected / potOf(circle)} color={c.ink} track="rgba(0,0,0,0.08)">
-            <Text variant="h3">{Math.round((collected / potOf(circle)) * 100)}%</Text>
-          </ProgressRing>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text variant="caption" tone="muted">
-              Nakolekta
-            </Text>
-            <Text variant="h1">{peso(collected)}</Text>
-            <Text variant="small" tone="muted">
-              ng {peso(potOf(circle))} para kay {slotName(recipients)}
-            </Text>
-          </View>
-        </Card>
-
-        {recipients.map((m) => (
-          <Card key={m.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Avatar emoji={m.profiles?.avatar_emoji} size={48} bg={c.accent} />
-            <View style={{ flex: 1 }}>
-              <Text variant="caption" tone="muted">
-                May sahod
-              </Text>
-              <Text variant="h3">{m.profiles?.full_name}</Text>
-              <Text variant="small" tone="muted">
-                {m.profiles?.gcash_number ? `GCash/Maya ${m.profiles.gcash_number}` : 'Walang GCash na naka-set'}
-              </Text>
-            </View>
-          </Card>
-        ))}
-
-        {myK && !myK.auto && (myK.status === 'pending' || myK.status === 'rejected') && round.status !== 'completed' && (
-          <Button title={`Magbayad ${peso(myK.amount)}`} icon="send" onPress={() => setPayOpen(true)} />
-        )}
-
-        <Text variant="h3">Mga hulog ({paid.length}/{ks.length})</Text>
-        <Card padded={false}>
-          {ks.map((k, i) => {
-            const m = memberById.get(k.member_id);
-            const clickable = canReview && k.status === 'submitted';
-            return (
-              <PressableScale
-                key={k.id}
-                disabled={!clickable && !k.proof_path}
-                onPress={() => setReview(k)}
-                scaleTo={0.99}
-                style={[styles.row, { borderBottomColor: c.border, borderBottomWidth: i < ks.length - 1 ? 1 : 0 }, clickable && { backgroundColor: c.infoBg }]}>
-                <Avatar emoji={m?.profiles?.avatar_emoji} size={40} />
-                <View style={{ flex: 1 }}>
-                  <Text variant="bodyBold" numberOfLines={1}>
-                    {m?.profiles?.full_name ?? 'Member'} {m?.user_id === userId ? '(Ikaw)' : ''}
-                  </Text>
-                  <Text variant="small" tone="muted">
-                    {k.auto
-                      ? 'Sariling share ng may sahod'
-                      : k.submitted_at
-                        ? `${peso(k.amount)} · ${timeAgo(k.submitted_at)}${k.on_time === false ? ' · late' : ''}`
-                        : peso(k.amount)}
-                  </Text>
-                </View>
-                {k.auto ? <Feather name="star" size={18} color={c.warning} /> : <StatusChip status={displayStatus(k, round, circle)} />}
-              </PressableScale>
-            );
-          })}
-        </Card>
-        {canReview && ks.some((k) => k.status === 'submitted') && (
-          <Text variant="small" tone="faint" center>
-            I-tap ang mga naka-highlight para tingnan ang resibo at i-confirm.
-          </Text>
-        )}
+      <Screen back title={`Payout ${round.round_no}`} subtitle={`${circle.name} · sahod ${longDate(round.due_date)} · ${relativeDue(round.due_date)}${perSahod > 1 ? ` · ${perSahod} hulog` : ''}`} refreshing={q.isRefetching} onRefresh={q.refetch}>
+        <Columns main={list} side={summary} />
       </Screen>
-
-      <ReviewSheet
-        k={review}
-        member={review ? memberById.get(review.member_id) : undefined}
-        canReview={!!canReview}
-        circleId={id}
-        onClose={() => setReview(null)}
-        onConfirmed={(roundDone) => {
-          if (roundDone) setConfetti(Date.now());
-        }}
-        remainingAfter={ks.filter((x) => x.status !== 'confirmed').length - 1}
-      />
-      {myK && (
-        <PaySheet open={payOpen} onClose={() => setPayOpen(false)} circle={circle} round={round} contribution={myK} recipients={recipients} />
-      )}
-      <Confetti run={confetti} />
+      <ReviewSheet k={review} member={review ? memberById.get(review.member_id) : undefined} canReview={!!canReview} circleId={id} onClose={() => setReview(null)} />
+      {myK && <PaySheet open={payOpen} onClose={() => setPayOpen(false)} circle={circle} round={round} contribution={myK} recipients={recipients} />}
     </View>
   );
 }
@@ -157,16 +158,12 @@ function ReviewSheet({
   canReview,
   circleId,
   onClose,
-  onConfirmed,
-  remainingAfter,
 }: {
   k: Contribution | null;
   member?: Member;
   canReview: boolean;
   circleId: string;
   onClose: () => void;
-  onConfirmed: (roundDone: boolean) => void;
-  remainingAfter: number;
 }) {
   const url = useReceiptUrl(k?.proof_path);
   const action = useCircleAction(circleId);
@@ -185,19 +182,31 @@ function ReviewSheet({
       {
         onSuccess: () => {
           haptic(approve ? 'success' : 'warning');
-          if (approve) onConfirmed(remainingAfter <= 0);
           close();
         },
-        onError: (e) => Alert.alert('May mali', errMsg(e)),
+        onError: (e) => notifyError(e),
       },
     );
 
   return (
-    <Sheet open={!!k} onClose={close} title={member?.profiles?.full_name ?? 'Resibo'}>
+    <Sheet open={!!k} onClose={close} title="Proof of payment" subtitle={member?.profiles?.full_name}>
       {k && (
         <>
-          <Text variant="display">{peso(k.amount)}</Text>
-          {k.note ? <Text tone="muted">“{k.note}”</Text> : null}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <Text variant="display" style={{ fontVariant: ['tabular-nums'] }}>
+              {peso(k.amount)}
+            </Text>
+            {k.submitted_at && (
+              <Text variant="small" tone="muted">
+                {timeAgo(k.submitted_at)}
+              </Text>
+            )}
+          </View>
+          {k.note ? (
+            <Text variant="small" tone="muted">
+              Reference: {k.note}
+            </Text>
+          ) : null}
           <View style={styles.receipt}>
             {url.data ? <Image source={{ uri: url.data }} style={{ flex: 1 }} contentFit="contain" /> : <ActivityIndicator style={{ flex: 1 }} />}
           </View>
@@ -205,17 +214,17 @@ function ReviewSheet({
             <>
               {rejecting ? (
                 <>
-                  <Input placeholder="Bakit? hal. Kulang ang halaga" value={reason} onChangeText={setReason} autoFocus />
-                  <Button title="I-reject ang resibo" variant="danger" onPress={() => review(false)} loading={action.isPending} />
+                  <Input placeholder="Reason, e.g. amount is incomplete" value={reason} onChangeText={setReason} autoFocus />
+                  <Button title="Reject receipt" variant="danger" onPress={() => review(false)} loading={action.isPending} />
                 </>
               ) : (
                 <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <Button title="May mali" variant="secondary" onPress={() => setRejecting(true)} style={{ flex: 1 }} />
-                  <Button title="Natanggap ko ✓" variant="accent" onPress={() => review(true)} loading={action.isPending} style={{ flex: 2 }} />
+                  <Button title="Reject" variant="secondary" onPress={() => setRejecting(true)} style={{ flex: 1 }} />
+                  <Button title="Confirm received" variant="brand" icon="check" onPress={() => review(true)} loading={action.isPending} style={{ flex: 2 }} />
                 </View>
               )}
               <Text variant="small" tone="faint" center>
-                I-confirm lang kapag nakita mo na talaga ang pera sa GCash/bank mo.
+                Only confirm once the funds appear in your GCash, Maya or bank account.
               </Text>
             </>
           )}
@@ -226,6 +235,7 @@ function ReviewSheet({
 }
 
 const styles = StyleSheet.create({
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  receipt: { height: 380, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: '#00000010' },
+  receipt: { height: 360, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: '#8881' },
 });

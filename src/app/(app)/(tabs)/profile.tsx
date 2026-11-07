@@ -1,24 +1,24 @@
+import { Feather } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { Avatar, Input, ProgressRing, Segmented } from '@/components/ui/bits';
+import { Mascot } from '@/components/Mascot';
+import { Avatar, Chip, Divider, Input, ProgressRing, Segmented, Stat } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { PressableScale } from '@/components/ui/PressableScale';
-import { Screen } from '@/components/ui/Screen';
+import { Columns, Screen } from '@/components/ui/Screen';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { useMyCircles, useUpdateProfile } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { peso, tiwalaLabel } from '@/lib/format';
-import { usePrefs, useColors, type ThemePref } from '@/lib/prefs';
-import { errMsg } from '@/lib/supabase';
-import { avatarEmojis } from '@/theme/tokens';
+import { peso, trustLabel } from '@/lib/format';
+import { useColors, usePrefs, type ThemePref } from '@/lib/prefs';
+import { badgesFor, onTimeStreak } from '@/lib/rewards';
+import { confirmAction, notifyError } from '@/lib/alert';
 
 export default function ProfileTab() {
-  const c = useColors();
-  const { profile, session, signOut } = useAuth();
-  const { lang, setLang, themePref, setThemePref } = usePrefs();
+  const { profile, session, signOut, isDemo, isGuest, newGuest, enterDemo } = useAuth();
+  const { themePref, setThemePref } = usePrefs();
   const circles = useMyCircles();
   const [edit, setEdit] = useState(false);
 
@@ -29,92 +29,169 @@ export default function ProfileTab() {
     .filter((mc) => mc.rounds.some((r) => r.slot_group === mc.membership.slot_group && r.status === 'completed'))
     .reduce((s, mc) => s + Number(mc.circle.amount) * mc.circle.slots * Number(mc.membership.share), 0);
   const score = profile?.tiwala_score ?? 80;
-  const tl = tiwalaLabel(score);
+  const tl = trustLabel(score);
+  const c = useColors();
+  const streak = onTimeStreak(all);
+  const badges = badgesFor(all, profile);
+  const earned = badges.filter((b) => b.earned).length;
 
-  return (
-    <Screen tabs>
-      <View style={{ alignItems: 'center', gap: 8, marginTop: 16 }}>
-        <Avatar emoji={profile?.avatar_emoji} size={92} bg={c.accent} />
-        <Text variant="h1">{profile?.full_name}</Text>
-        <Text variant="small" tone="muted">
-          {session?.user.email ?? session?.user.phone}
-        </Text>
-        <Button title="I-edit ang profile" size="sm" variant="secondary" full={false} icon="edit-2" onPress={() => setEdit(true)} />
+  const confirmSignOut = () =>
+    confirmAction(isDemo ? 'Exit sample data?' : 'Sign out?', '', signOut, { confirmText: isDemo ? 'Exit' : 'Sign out', destructive: true });
+  const confirmNewGuest = () =>
+    confirmAction(
+      'Start as a new test user?',
+      'You’ll get a fresh guest account. The current guest can’t be restored, but circles it joined keep its records. Tip: use a private/incognito window to test as several members at once.',
+      newGuest,
+      { confirmText: 'Start fresh', destructive: true },
+    );
+
+  const identity = (
+    <Card style={{ gap: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <Avatar name={profile?.full_name} seed={profile?.id} size={56} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="h2">{profile?.full_name}</Text>
+          <Text variant="small" tone="muted">
+            {isDemo ? 'Sample data' : isGuest ? 'Guest account · testing mode' : (session?.user.email ?? session?.user.phone)}
+          </Text>
+        </View>
+        <Button title="Edit" size="sm" variant="secondary" full={false} icon="edit-2" onPress={() => setEdit(true)} />
       </View>
+      <Divider />
+      <Row label="GCash / Maya" value={profile?.gcash_number || 'Not set'} />
+    </Card>
+  );
 
-      <Card tint="leaf">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
-          <ProgressRing size={96} stroke={10} progress={score / 100} color={c.ink} track="rgba(0,0,0,0.08)">
-            <Text variant="h1">{score}</Text>
-          </ProgressRing>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text variant="caption" tone="muted">
-              Tiwala Score
-            </Text>
-            <Text variant="h2">
-              {tl.emoji} {tl.label}
-            </Text>
-            <Text variant="small" tone="muted">
-              Batay sa on-time na hulog mo sa lahat ng circle. Nakikita ito ng mga admin kapag nag-request ka sumali.
-            </Text>
-          </View>
+  const rewards = (
+    <>
+      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.warningBg, borderColor: c.warningBg }}>
+        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.warning, alignItems: 'center', justifyContent: 'center' }}>
+          <Feather name="zap" size={24} color="#fff" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="h1" tone="warning">
+            {streak} on-time streak
+          </Text>
+          <Text variant="small" tone="warning">
+            {streak > 0 ? 'Every on-time payment adds to your streak. Don’t break it!' : 'Pay your next contribution on time to start a streak.'}
+          </Text>
         </View>
       </Card>
+      <Card style={{ gap: 16 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text variant="h3">Badges</Text>
+          <Chip label={`${earned} of ${badges.length} unlocked`} tone="brand" />
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 18 }}>
+          {badges.map((b) => (
+            <View key={b.id} style={{ width: '25%', alignItems: 'center', gap: 6, paddingHorizontal: 4 }}>
+              <View
+                style={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: 29,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: b.earned ? b.color : c.surfaceAlt,
+                  borderWidth: 3,
+                  borderColor: b.earned ? c.goldSoft : c.border,
+                }}>
+                <Feather name={b.earned ? b.icon : 'lock'} size={22} color={b.earned ? '#fff' : c.textFaint} />
+              </View>
+              <Text variant="caption" center numberOfLines={1} tone={b.earned ? 'default' : 'faint'}>
+                {b.title}
+              </Text>
+              <Text variant="caption" center tone="faint" style={{ fontSize: 10, lineHeight: 13 }} numberOfLines={2}>
+                {b.body}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </Card>
+    </>
+  );
 
-      <View style={styles.stats}>
-        <Stat label="Circles" value={String(all.length)} />
-        <Stat label="On-time" value={paid.length ? `${Math.round((onTime / paid.length) * 100)}%` : '—'} />
-        <Stat label="Natanggap" value={peso(received, { compact: true })} />
+  const trust = (
+    <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
+      <ProgressRing size={84} stroke={8} progress={score / 100}>
+        <Text variant="h1">{score}</Text>
+      </ProgressRing>
+      <View style={{ flex: 1, gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text variant="h3">Trust Score</Text>
+          <Chip label={tl.label} tone={tl.tone} />
+        </View>
+        <Text variant="small" tone="muted">
+          Based on your on-time contributions across all circles. Admins see this when you request to join.
+        </Text>
       </View>
+      <Mascot size={64} mood={score >= 85 ? 'excited' : score >= 70 ? 'happy' : 'worried'} pose={score >= 85 ? 'cheer' : 'coin'} />
+    </Card>
+  );
 
-      <Card style={{ gap: 14 }}>
-        <Text variant="h3">Wika / Language</Text>
-        <Segmented value={lang} onChange={setLang} options={[{ value: 'fil', label: 'Taglish' }, { value: 'en', label: 'English' }]} />
-        <Text variant="h3">Itsura</Text>
-        <Segmented<ThemePref>
-          value={themePref}
-          onChange={setThemePref}
-          options={[
-            { value: 'system', label: 'Auto' },
-            { value: 'light', label: 'Light' },
-            { value: 'dark', label: 'Dark' },
-          ]}
-        />
-      </Card>
-
-      <Card style={{ gap: 6 }}>
-        <Text variant="h3">GCash / Maya</Text>
-        <Text tone="muted">{profile?.gcash_number || 'Wala pang naka-set — idagdag para madaling mabayaran.'}</Text>
-      </Card>
-
-      <Button title="Mag-logout" variant="danger" icon="log-out" onPress={() => Alert.alert('Mag-logout?', '', [{ text: 'Hindi' }, { text: 'Oo', style: 'destructive', onPress: signOut }])} />
+  const settings = (
+    <Card style={{ gap: 14 }}>
+      <Text variant="h3">Appearance</Text>
+      <Segmented<ThemePref>
+        value={themePref}
+        onChange={setThemePref}
+        options={[
+          { value: 'system', label: 'System' },
+          { value: 'light', label: 'Light' },
+          { value: 'dark', label: 'Dark' },
+        ]}
+      />
+      <Divider />
+      <Text variant="h3">Testing</Text>
+      {isDemo ? (
+        <Button title="Exit sample data" icon="log-out" variant="secondary" onPress={signOut} />
+      ) : (
+        <Button title="Preview with sample data" icon="eye" variant="secondary" onPress={enterDemo} />
+      )}
+      {(isGuest || isDemo) && <Button title="Start as a new test user" icon="user-plus" variant="secondary" onPress={confirmNewGuest} />}
+      {!isGuest && !isDemo && <Button title="Sign out" variant="danger" icon="log-out" onPress={confirmSignOut} />}
       <Text variant="small" tone="faint" center>
-        Paluwagan v1.0 · Hindi humahawak ng pera ang app — record at paalala lang.
+        Paluwagan records contributions and payouts. It never holds funds.
       </Text>
+    </Card>
+  );
 
+  return (
+    <Screen tabs title="Profile">
+      <Columns
+        main={
+          <>
+            {identity}
+            {trust}
+            {rewards}
+            <View style={styles.stats}>
+              <Stat label="Circles" value={String(all.length)} />
+              <Stat label="On-time rate" value={paid.length ? `${Math.round((onTime / paid.length) * 100)}%` : '—'} />
+              <Stat label="Received" value={peso(received, { compact: true })} />
+            </View>
+          </>
+        }
+        side={settings}
+      />
       <EditProfileSheet open={edit} onClose={() => setEdit(false)} />
     </Screen>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
-    <Card style={{ flex: 1, alignItems: 'center', paddingVertical: 16, paddingHorizontal: 8 }}>
-      <Text variant="h2">{value}</Text>
-      <Text variant="small" tone="muted">
-        {label}
-      </Text>
-    </Card>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+      <Text tone="muted">{label}</Text>
+      <Text variant="bodyMedium">{value}</Text>
+    </View>
   );
 }
 
 function EditProfileSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const c = useColors();
   const { profile } = useAuth();
   const update = useUpdateProfile();
   const [name, setName] = useState('');
   const [gcash, setGcash] = useState('');
-  const [emoji, setEmoji] = useState('🙂');
 
   const [wasOpen, setWasOpen] = useState(false);
   if (open !== wasOpen) {
@@ -122,29 +199,21 @@ function EditProfileSheet({ open, onClose }: { open: boolean; onClose: () => voi
     if (open && profile) {
       setName(profile.full_name);
       setGcash(profile.gcash_number ?? '');
-      setEmoji(profile.avatar_emoji);
     }
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="I-edit ang profile">
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-        {avatarEmojis.map((e) => (
-          <PressableScale key={e} onPress={() => setEmoji(e)}>
-            <Avatar emoji={e} size={48} ring={e === emoji ? c.ink : undefined} />
-          </PressableScale>
-        ))}
-      </ScrollView>
-      <Input label="Pangalan" value={name} onChangeText={setName} />
+    <Sheet open={open} onClose={onClose} title="Edit profile">
+      <Input label="Full name" value={name} onChangeText={setName} />
       <Input label="GCash / Maya number" value={gcash} onChangeText={setGcash} keyboardType="phone-pad" />
       <Button
-        title="I-save"
+        title="Save changes"
         loading={update.isPending}
         disabled={name.trim().length < 2}
         onPress={() =>
           update.mutate(
-            { full_name: name.trim(), gcash_number: gcash.trim() || null, avatar_emoji: emoji },
-            { onSuccess: onClose, onError: (e) => Alert.alert('May mali', errMsg(e)) },
+            { full_name: name.trim(), gcash_number: gcash.trim() || null },
+            { onSuccess: onClose, onError: (e) => notifyError(e, 'Couldn’t save') },
           )
         }
       />
@@ -153,5 +222,5 @@ function EditProfileSheet({ open, onClose }: { open: boolean; onClose: () => voi
 }
 
 const styles = StyleSheet.create({
-  stats: { flexDirection: 'row', gap: 10 },
+  stats: { flexDirection: 'row', gap: 12 },
 });

@@ -1,13 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { AuthShell } from '@/components/AuthShell';
 import { Button } from '@/components/ui/Button';
-import { haptic } from '@/components/ui/PressableScale';
-import { Screen } from '@/components/ui/Screen';
+import { haptic, PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { useColors, useT } from '@/lib/prefs';
-import { errMsg, supabase } from '@/lib/supabase';
+import { notify, notifyError } from '@/lib/alert';
+import { supabase } from '@/lib/supabase';
 import { font, radius } from '@/theme/tokens';
 
 const LEN = 6;
@@ -30,19 +31,19 @@ export default function Verify() {
     if (error) {
       haptic('warning');
       setCode('');
-      return Alert.alert(t('common.error'), errMsg(error));
+      return notifyError(error, 'Invalid code');
     }
     haptic('success');
-    // Root layout's protected routes take over from here.
   };
 
   const resend = async () => {
     const { error } = await supabase.auth.signInWithOtp(mode === 'phone' ? { phone: target } : { email: target });
-    Alert.alert(error ? t('common.error') : '📨', error ? errMsg(error) : 'Pinadala ulit ang code.');
+    if (error) notifyError(error);
+    else notify('Code sent', 'We sent you a new code.');
   };
 
   return (
-    <Screen
+    <AuthShell
       back
       title={t('auth.verify.title')}
       subtitle={`${t('auth.verify.subtitle')} ${target}`}
@@ -53,11 +54,8 @@ export default function Verify() {
           return (
             <View
               key={i}
-              style={[
-                styles.box,
-                { backgroundColor: c.surface, borderColor: active ? c.ink : c.border, borderWidth: active ? 2 : 1 },
-              ]}>
-              <Text style={{ fontFamily: font.extrabold, fontSize: 26 }}>{code[i] ?? ''}</Text>
+              style={[styles.box, { backgroundColor: c.surface, borderColor: active ? c.brand : c.border, borderWidth: active ? 2 : 1 }]}>
+              <Text style={{ fontFamily: font.semibold, fontSize: 24 }}>{code[i] ?? ''}</Text>
             </View>
           );
         })}
@@ -76,15 +74,17 @@ export default function Verify() {
         autoFocus
         style={styles.hidden}
       />
-      <Text variant="smallBold" tone="muted" center onPress={resend}>
-        {t('auth.resend')}
-      </Text>
-    </Screen>
+      <PressableScale onPress={resend} hapticOnPress={false} style={{ alignSelf: 'flex-start' }}>
+        <Text variant="smallBold" tone="brand">
+          {t('auth.resend')}
+        </Text>
+      </PressableScale>
+    </AuthShell>
   );
 }
 
 const styles = StyleSheet.create({
-  boxes: { flexDirection: 'row', gap: 8, justifyContent: 'space-between' },
-  box: { flex: 1, aspectRatio: 0.82, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  boxes: { flexDirection: 'row', gap: 8 },
+  box: { flex: 1, height: 56, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   hidden: { position: 'absolute', opacity: 0, height: 1, width: 1 },
 });

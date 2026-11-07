@@ -1,5 +1,4 @@
 import {
-  PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
   PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold,
@@ -24,13 +23,7 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
-    PlusJakartaSans_800ExtraBold,
-  });
+  const [fontsLoaded] = useFonts({ PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold });
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -44,7 +37,7 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { session, initializing, profile, profileLoading } = useAuth();
+  const { session, initializing, profile, profileLoading, guestError } = useAuth();
   const dark = useIsDark();
   const c = useColors();
   const ready = !initializing && !profileLoading;
@@ -63,10 +56,11 @@ function RootNavigator() {
     <ThemeProvider value={{ ...navTheme, colors: { ...navTheme.colors, background: c.bg } }}>
       <StatusBar style={dark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
-        <Stack.Protected guard={!isSupabaseConfigured}>
+        <Stack.Protected guard={!signedIn && (!isSupabaseConfigured || !!guestError)}>
           <Stack.Screen name="not-configured" />
         </Stack.Protected>
-        <Stack.Protected guard={isSupabaseConfigured && !signedIn}>
+        {/* Email / phone sign-in is built but deferred: the app starts on a guest account for now. */}
+        <Stack.Protected guard={false}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
         <Stack.Protected guard={signedIn && !profileDone}>

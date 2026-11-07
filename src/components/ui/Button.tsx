@@ -7,7 +7,7 @@ import { Text } from '@/components/ui/Text';
 import { useColors } from '@/lib/prefs';
 import { radius } from '@/theme/tokens';
 
-type Variant = 'primary' | 'accent' | 'secondary' | 'ghost' | 'danger';
+type Variant = 'primary' | 'brand' | 'secondary' | 'ghost' | 'danger';
 
 export function Button({
   title,
@@ -15,6 +15,7 @@ export function Button({
   variant = 'primary',
   size = 'lg',
   icon,
+  iconRight,
   loading,
   disabled,
   style,
@@ -25,15 +26,17 @@ export function Button({
   variant?: Variant;
   size?: 'sm' | 'md' | 'lg';
   icon?: ComponentProps<typeof Feather>['name'];
+  iconRight?: ComponentProps<typeof Feather>['name'];
   loading?: boolean;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   full?: boolean;
 }) {
   const c = useColors();
-  const bg = { primary: c.ink, accent: c.accent, secondary: c.surface, ghost: 'transparent', danger: c.dangerBg }[variant];
-  const fg = { primary: c.onInk, accent: c.accentInk, secondary: c.text, ghost: c.text, danger: c.danger }[variant];
-  const h = { sm: 38, md: 48, lg: 58 }[size];
+  const bg = { primary: c.brand, brand: c.brand, secondary: c.border, ghost: 'transparent', danger: c.dangerBg }[variant];
+  const fg = { primary: c.onBrand, brand: c.onBrand, secondary: c.text, ghost: c.textMuted, danger: c.danger }[variant];
+  const h = { sm: 38, md: 46, lg: 54 }[size];
+  const iconSize = size === 'sm' ? 15 : 17;
 
   return (
     <PressableScale
@@ -45,8 +48,6 @@ export function Button({
           backgroundColor: bg,
           height: h,
           paddingHorizontal: size === 'sm' ? 14 : 22,
-          borderWidth: variant === 'secondary' ? 1 : 0,
-          borderColor: c.border,
           alignSelf: full ? 'stretch' : 'flex-start',
         },
         style,
@@ -55,10 +56,11 @@ export function Button({
         <ActivityIndicator color={fg} />
       ) : (
         <View style={styles.row}>
-          {icon && <Feather name={icon} size={size === 'sm' ? 15 : 18} color={fg} />}
+          {icon && <Feather name={icon} size={iconSize} color={fg} />}
           <Text variant={size === 'sm' ? 'smallBold' : 'bodyBold'} color={fg}>
             {title}
           </Text>
+          {iconRight && <Feather name={iconRight} size={iconSize} color={fg} />}
         </View>
       )}
     </PressableScale>
@@ -66,6 +68,6 @@ export function Button({
 }
 
 const styles = StyleSheet.create({
-  base: { borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  base: { borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 });

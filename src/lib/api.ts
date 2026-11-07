@@ -2,14 +2,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
 import { useAuth } from '@/lib/auth';
+import { assertLive, demoQuery, demoState } from '@/lib/demo';
 import { supabase } from '@/lib/supabase';
 import type {
   Activity,
   Circle,
   CirclePreview,
   Contribution,
+  Deposit,
   Frequency,
   Goal,
+  PlanFrequency,
   Member,
   Round,
   Swap,
@@ -32,7 +35,8 @@ export function useMyCircles() {
   return useQuery({
     queryKey: ['my-circles', userId],
     enabled: !!userId,
-    queryFn: async (): Promise<MyCircle[]> => {
+    queryFn: async ({ queryKey }): Promise<MyCircle[]> => {
+      if (demoState.on) return demoQuery(queryKey) as never;
       const memberships = must(
         await supabase
           .from('circle_members')
@@ -71,7 +75,8 @@ export function useCircle(id: string | undefined) {
   return useQuery({
     queryKey: ['circle', id],
     enabled: !!id,
-    queryFn: async (): Promise<CircleDetail> => {
+    queryFn: async ({ queryKey }): Promise<CircleDetail> => {
+      if (demoState.on) return demoQuery(queryKey) as never;
       const [c, m, r, k, s] = await Promise.all([
         supabase.from('circles').select('*').eq('id', id!).single(),
         supabase.from('circle_members').select(MEMBER_SELECT).eq('circle_id', id!).order('joined_at'),
@@ -95,7 +100,8 @@ export function useActivity(circleId?: string) {
   return useQuery({
     queryKey: ['activity', userId, circleId ?? 'all'],
     enabled: !!userId,
-    queryFn: async () => {
+    queryFn: async ({ queryKey }) => {
+      if (demoState.on) return demoQuery(queryKey) as never;
       let q = supabase
         .from('activity')
         .select('*, circles(name, emoji, color), profiles(full_name, avatar_emoji)')
@@ -112,8 +118,23 @@ export function useGoals() {
   return useQuery({
     queryKey: ['goals', userId],
     enabled: !!userId,
-    queryFn: async () =>
-      must(await supabase.from('goals').select('*').order('created_at', { ascending: false })) as Goal[],
+    queryFn: async ({ queryKey }) => {
+      if (demoState.on) return demoQuery(queryKey) as never;
+      return must(await supabase.from('goals').select('*').order('created_at', { ascending: false })) as Goal[];
+    },
+  });
+}
+
+/** Every personal ipon deposit/withdrawal of the user, newest first. */
+export function useDeposits() {
+  const { userId } = useAuth();
+  return useQuery({
+    queryKey: ['deposits', userId],
+    enabled: !!userId,
+    queryFn: async ({ queryKey }) => {
+      if (demoState.on) return demoQuery(queryKey) as never;
+      return must(await supabase.from('goal_deposits').select('*').order('created_at', { ascending: false })) as Deposit[];
+    },
   });
 }
 
@@ -123,7 +144,8 @@ export function usePreview(code: string) {
     queryKey: ['preview', clean],
     enabled: clean.length === 6,
     retry: false,
-    queryFn: async () => {
+    queryFn: async ({ queryKey }) => {
+      if (demoState.on) return demoQuery(queryKey) as never;
       const rows = must(await supabase.rpc('preview_circle', { p_code: clean })) as CirclePreview[];
       return rows[0] ?? null;
     },
@@ -136,7 +158,8 @@ export function useReceiptUrl(path: string | null | undefined) {
     queryKey: ['receipt', path],
     enabled: !!path,
     staleTime: 50 * 60 * 1000,
-    queryFn: async () => {
+    queryFn: async ({ queryKey }) => {
+      if (demoState.on) return demoQuery(queryKey) as Promise<string>;
       const { data, error } = await supabase.storage.from('receipts').createSignedUrl(path!, 3600);
       if (error) throw error;
       return data.signedUrl;
@@ -151,7 +174,7 @@ export function useRealtimeSync() {
   const qc = useQueryClient();
   const { userId } = useAuth();
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || demoState.on) return;
     const channel = supabase.channel(`sync-${userId}`);
     const tables = ['circles', 'circle_members', 'rounds', 'contributions', 'swap_requests', 'activity'];
     for (const table of tables) {
@@ -185,6 +208,7 @@ function useInvalidate() {
 }
 
 async function rpc<T = unknown>(fn: string, args: Record<string, unknown>): Promise<T> {
+  assertLive();
   const { data, error } = await supabase.rpc(fn, args);
   if (error) throw error;
   return data as T;
@@ -202,6 +226,11 @@ export type NewCircle = {
   grace_days: number;
   rules: string;
   order_mode: 'draw' | 'manual';
+  interval_days: number | null;
+  payout_frequency: Frequency | null;
+  payout_interval_days: number | null;
+  first_payout_date: string | null;
+  password: string;
 };
 
 export function useCreateCircle() {
@@ -220,6 +249,11 @@ export function useCreateCircle() {
         p_grace_days: c.grace_days,
         p_rules: c.rules,
         p_order_mode: c.order_mode,
+        p_interval_days: c.interval_days,
+        p_payout_frequency: c.payout_frequency,
+        p_payout_interval: c.payout_interval_days,
+        p_first_payout: c.first_payout_date,
+        p_password: c.password,
       }),
     onSuccess: () => invalidate(),
   });
@@ -228,7 +262,12 @@ export function useCreateCircle() {
 export function useJoinCircle() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { code: string; hati: boolean }) => rpc<string>('request_join', { p_code: v.code, p_hati: v.hati }),
+    mutationFn: async (v: { code: string; hati: boolean; password: string }) => {
+      const id = await rpc<string | null>('request_join', { p_code: v.code, p_hati: v.hati, p_password: v.password || null });
+      // The server returns null (not an error) for a wrong password so it can count attempts.
+      if (!id) throw new Error('Incorrect password. Ask your circle admin for the right one.');
+      return id;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['preview'] }),
   });
 }
@@ -247,6 +286,7 @@ export function useSubmitProof(circleId: string) {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: async (v: { contributionId: string; uri: string; mime?: string | null; note?: string }) => {
+      assertLive();
       const ext = v.mime?.includes('png') ? 'png' : 'jpg';
       const path = `${circleId}/${userId}/${v.contributionId}-${Date.now()}.${ext}`;
       const body = await (await fetch(v.uri)).arrayBuffer();
@@ -263,6 +303,7 @@ export function useSubmitProof(circleId: string) {
 export function useNudge() {
   return useMutation({
     mutationFn: async (roundId: string) => {
+      assertLive();
       const { data, error } = await supabase.functions.invoke('push', { body: { mode: 'nudge', round_id: roundId } });
       if (error) throw error;
       return data as { sent: number };
@@ -274,6 +315,7 @@ export function useUpdateProfile() {
   const { userId, refreshProfile } = useAuth();
   return useMutation({
     mutationFn: async (patch: Partial<{ full_name: string; avatar_emoji: string; gcash_number: string | null; push_token: string | null }>) => {
+      assertLive();
       const { error } = await supabase.from('profiles').update(patch).eq('id', userId!);
       if (error) throw error;
     },
@@ -284,7 +326,17 @@ export function useUpdateProfile() {
 export function useSaveGoal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (g: { id?: string; title: string; target: number; emoji: string; circle_id: string | null }) => {
+    mutationFn: async (g: {
+      id?: string;
+      title: string;
+      target: number;
+      emoji: string;
+      circle_id: string | null;
+      deadline?: string | null;
+      plan_amount?: number | null;
+      plan_frequency?: PlanFrequency | null;
+    }) => {
+      assertLive();
       const { error } = g.id
         ? await supabase.from('goals').update(g).eq('id', g.id)
         : await supabase.from('goals').insert(g);
@@ -298,9 +350,43 @@ export function useDeleteGoal() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
+      assertLive();
       const { error } = await supabase.from('goals').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
+  });
+}
+
+export function useAddDeposit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (d: { goal_id: string; amount: number; note?: string | null }) => {
+      assertLive();
+      const { error } = await supabase.from('goal_deposits').insert({ goal_id: d.goal_id, amount: d.amount, note: d.note?.trim() || null });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['deposits'] }),
+  });
+}
+
+export function useDeleteDeposit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      assertLive();
+      const { error } = await supabase.from('goal_deposits').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['deposits'] }),
+  });
+}
+
+/** Admin: set, change or remove (empty string) the circle's join password. */
+export function useSetCirclePassword(circleId: string) {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (password: string) => rpc('set_circle_password', { p_circle: circleId, p_password: password || null }),
+    onSuccess: () => invalidate(circleId),
   });
 }

@@ -1,6 +1,6 @@
 import type { CircleTint } from '@/theme/tokens';
 
-export type Frequency = 'weekly' | 'kinsenas' | 'monthly';
+export type Frequency = 'daily' | 'weekly' | 'kinsenas' | 'monthly' | 'custom';
 export type CircleStatus = 'forming' | 'locked' | 'active' | 'completed';
 export type MemberStatus = 'pending' | 'approved' | 'rejected' | 'left';
 export type ContributionStatus = 'pending' | 'submitted' | 'confirmed' | 'rejected';
@@ -26,13 +26,21 @@ export type Circle = {
   amount: number;
   slots: number;
   frequency: Frequency;
+  /** Days between payments when frequency is 'custom'. */
+  interval_days: number | null;
   start_date: string;
+  /** Separate sahod (payout) schedule; null = payout on every hulog date. */
+  payout_frequency: Frequency | null;
+  payout_interval_days: number | null;
+  first_payout_date: string | null;
   late_fee: number;
   grace_days: number;
   rules: string;
   order_mode: 'draw' | 'manual';
   status: CircleStatus;
   invite_code: string;
+  /** Joining requires the circle password. */
+  has_password: boolean;
   seed_hash: string | null;
   seed: string | null;
   draw_order: string[] | null;
@@ -72,6 +80,8 @@ export type Contribution = {
   member_id: string;
   user_id: string;
   amount: number;
+  /** Hulog date of this contribution (null on circles created before separate sahod schedules). */
+  due_date: string | null;
   status: ContributionStatus;
   auto: boolean;
   proof_path: string | null;
@@ -99,6 +109,21 @@ export type Goal = {
   title: string;
   target: number;
   emoji: string;
+  deadline: string | null;
+  plan_amount: number | null;
+  plan_frequency: PlanFrequency | null;
+  created_at: string;
+};
+
+export type PlanFrequency = 'daily' | 'weekly' | 'kinsenas' | 'monthly';
+
+/** A personal ipon entry: positive = deposit, negative = withdrawal. */
+export type Deposit = {
+  id: string;
+  goal_id: string;
+  user_id: string;
+  amount: number;
+  note: string | null;
   created_at: string;
 };
 
@@ -130,4 +155,9 @@ export type CirclePreview = {
   admin_name: string;
   admin_tiwala: number;
   my_status: MemberStatus | null;
+  has_password: boolean;
+  interval_days: number | null;
+  payout_frequency: Frequency | null;
+  payout_interval_days: number | null;
+  first_payout_date: string | null;
 };

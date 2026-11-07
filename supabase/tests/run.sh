@@ -12,4 +12,9 @@ sleep 1
 run() { docker exec -i "$NAME" psql -U postgres -v ON_ERROR_STOP=1 -q "$@"; }
 run < supabase/tests/00_supabase_stub.sql
 run < supabase/migrations/0001_init.sql
+run < supabase/migrations/0002_english_messages.sql
+run < supabase/migrations/0003_ipon.sql
+run < supabase/migrations/0004_schedule_password.sql
+run < supabase/migrations/0005_payout_schedule.sql
 run < supabase/tests/01_flow_test.sql
+run < supabase/tests/02_schedule_password_test.sql

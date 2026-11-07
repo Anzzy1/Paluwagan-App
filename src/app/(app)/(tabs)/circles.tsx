@@ -1,52 +1,68 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { CircleCard } from '@/components/circle/CircleCard';
+import { ManagedCard } from '@/components/ManagedCard';
 import { EmptyState, Segmented } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { useMyCircles } from '@/lib/api';
-import { useT } from '@/lib/prefs';
+import { useManagedCircles } from '@/lib/local';
+import { useIsDesktop, useT } from '@/lib/prefs';
 
 export default function CirclesTab() {
   const t = useT();
+  const desktop = useIsDesktop();
   const q = useMyCircles();
   const [filter, setFilter] = useState<'ongoing' | 'done'>('ongoing');
-  const list = (q.data ?? []).filter((mc) =>
-    filter === 'done' ? mc.circle.status === 'completed' : mc.circle.status !== 'completed',
+  const all = q.data ?? [];
+  const list = all.filter((mc) => (filter === 'done' ? mc.circle.status === 'completed' : mc.circle.status !== 'completed'));
+  const managedAll = useManagedCircles();
+  const managed = managedAll.filter((m) => (filter === 'done' ? m.status === 'completed' : m.status !== 'completed'));
+
+  const actions = (
+    <>
+      <Button title={t('circles.join')} icon="log-in" size="md" variant="secondary" full={false} onPress={() => router.push('/join')} />
+      <Button title={t('circles.create')} icon="plus" size="md" full={false} onPress={() => router.push('/create')} />
+    </>
   );
 
   return (
-    <Screen tabs title={t('circles.title')} refreshing={q.isRefetching} onRefresh={q.refetch}>
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <Button title={t('circles.create')} icon="plus" size="md" onPress={() => router.push('/create')} style={{ flex: 1 }} />
-        <Button title={t('circles.join')} icon="key" size="md" variant="secondary" onPress={() => router.push('/join')} style={{ flex: 1 }} />
+    <Screen tabs title={t('circles.title')} subtitle={`${all.length} online · ${managedAll.length} managed on this device`} right={desktop ? actions : undefined} refreshing={q.isRefetching} onRefresh={q.refetch}>
+      {!desktop && <View style={{ flexDirection: 'row', gap: 10 }}>{actions}</View>}
+      <View style={{ maxWidth: 360 }}>
+        <Segmented
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'ongoing', label: 'Active' },
+            { value: 'done', label: 'Completed' },
+          ]}
+        />
       </View>
-      <Segmented
-        value={filter}
-        onChange={setFilter}
-        options={[
-          { value: 'ongoing', label: 'Kasalukuyan' },
-          { value: 'done', label: 'Tapos na' },
-        ]}
-      />
-      {list.length === 0 && !q.isPending ? (
+      {list.length === 0 && managed.length === 0 && !q.isPending ? (
         <Card>
           <EmptyState
-            emoji={filter === 'done' ? '🏁' : '🫙'}
-            title={filter === 'done' ? 'Wala pang natapos' : t('home.noCircles')}
-            body={filter === 'done' ? 'Dito lalabas ang mga paluwagang natapos mo na.' : t('home.noCirclesBody')}
+            icon={filter === 'done' ? 'flag' : 'layers'}
+            title={filter === 'done' ? 'No completed circles' : t('home.noCircles')}
+            body={filter === 'done' ? 'Circles you finish will appear here.' : t('home.noCirclesBody')}
           />
         </Card>
       ) : (
-        list.map((mc, i) => (
-          <Animated.View key={mc.circle.id} entering={FadeInDown.delay(i * 60)}>
-            <CircleCard mc={mc} />
-          </Animated.View>
-        ))
+        <View style={{ flexDirection: desktop ? 'row' : 'column', flexWrap: 'wrap', gap: 16 }}>
+          {list.map((mc) => (
+            <View key={mc.circle.id} style={desktop ? { flexBasis: '48%', flexGrow: 1, maxWidth: '50%' } : undefined}>
+              <CircleCard mc={mc} />
+            </View>
+          ))}
+          {managed.map((m) => (
+            <View key={m.id} style={desktop ? { flexBasis: '48%', flexGrow: 1, maxWidth: '50%' } : undefined}>
+              <ManagedCard circle={m} />
+            </View>
+          ))}
+        </View>
       )}
     </Screen>
   );

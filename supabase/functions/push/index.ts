@@ -4,7 +4,7 @@
 //   1. Cron reminders  — POST {"mode":"reminders"} with header `x-cron-secret: <CRON_SECRET>`
 //      Sends a push to every member with an unpaid contribution due in 3 days,
 //      1 day, today, or overdue.
-//   2. Paalala nudge   — POST {"mode":"nudge","round_id":"..."} with the user's JWT.
+//   2. Reminder nudge  — POST {"mode":"nudge","round_id":"..."} with the user's JWT.
 //      Caller must be the circle admin or the round's recipient.
 //
 // Deploy:  supabase functions deploy push
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     const today = manilaToday();
     const { data, error } = await admin
       .from('contributions')
-      .select('id, amount, user_id, rounds!inner(due_date, round_no, circle_id), circles!inner(name, grace_days, status), profiles!contributions_user_id_fkey!inner(push_token)')
+      .select('id, amount, user_id, due_date, rounds!inner(due_date, round_no, circle_id), circles!inner(name, grace_days, status), profiles!contributions_user_id_fkey!inner(push_token)')
       .in('status', ['pending', 'rejected'])
       .eq('circles.status', 'active')
       .not('profiles.push_token', 'is', null);
@@ -65,16 +65,17 @@ Deno.serve(async (req) => {
     for (const row of data ?? []) {
       // deno-lint-ignore no-explicit-any
       const r = row as any;
-      const diff = daysBetween(today, r.rounds.due_date);
+      // Each contribution has its own hulog date (older circles: the round's date).
+      const diff = daysBetween(today, r.due_date ?? r.rounds.due_date);
       let msg: string | null = null;
-      if (diff === 3) msg = `3 araw na lang bago ang hulog mo sa ${r.circles.name}.`;
-      else if (diff === 1) msg = `Bukas na ang hulog mo sa ${r.circles.name}!`;
-      else if (diff === 0) msg = `Ngayon ang due ng hulog mo sa ${r.circles.name}.`;
-      else if (diff < -r.circles.grace_days) msg = `Late na ang hulog mo sa ${r.circles.name}. Bayaran na para hindi bumaba ang Tiwala Score mo.`;
+      if (diff === 3) msg = `Your contribution to ${r.circles.name} is due in 3 days.`;
+      else if (diff === 1) msg = `Your contribution to ${r.circles.name} is due tomorrow.`;
+      else if (diff === 0) msg = `Your contribution to ${r.circles.name} is due today.`;
+      else if (diff < -r.circles.grace_days) msg = `Your contribution to ${r.circles.name} is overdue. Pay now to protect your Trust Score.`;
       if (!msg) continue;
       messages.push({
         to: r.profiles.push_token,
-        title: `Hulog: ${peso(r.amount)}`,
+        title: `Contribution due: ${peso(r.amount)}`,
         body: msg,
         sound: 'default',
         data: { url: `/circle/${r.rounds.circle_id}` },
@@ -108,15 +109,15 @@ Deno.serve(async (req) => {
       .eq('round_id', round.id).in('status', ['pending', 'rejected']);
 
     // deno-lint-ignore no-explicit-any
-    const circleName = (round as any).circles?.name ?? 'paluwagan';
+    const circleName = (round as any).circles?.name ?? 'your circle';
     const messages: PushMessage[] = (unpaid ?? [])
       // deno-lint-ignore no-explicit-any
       .filter((u: any) => u.profiles?.push_token)
       // deno-lint-ignore no-explicit-any
       .map((u: any) => ({
         to: u.profiles.push_token,
-        title: `Paalala 👋 ${circleName}`,
-        body: `Hinihintay na ang hulog mo na ${peso(u.amount)} para sa Round ${round.round_no}.`,
+        title: `Payment reminder · ${circleName}`,
+        body: `Your ${peso(u.amount)} contribution for round ${round.round_no} is still pending.`,
         sound: 'default',
         data: { url: `/circle/${round.circle_id}` },
       }));

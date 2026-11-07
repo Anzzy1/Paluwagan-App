@@ -2,39 +2,45 @@ import { Feather } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
+import { DRAW_STYLES } from '@/components/draw/common';
+import { DrawStage, DrawStylePicker } from '@/components/draw/DrawStage';
 import { Confetti } from '@/components/ui/Confetti';
-import { Avatar, IconButton } from '@/components/ui/bits';
+import { AvatarStack, IconButton } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { haptic } from '@/components/ui/PressableScale';
-import { Screen } from '@/components/ui/Screen';
+import { Columns, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
+import { notifyError } from '@/lib/alert';
 import { useCircle, useCircleAction } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { verifyDraw, type VerifyResult } from '@/lib/draw';
-import { slotName, slotsOf, shortDate } from '@/lib/format';
+import { dateTime, shortDate, slotName, slotsOf } from '@/lib/format';
 import { useColors } from '@/lib/prefs';
-import { errMsg } from '@/lib/supabase';
+import type { DrawStyle } from '@/lib/local';
 import type { Member } from '@/lib/types';
 import { radius } from '@/theme/tokens';
 
 const sha256 = (s: string) => Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, s);
+const people = (ms: Member[]) => ms.map((m) => ({ id: m.user_id, name: m.profiles?.full_name }));
 
 export default function DrawScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const c = useColors();
   const { userId } = useAuth();
   const q = useCircle(id);
   const action = useCircleAction(id);
   const [playing, setPlaying] = useState(false);
+  const [style, setStyle] = useState<DrawStyle>('wheel');
   const wasLocked = useRef<boolean | null>(null);
 
   const data = q.data;
   const status = data?.circle.status;
 
-  // If the draw happens while we're watching (e.g. a member waiting), play the reveal.
+  // If the draw happens while a member is watching, play the reveal live.
   useEffect(() => {
     if (!status) return;
     if (wasLocked.current === true && status === 'active' && data?.circle.order_mode === 'draw') setPlaying(true);
@@ -61,100 +67,144 @@ export default function DrawScreen() {
 
   if (circle.status === 'locked') {
     return (
-      <Screen back title="Digital Bunot 🎲" subtitle="Random, patas, at kayang i-verify ng lahat.">
-        <Card style={{ gap: 8 }}>
-          <Text variant="h3">🔐 Commitment hash</Text>
-          <Text variant="small" tone="muted">
-            Ginawa ito noong ni-lock ang circle. Kapag lumabas na ang seed pagkatapos ng bunot, puwedeng i-check ng kahit sino na
-            tugma ito — patunay na hindi binago ang resulta.
-          </Text>
-          <View style={styles.mono}>
-            <Text variant="small" style={{ fontFamily: 'monospace' }} selectable>
-              {circle.seed_hash}
-            </Text>
-          </View>
-        </Card>
-        <Text variant="h3">Kasali sa bunot ({slots.length})</Text>
-        <View style={styles.wrap}>
-          {slots.map((s) => (
-            <View key={s.group} style={styles.ticket}>
-              <SlotTicket members={s.members} />
-            </View>
-          ))}
-        </View>
-        {isAdmin ? (
-          <Button
-            title="Bunot na! 🎲"
-            variant="accent"
-            loading={action.isPending}
-            onPress={() =>
-              action.mutate(
-                { fn: 'run_draw', args: { p_circle: id } },
-                {
-                  onSuccess: () => {
-                    wasLocked.current = false;
-                    setPlaying(true);
-                  },
-                  onError: (e) => Alert.alert('May mali', errMsg(e)),
-                },
-              )
-            }
-          />
-        ) : (
-          <Card>
-            <Text tone="muted" center>
-              Hinihintay ang admin na simulan ang bunot… Manatili dito para mapanood nang live! 👀
-            </Text>
-          </Card>
-        )}
+      <Screen back title="Verifiable draw" subtitle={`${circle.name} · ${slots.length} participants`}>
+        <Columns
+          main={
+            <>
+            {isAdmin && (
+              <Card style={{ gap: 12 }}>
+                <Text variant="h3">Pick a draw game</Text>
+                <DrawStylePicker value={style} onChange={setStyle} />
+              </Card>
+            )}
+            <Card padded={false}>
+              <View style={styles.head}>
+                <Text variant="h3">Participants</Text>
+              </View>
+              {slots.map((s) => (
+                <View key={s.group} style={[styles.row, { borderTopColor: c.border }]}>
+                  <AvatarStack people={people(s.members)} size={32} />
+                  <Text variant="bodyMedium" style={{ flex: 1 }}>
+                    {slotName(s.members)}
+                  </Text>
+                </View>
+              ))}
+            </Card>
+            </>
+          }
+          side={
+            <>
+              <Card style={{ gap: 10 }}>
+                <Text variant="h3">Commitment</Text>
+                <Text variant="small" tone="muted">
+                  Published when the circle was locked. After the draw, the seed is revealed and anyone can confirm it produces this hash and the same payout order.
+                </Text>
+                <View style={[styles.mono, { backgroundColor: c.surfaceAlt }]}>
+                  <Text variant="mono" selectable>
+                    {circle.seed_hash}
+                  </Text>
+                </View>
+              </Card>
+              {isAdmin ? (
+                <Button
+                  title={`Run the draw · ${DRAW_STYLES.find((d) => d.id === style)?.title}`}
+                  icon="shuffle"
+                  variant="brand"
+                  loading={action.isPending}
+                  onPress={() =>
+                    action.mutate(
+                      { fn: 'run_draw', args: { p_circle: id } },
+                      {
+                        onSuccess: () => {
+                          wasLocked.current = false;
+                          setPlaying(true);
+                        },
+                        onError: (e) => notifyError(e),
+                      },
+                    )
+                  }
+                />
+              ) : (
+                <Card>
+                  <Text variant="small" tone="muted" center>
+                    Waiting for the admin to run the draw. Keep this page open to watch it live.
+                  </Text>
+                </Card>
+              )}
+            </>
+          }
+        />
       </Screen>
     );
   }
 
   const order = circle.draw_order ?? [];
   return (
-    <Screen back title={playing ? 'Bumubunot… 🎲' : 'Resulta ng Bunot'} subtitle={circle.drawn_at ? `Ginawa noong ${new Date(circle.drawn_at).toLocaleString()}` : undefined}>
-      <Reveal
-        order={order}
-        nameOf={(g) => slotName(groupMembers(g))}
-        membersOf={groupMembers}
-        dueOf={(i) => rounds.find((r) => r.round_no === i + 1)?.due_date}
-        myGroup={me?.slot_group}
-        playing={playing}
-        onDone={() => setPlaying(false)}
+    <Screen back title={playing ? DRAW_STYLES.find((d) => d.id === style)?.title ?? 'Drawing…' : 'Draw results'} subtitle={circle.drawn_at ? `${circle.name} · ${dateTime(circle.drawn_at)}` : circle.name}>
+      <Columns
+        main={
+          playing ? (
+            <Card style={{ paddingVertical: 24 }}>
+              <DrawStage
+                style={style}
+                participants={slots.map((s) => ({ id: s.group, name: slotName(s.members) }))}
+                order={order}
+                onDone={() => setTimeout(() => setPlaying(false), 2500)}
+              />
+            </Card>
+          ) : (
+            <Reveal
+              order={order}
+              nameOf={(g) => slotName(groupMembers(g))}
+              membersOf={groupMembers}
+              dueOf={(i) => rounds.find((r) => r.round_no === i + 1)?.due_date}
+              myGroup={me?.slot_group}
+              playing={false}
+              onDone={() => setPlaying(false)}
+            />
+          )
+        }
+        side={
+          !playing && (
+            <>
+              {order.length > 0 && (
+                <Card style={{ gap: 8 }}>
+                  <Text variant="h3">Replay the draw</Text>
+                  <Text variant="small" tone="muted">
+                    Watch the same fair result again with any game.
+                  </Text>
+                  {DRAW_STYLES.map((d) => (
+                    <Button
+                      key={d.id}
+                      title={`${d.emoji}  ${d.title}`}
+                      variant="secondary"
+                      size="md"
+                      onPress={() => {
+                        setStyle(d.id);
+                        setPlaying(true);
+                      }}
+                    />
+                  ))}
+                </Card>
+              )}
+              {circle.order_mode === 'draw' && circle.seed && circle.seed_hash ? (
+                <VerifyCard seed={circle.seed} seedHash={circle.seed_hash} groups={slots.map((s) => s.group)} order={order} />
+              ) : (
+                <Card>
+                  <Text variant="small" tone="muted">
+                    The payout order was set manually by the admin.
+                  </Text>
+                </Card>
+              )}
+            </>
+          )
+        }
       />
-      {!playing && circle.order_mode === 'draw' && circle.seed && circle.seed_hash && (
-        <VerifyCard seed={circle.seed} seedHash={circle.seed_hash} groups={slots.map((s) => s.group)} order={order} />
-      )}
-      {!playing && circle.order_mode === 'manual' && (
-        <Card>
-          <Text tone="muted" center>
-            Inayos ng admin ang pagkakasunod (manual mode).
-          </Text>
-        </Card>
-      )}
     </Screen>
   );
 }
 
-function SlotTicket({ members }: { members: Member[] }) {
-  return (
-    <Card style={{ alignItems: 'center', gap: 6, paddingVertical: 14 }}>
-      <View style={{ flexDirection: 'row' }}>
-        {members.map((m, i) => (
-          <View key={m.id} style={{ marginLeft: i ? -10 : 0 }}>
-            <Avatar emoji={m.profiles?.avatar_emoji} size={40} />
-          </View>
-        ))}
-      </View>
-      <Text variant="smallBold" numberOfLines={1} center>
-        {slotName(members)}
-      </Text>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------- Reveal animation
+// ---------------------------------------------------------------- Reveal
 function Reveal({
   order,
   nameOf,
@@ -184,7 +234,6 @@ function Reveal({
     doneRef.current = onDone;
   });
 
-  // Restart from 0 whenever a new playback begins (state adjustment during render).
   const [wasPlaying, setWasPlaying] = useState(playing);
   if (playing !== wasPlaying) {
     setWasPlaying(playing);
@@ -199,92 +248,82 @@ function Reveal({
       const ns = namesRef.current;
       setSpinName(ns[Math.floor(Math.random() * ns.length)]);
     }, 70);
-    const step = setInterval(() => {
+    const tick = setInterval(() => {
       k++;
       haptic('medium');
       setStep(k);
       if (k >= order.length) {
-        clearInterval(step);
+        clearInterval(tick);
         clearInterval(spin);
         haptic('success');
         setConfetti(Date.now());
         setTimeout(() => doneRef.current(), 400);
       }
-    }, order.length > 12 ? 600 : 1000);
+    }, order.length > 12 ? 500 : 850);
     return () => {
       clearInterval(spin);
-      clearInterval(step);
+      clearInterval(tick);
     };
   }, [playing, order.length]);
 
   return (
     <>
-      <View style={{ gap: 10 }}>
+      <Card padded={false}>
+        <View style={styles.head}>
+          <Text variant="h3">Payout order</Text>
+          <Text variant="small" tone="muted">
+            {Math.min(revealed, order.length)}/{order.length} revealed
+          </Text>
+        </View>
         {order.map((g, i) => {
           const shown = i < revealed;
           const spinning = playing && i === revealed;
           const mine = g === myGroup;
-          if (!shown && !spinning) {
-            return (
-              <View key={g} style={[styles.reelRow, { backgroundColor: c.surface, borderColor: c.border, opacity: 0.5 }]}>
-                <View style={[styles.reelNum, { backgroundColor: c.surfaceAlt }]}>
-                  <Text variant="h3" tone="faint">
-                    {i + 1}
-                  </Text>
-                </View>
-                <Text variant="bodyBold" tone="faint">
-                  ? ? ?
-                </Text>
-              </View>
-            );
-          }
           return (
-            <Animated.View
+            <View
               key={g}
-              entering={shown ? ZoomIn.springify().damping(12) : FadeIn}
               style={[
                 styles.reelRow,
-                {
-                  backgroundColor: mine && shown ? c.accent : c.surface,
-                  borderColor: spinning ? c.ink : c.border,
-                  borderWidth: spinning ? 2 : 1,
-                },
+                { borderTopColor: c.border },
+                spinning && { backgroundColor: c.surfaceAlt },
+                mine && shown && { backgroundColor: c.brandSoft },
               ]}>
-              <View style={[styles.reelNum, { backgroundColor: mine && shown ? c.accentInk : c.ink }]}>
-                <Text variant="h3" color={mine && shown ? c.accent : c.onInk}>
+              <View style={[styles.reelNum, { backgroundColor: shown ? c.ink : c.surfaceAlt }]}>
+                <Text variant="smallBold" color={shown ? c.onInk : c.textFaint}>
                   {i + 1}
                 </Text>
               </View>
               {shown ? (
-                <>
-                  <View style={{ flexDirection: 'row' }}>
-                    {membersOf(g).map((m, j) => (
-                      <View key={m.id} style={{ marginLeft: j ? -10 : 0 }}>
-                        <Avatar emoji={m.profiles?.avatar_emoji} size={34} bg={c.surfaceAlt} />
-                      </View>
-                    ))}
-                  </View>
+                <Animated.View entering={FadeInDown.duration(260)} style={styles.reelBody}>
+                  <AvatarStack people={people(membersOf(g))} size={30} />
                   <View style={{ flex: 1 }}>
-                    <Text variant="bodyBold" color={mine ? c.accentInk : c.text} numberOfLines={1}>
-                      {names[i]} {mine ? '(Ikaw!)' : ''}
+                    <Text variant="bodyBold" numberOfLines={1}>
+                      {names[i]}
+                      {mine ? ' (you)' : ''}
                     </Text>
                     {dueOf(i) && (
-                      <Text variant="small" color={mine ? c.accentInk : c.textMuted}>
-                        Sahod sa {shortDate(dueOf(i)!)}
+                      <Text variant="small" tone="muted">
+                        Payout {shortDate(dueOf(i)!)}
                       </Text>
                     )}
                   </View>
-                </>
+                </Animated.View>
+              ) : spinning ? (
+                <Animated.View entering={FadeIn} style={styles.reelBody}>
+                  <Text variant="bodyBold" tone="muted" numberOfLines={1}>
+                    {spinName}
+                  </Text>
+                </Animated.View>
               ) : (
-                <Text variant="h3" style={{ flex: 1 }} numberOfLines={1}>
-                  {spinName}
-                </Text>
+                <View style={styles.reelBody}>
+                  <View style={[styles.placeholder, { backgroundColor: c.surfaceAlt }]} />
+                </View>
               )}
-            </Animated.View>
+            </View>
           );
         })}
-      </View>
-      <Confetti run={confetti} count={80} />
+      </Card>
+      <Confetti run={confetti} count={70} />
     </>
   );
 }
@@ -294,8 +333,8 @@ function Check({ ok, label }: { ok: boolean; label: string }) {
   const c = useColors();
   return (
     <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-      <Feather name={ok ? 'check-circle' : 'x-circle'} size={18} color={ok ? c.success : c.danger} />
-      <Text variant="bodyBold" tone={ok ? 'success' : 'danger'}>
+      <Feather name={ok ? 'check-circle' : 'x-circle'} size={16} color={ok ? c.success : c.danger} />
+      <Text variant="smallBold" tone={ok ? 'success' : 'danger'} style={{ flex: 1 }}>
         {label}
       </Text>
     </View>
@@ -303,6 +342,7 @@ function Check({ ok, label }: { ok: boolean; label: string }) {
 }
 
 function VerifyCard({ seed, seedHash, groups, order }: { seed: string; seedHash: string; groups: string[]; order: string[] }) {
+  const c = useColors();
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -311,6 +351,8 @@ function VerifyCard({ seed, seedHash, groups, order }: { seed: string; seedHash:
     try {
       setResult(await verifyDraw({ seed, seedHash, slotGroups: groups, publishedOrder: order }, sha256));
       haptic('success');
+    } catch (e) {
+      notifyError(e, 'Verification failed');
     } finally {
       setBusy(false);
     }
@@ -318,31 +360,31 @@ function VerifyCard({ seed, seedHash, groups, order }: { seed: string; seedHash:
 
   return (
     <Card style={{ gap: 12 }}>
-      <Text variant="h3">🛡️ I-verify ang bunot</Text>
+      <Text variant="h3">Verify this draw</Text>
       <Text variant="small" tone="muted">
-        Kinukuwenta ulit ng phone mo ang resulta gamit ang inilabas na seed. Kapag tugma ang lahat, siguradong walang nandaya.
+        Your device recomputes the result from the revealed seed. If both checks pass, the order could not have been altered.
       </Text>
-      <View style={[styles.mono]}>
+      <View style={[styles.mono, { backgroundColor: c.surfaceAlt, gap: 4 }]}>
         <Text variant="caption" tone="faint">
-          Seed
+          Revealed seed
         </Text>
-        <Text variant="small" style={{ fontFamily: 'monospace' }} selectable>
+        <Text variant="mono" selectable>
           {seed}
         </Text>
-        <Text variant="caption" tone="faint" style={{ marginTop: 8 }}>
-          SHA-256 hash (na-publish bago ang bunot)
+        <Text variant="caption" tone="faint" style={{ marginTop: 6 }}>
+          Commitment (SHA-256)
         </Text>
-        <Text variant="small" style={{ fontFamily: 'monospace' }} selectable>
+        <Text variant="mono" selectable>
           {seedHash}
         </Text>
       </View>
       {result ? (
-        <View style={{ gap: 6 }}>
-          <Check ok={result.hashMatches} label={result.hashMatches ? 'Tugma ang seed sa naunang hash' : 'HINDI tugma ang hash!'} />
-          <Check ok={result.orderMatches} label={result.orderMatches ? 'Pareho ang resulta sa kinuwenta ng phone mo' : 'HINDI tugma ang order!'} />
+        <View style={{ gap: 8 }}>
+          <Check ok={result.hashMatches} label={result.hashMatches ? 'Seed matches the published commitment' : 'Seed does NOT match the commitment'} />
+          <Check ok={result.orderMatches} label={result.orderMatches ? 'Payout order matches the recomputed result' : 'Payout order does NOT match'} />
         </View>
       ) : (
-        <Button title="I-verify ngayon" icon="shield" variant="secondary" onPress={run} loading={busy} />
+        <Button title="Verify now" icon="shield" variant="secondary" onPress={run} loading={busy} />
       )}
     </Card>
   );
@@ -360,54 +402,54 @@ function ManualOrder({ circleId, slots, isAdmin }: { circleId: string; slots: { 
     const next = [...order];
     [next[i], next[j]] = [next[j], next[i]];
     setOrder(next);
-    haptic('light');
   };
 
   return (
     <Screen
       back
-      title="Ayusin ang pagkakasunod"
-      subtitle={isAdmin ? 'Gamitin ang arrows. Ang nasa #1 ang unang makakatanggap.' : 'Hinihintay ang admin na ayusin ang pagkakasunod.'}
+      narrow
+      title="Set payout order"
+      subtitle={isAdmin ? 'Position 1 receives the first payout.' : 'Waiting for the admin to set the payout order.'}
       footer={
         isAdmin ? (
           <Button
-            title="I-save at simulan ang circle"
+            title="Save order and start circle"
             loading={action.isPending}
-            onPress={() =>
-              action.mutate(
-                { fn: 'set_manual_order', args: { p_circle: circleId, p_order: order.map((s) => s.group) } },
-                { onError: (e) => Alert.alert('May mali', errMsg(e)) },
-              )
-            }
+            onPress={() => action.mutate({ fn: 'set_manual_order', args: { p_circle: circleId, p_order: order.map((s) => s.group) } }, { onError: (e) => notifyError(e) })}
           />
         ) : undefined
       }>
-      {order.map((s, i) => (
-        <View key={s.group} style={[styles.reelRow, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <View style={[styles.reelNum, { backgroundColor: c.ink }]}>
-            <Text variant="h3" tone="onInk">
-              {i + 1}
+      <Card padded={false}>
+        {order.map((s, i) => (
+          <View key={s.group} style={[styles.reelRow, i === 0 && { borderTopWidth: 0 }, { borderTopColor: c.border }]}>
+            <View style={[styles.reelNum, { backgroundColor: c.ink }]}>
+              <Text variant="smallBold" tone="onInk">
+                {i + 1}
+              </Text>
+            </View>
+            <AvatarStack people={people(s.members)} size={30} />
+            <Text variant="bodyMedium" style={{ flex: 1 }} numberOfLines={1}>
+              {slotName(s.members)}
             </Text>
+            {isAdmin && (
+              <>
+                <IconButton icon="arrow-up" size={32} onPress={() => move(i, -1)} label="Move up" />
+                <IconButton icon="arrow-down" size={32} onPress={() => move(i, 1)} label="Move down" />
+              </>
+            )}
           </View>
-          <Text variant="bodyBold" style={{ flex: 1 }} numberOfLines={1}>
-            {slotName(s.members)}
-          </Text>
-          {isAdmin && (
-            <>
-              <IconButton icon="arrow-up" size={36} onPress={() => move(i, -1)} />
-              <IconButton icon="arrow-down" size={36} onPress={() => move(i, 1)} />
-            </>
-          )}
-        </View>
-      ))}
+        ))}
+      </Card>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  mono: { padding: 12, borderRadius: radius.sm, backgroundColor: '#8881' },
-  wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  ticket: { width: '31%', flexGrow: 1 },
-  reelRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: radius.lg, borderWidth: 1, minHeight: 64 },
-  reelNum: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
+  mono: { padding: 12, borderRadius: radius.sm },
+  reelRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, minHeight: 60, borderTopWidth: 1 },
+  reelNum: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  reelBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  placeholder: { height: 10, width: '40%', borderRadius: 5 },
 });

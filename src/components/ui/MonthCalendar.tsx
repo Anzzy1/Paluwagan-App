@@ -7,8 +7,8 @@ import { Text } from '@/components/ui/Text';
 import { parseDate, toISODate, todayISO } from '@/lib/format';
 import { useColors } from '@/lib/prefs';
 
-const MONTHS = ['Enero', 'Pebrero', 'Marso', 'Abril', 'Mayo', 'Hunyo', 'Hulyo', 'Agosto', 'Setyembre', 'Oktubre', 'Nobyembre', 'Disyembre'];
-const DAYS = ['L', 'L', 'M', 'M', 'H', 'B', 'S'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 export function MonthCalendar({
   value,
@@ -34,11 +34,11 @@ export function MonthCalendar({
   return (
     <View style={{ gap: 10 }}>
       <View style={styles.head}>
-        <IconButton icon="chevron-left" size={36} onPress={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} />
+        <IconButton icon="chevron-left" size={34} onPress={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} />
         <Text variant="h3">
           {MONTHS[cursor.getMonth()]} {cursor.getFullYear()}
         </Text>
-        <IconButton icon="chevron-right" size={36} onPress={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} />
+        <IconButton icon="chevron-right" size={34} onPress={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} />
       </View>
       <View style={styles.grid}>
         {DAYS.map((d, i) => (
@@ -62,11 +62,11 @@ export function MonthCalendar({
                 style={[
                   styles.day,
                   selected && { backgroundColor: c.ink },
-                  !selected && hl && { backgroundColor: c.accent },
+                  !selected && hl && { backgroundColor: c.brandSoft },
                 ]}>
                 <Text
                   variant="smallBold"
-                  color={selected ? c.onInk : hl ? c.accentInk : past ? c.textFaint : c.text}>
+                  color={selected ? c.onInk : hl ? c.brand : past ? c.textFaint : c.text}>
                   {d.getDate()}
                 </Text>
               </PressableScale>
@@ -81,6 +81,6 @@ export function MonthCalendar({
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { width: `${100 / 7}%`, aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
-  day: { width: '84%', height: '84%', borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  cell: { width: `${100 / 7}%`, height: 40, alignItems: 'center', justifyContent: 'center' },
+  day: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
 });

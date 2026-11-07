@@ -1,13 +1,15 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 
+import { AuthShell } from '@/components/AuthShell';
+import { Divider, Input, Segmented } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
-import { Input, Segmented } from '@/components/ui/bits';
-import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
+import { useAuth } from '@/lib/auth';
 import { useT } from '@/lib/prefs';
-import { errMsg, supabase } from '@/lib/supabase';
+import { notifyError } from '@/lib/alert';
+import { supabase } from '@/lib/supabase';
 
 /** Normalises PH mobile numbers to E.164 (+639XXXXXXXXX). */
 function toE164(raw: string) {
@@ -20,6 +22,7 @@ function toE164(raw: string) {
 
 export default function Login() {
   const t = useT();
+  const { enterDemo } = useAuth();
   const [mode, setMode] = useState<'email' | 'phone'>('email');
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,22 +30,37 @@ export default function Login() {
   const valid = mode === 'email' ? /\S+@\S+\.\S+/.test(value) : value.replace(/\D/g, '').length >= 10;
 
   const send = async () => {
+    if (!valid) return;
     setLoading(true);
     const target = mode === 'email' ? value.trim().toLowerCase() : toE164(value);
     const { error } = await supabase.auth.signInWithOtp(
       mode === 'email' ? { email: target, options: { shouldCreateUser: true } } : { phone: target },
     );
     setLoading(false);
-    if (error) return Alert.alert(t('common.error'), errMsg(error));
+    if (error) return notifyError(error, 'Couldn’t send code');
     router.push({ pathname: '/verify', params: { mode, target } });
   };
 
+  const actions = (
+    <>
+      <Button title={t('auth.send')} onPress={send} disabled={!valid} loading={loading} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 }}>
+        <View style={{ flex: 1 }}>
+          <Divider />
+        </View>
+        <Text variant="caption" tone="faint">
+          OR
+        </Text>
+        <View style={{ flex: 1 }}>
+          <Divider />
+        </View>
+      </View>
+      <Button title="Explore the demo" variant="secondary" icon="eye" onPress={enterDemo} />
+    </>
+  );
+
   return (
-    <Screen
-      back
-      title={t('auth.title')}
-      subtitle={t('auth.subtitle')}
-      footer={<Button title={t('auth.send')} onPress={send} disabled={!valid} loading={loading} icon="send" />}>
+    <AuthShell title={t('auth.title')} subtitle={t('auth.subtitle')} footer={actions}>
       <Segmented
         value={mode}
         onChange={(m) => {
@@ -56,31 +74,30 @@ export default function Login() {
       />
       {mode === 'email' ? (
         <Input
-          label={t('auth.email')}
-          placeholder="juan@email.com"
+          label="Email address"
+          placeholder="you@company.com"
           value={value}
           onChangeText={setValue}
           autoCapitalize="none"
           autoComplete="email"
           keyboardType="email-address"
+          onSubmitEditing={send}
           autoFocus
         />
       ) : (
-        <View style={{ gap: 6 }}>
-          <Input
-            label={t('auth.phone')}
-            placeholder="0917 123 4567"
-            value={value}
-            onChangeText={setValue}
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            autoFocus
-          />
-          <Text variant="small" tone="faint">
-            Kailangan ng SMS provider (hal. Twilio) sa Supabase para gumana ang phone login.
-          </Text>
-        </View>
+        <Input
+          label="Mobile number"
+          placeholder="917 123 4567"
+          prefix="+63"
+          value={value}
+          onChangeText={setValue}
+          keyboardType="phone-pad"
+          autoComplete="tel"
+          onSubmitEditing={send}
+          hint="Phone sign-in requires an SMS provider to be configured in Supabase."
+          autoFocus
+        />
       )}
-    </Screen>
+    </AuthShell>
   );
 }

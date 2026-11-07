@@ -1,6 +1,7 @@
 import type { MyCircle } from '@/lib/api';
+import { payoutPlan } from '@/lib/local';
 import { daysUntil, potOf } from '@/lib/format';
-import type { Contribution, Member, Round } from '@/lib/types';
+import type { Circle, CirclePreview, Contribution, Member, Round } from '@/lib/types';
 
 export function currentRound(rounds: Round[]): Round | undefined {
   return rounds.find((r) => r.status === 'active');
@@ -10,6 +11,9 @@ export function myRoundOf(rounds: Round[], slotGroup: string): Round | undefined
   return rounds.find((r) => r.slot_group === slotGroup);
 }
 
+/** A contribution's own hulog date (older circles: the round's date). */
+export const dueOf = (k: Pick<Contribution, 'due_date'>, round: Pick<Round, 'due_date'>) => k.due_date ?? round.due_date;
+
 /** My unpaid (non-auto) contributions, soonest first. */
 export function unpaid(contributions: Contribution[], rounds: Round[]) {
   const byId = new Map(rounds.map((r) => [r.id, r]));
@@ -17,7 +21,22 @@ export function unpaid(contributions: Contribution[], rounds: Round[]) {
     .filter((k) => !k.auto && (k.status === 'pending' || k.status === 'rejected'))
     .map((k) => ({ k, round: byId.get(k.round_id)! }))
     .filter((x) => x.round && x.round.status !== 'completed')
-    .sort((a, b) => a.round.due_date.localeCompare(b.round.due_date));
+    .map((x) => ({ ...x, due: dueOf(x.k, x.round) }))
+    .sort((a, b) => a.due.localeCompare(b.due));
+}
+
+/** Hulog per payout round: how many contributions each member makes before one sahod. */
+export function hulogInRound(contributions: Contribution[], round: Round | undefined, memberId?: string): number {
+  if (!round) return 1;
+  const ks = contributions.filter((k) => k.round_id === round.id && (!memberId || k.member_id === memberId));
+  return Math.max(1, new Set(ks.map((k) => dueOf(k, round))).size);
+}
+
+/** My contribution to act on in a round: the earliest unpaid hulog, else one awaiting review, else the last one. */
+export function myNextContribution(contributions: Contribution[], round: Round | undefined, memberId: string | undefined) {
+  if (!round || !memberId) return undefined;
+  const mine = contributions.filter((k) => k.round_id === round.id && k.member_id === memberId).sort((a, b) => dueOf(a, round).localeCompare(dueOf(b, round)));
+  return mine.find((k) => k.status === 'pending' || k.status === 'rejected') ?? mine.find((k) => k.status === 'submitted') ?? mine[mine.length - 1];
 }
 
 export type CircleSummary = {
@@ -38,9 +57,11 @@ export function summarize(mc: MyCircle): CircleSummary {
   const roundsAway =
     myRound && myRound.status !== 'completed' ? myRound.round_no - (current?.round_no ?? myRound.round_no) : null;
   const due = unpaid(mc.contributions, mc.rounds);
+  // My own contributions in my round = number of hulog dates per sahod.
+  const perRound = hulogInRound(mc.contributions, myRound ?? current);
   return {
-    pot,
-    myPayout: pot * Number(mc.membership.share),
+    pot: pot * perRound,
+    myPayout: pot * perRound * Number(mc.membership.share),
     myRound,
     current,
     roundsAway,
@@ -65,6 +86,14 @@ export function recipientsOf(round: Round | undefined, members: Member[]) {
   return members.filter((m) => m.slot_group === round.slot_group && m.status === 'approved');
 }
 
-export function isOverdue(round: Round, graceDays: number) {
-  return daysUntil(round.due_date) < -graceDays;
+export function isOverdue(due: string, graceDays: number) {
+  return daysUntil(due) < -graceDays;
+}
+
+type SahodFields = Pick<Circle, 'frequency' | 'interval_days' | 'start_date' | 'payout_frequency' | 'payout_interval_days' | 'first_payout_date'>;
+
+/** Hulog dates in the first sahod, from the circle's schedules (used before rounds exist). */
+export function plannedHulogPerSahod(c: SahodFields | CirclePreview): number {
+  const payout = c.payout_frequency && c.first_payout_date ? { frequency: c.payout_frequency, interval_days: c.payout_interval_days, first_date: c.first_payout_date } : null;
+  return payoutPlan({ frequency: c.frequency, interval_days: c.interval_days, start_date: c.start_date }, payout, 1)[0].dates.length;
 }

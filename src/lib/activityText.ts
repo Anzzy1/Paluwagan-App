@@ -5,54 +5,56 @@ import { firstName, peso } from '@/lib/format';
 import type { Activity } from '@/lib/types';
 
 type Icon = ComponentProps<typeof Feather>['name'];
-type Tone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent';
+type Tone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'brand';
 
 export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: string } {
-  const who = firstName(a.profiles?.full_name) || 'May member';
+  const who = a.profiles?.full_name ? firstName(a.profiles.full_name) : 'A member';
   const p = a.payload as Record<string, string | number | boolean | undefined>;
   switch (a.type) {
     case 'circle_created':
-      return { icon: 'star', tone: 'accent', text: `${who} ginawa ang circle` };
+      return { icon: 'plus-circle', tone: 'brand', text: `${who} created the circle` };
     case 'member_requested':
-      return { icon: 'user-plus', tone: 'info', text: `${who} nag-request sumali${p.hati ? ' (hati-slot)' : ''}` };
+      return { icon: 'user-plus', tone: 'info', text: `${who} requested to join${p.hati ? ' (split slot)' : ''}` };
     case 'member_approved':
-      return { icon: 'user-check', tone: 'success', text: `${who} nag-approve ng bagong member` };
+      return { icon: 'user-check', tone: 'success', text: `${who} approved a new member` };
     case 'member_rejected':
-      return { icon: 'user-x', tone: 'neutral', text: `${who} nag-decline ng join request` };
+      return { icon: 'user-x', tone: 'neutral', text: `${who} declined a join request` };
     case 'member_left':
-      return { icon: 'log-out', tone: 'neutral', text: `${who} umalis sa circle` };
+      return { icon: 'log-out', tone: 'neutral', text: `${who} left the circle` };
     case 'hati_paired':
-      return { icon: 'users', tone: 'info', text: `${who} nag-pair ng hati-slot` };
+      return { icon: 'users', tone: 'info', text: `${who} paired a split slot` };
     case 'circle_locked':
-      return { icon: 'lock', tone: 'info', text: `${who} ni-lock ang circle — handa na ang bunot` };
+      return { icon: 'lock', tone: 'info', text: `${who} locked the circle and published the draw commitment` };
     case 'circle_unlocked':
-      return { icon: 'unlock', tone: 'neutral', text: `${who} ni-unlock ang circle` };
+      return { icon: 'unlock', tone: 'neutral', text: `${who} unlocked the circle` };
     case 'draw_completed':
-      return { icon: 'shuffle', tone: 'accent', text: `Tapos na ang Digital Bunot! 🎲` };
+      return { icon: 'shuffle', tone: 'brand', text: 'The draw was completed and the payout order is set' };
     case 'order_set':
-      return { icon: 'list', tone: 'accent', text: `${who} inayos ang pagkakasunod ng sahod` };
+      return { icon: 'list', tone: 'brand', text: `${who} set the payout order` };
     case 'proof_submitted':
-      return { icon: 'upload', tone: 'info', text: `${who} nag-upload ng resibo (${peso(Number(p.amount ?? 0))})` };
+      return { icon: 'upload', tone: 'info', text: `${who} submitted proof of payment (${peso(Number(p.amount ?? 0))})` };
     case 'payment_confirmed':
-      return { icon: 'check-circle', tone: 'success', text: `${who} kinumpirma ang bayad · Round ${p.round_no}` };
+      return { icon: 'check-circle', tone: 'success', text: `${who} confirmed a payment for round ${p.round_no}` };
     case 'payment_rejected':
-      return { icon: 'x-circle', tone: 'danger', text: `${who} ni-reject ang resibo · Round ${p.round_no}` };
+      return { icon: 'x-circle', tone: 'danger', text: `${who} rejected a receipt for round ${p.round_no}` };
     case 'round_completed':
-      return { icon: 'award', tone: 'success', text: `Kumpleto na ang Round ${p.round_no}! 💸` };
+      return { icon: 'award', tone: 'success', text: `Round ${p.round_no} is fully paid` };
     case 'circle_completed':
-      return { icon: 'flag', tone: 'accent', text: `Tapos na ang buong paluwagan! 🎉` };
+      return { icon: 'flag', tone: 'brand', text: 'All rounds are complete. The circle has finished.' };
     case 'swap_requested':
-      return { icon: 'repeat', tone: 'info', text: `${who} nag-request ng palit-slot` };
+      return { icon: 'repeat', tone: 'info', text: `${who} requested a turn swap` };
     case 'swap_accepted':
-      return { icon: 'repeat', tone: 'info', text: `${who} pumayag sa palit-slot` };
+      return { icon: 'repeat', tone: 'info', text: `${who} accepted a turn swap` };
     case 'swap_declined':
-      return { icon: 'repeat', tone: 'neutral', text: `${who} tumanggi sa palit-slot` };
+      return { icon: 'repeat', tone: 'neutral', text: `${who} declined a turn swap` };
     case 'swap_approved':
-      return { icon: 'repeat', tone: 'success', text: `${who} in-approve ang palit-slot` };
+      return { icon: 'repeat', tone: 'success', text: `${who} approved a turn swap` };
     case 'swap_rejected':
-      return { icon: 'repeat', tone: 'danger', text: `${who} ni-reject ang palit-slot` };
+      return { icon: 'repeat', tone: 'danger', text: `${who} rejected a turn swap` };
     case 'nudge_sent':
-      return { icon: 'bell', tone: 'warning', text: `${who} nagpadala ng paalala (Round ${p.round_no})` };
+      return { icon: 'bell', tone: 'warning', text: `${who} sent a payment reminder for round ${p.round_no}` };
+    case 'password_changed':
+      return { icon: 'lock', tone: 'info', text: `${who} changed the join password` };
     default:
       return { icon: 'circle', tone: 'neutral', text: a.type };
   }

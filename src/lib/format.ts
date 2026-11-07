@@ -34,6 +34,12 @@ export function longDate(d: string): string {
   return `${MONTHS[x.getMonth()]} ${x.getDate()}, ${x.getFullYear()}`;
 }
 
+export function dateTime(iso: string): string {
+  const d = new Date(iso);
+  const h = d.getHours();
+  return `${longDate(toISODate(d))}, ${((h + 11) % 12) + 1}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
+
 export function todayISO(): string {
   return toISODate(new Date());
 }
@@ -43,34 +49,60 @@ export function daysUntil(d: string): number {
   return Math.round((parseDate(d).getTime() - today) / 86_400_000);
 }
 
-export function relativeDue(d: string, lang: 'fil' | 'en' = 'fil'): string {
+export function relativeDue(d: string): string {
   const n = daysUntil(d);
-  if (lang === 'en') {
-    if (n === 0) return 'Due today';
-    if (n === 1) return 'Due tomorrow';
-    if (n > 1) return `In ${n} days`;
-    return `${-n} day${n === -1 ? '' : 's'} overdue`;
-  }
-  if (n === 0) return 'Ngayon ang due';
-  if (n === 1) return 'Bukas ang due';
-  if (n > 1) return `${n} araw pa`;
-  return `${-n} araw nang late`;
+  if (n === 0) return 'Due today';
+  if (n === 1) return 'Due tomorrow';
+  if (n > 1) return `Due in ${n} days`;
+  return `${-n} day${n === -1 ? '' : 's'} overdue`;
 }
 
 export function timeAgo(iso: string): string {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return 'ngayon lang';
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  if (s < 604800) return `${Math.floor(s / 86400)}d`;
+  if (s < 60) return 'Just now';
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  if (s < 604800) return `${Math.floor(s / 86400)}d ago`;
   return shortDate(iso.slice(0, 10));
 }
 
-export const frequencyLabel: Record<Frequency, { fil: string; en: string }> = {
-  weekly: { fil: 'Lingguhan', en: 'Weekly' },
-  kinsenas: { fil: 'Kinsenas (15 & 30)', en: 'Kinsenas (15th & 30th)' },
-  monthly: { fil: 'Buwanan', en: 'Monthly' },
-};
+type Schedule = { frequency: Frequency; interval_days?: number | null };
+
+/** Full schedule description, e.g. "Every 3 days" or "Twice a month (15th & 30th)". */
+export function scheduleLabel({ frequency, interval_days }: Schedule): string {
+  switch (frequency) {
+    case 'daily':
+      return 'Every day';
+    case 'weekly':
+      return 'Every week';
+    case 'kinsenas':
+      return 'Twice a month (15th & 30th)';
+    case 'monthly':
+      return 'Every month';
+    case 'custom': {
+      const n = interval_days ?? 1;
+      return n === 1 ? 'Every day' : `Every ${n} days`;
+    }
+  }
+}
+
+/** Compact schedule label for cards and lists. */
+export function scheduleShort({ frequency, interval_days }: Schedule): string {
+  switch (frequency) {
+    case 'daily':
+      return 'Daily';
+    case 'weekly':
+      return 'Weekly';
+    case 'kinsenas':
+      return 'Semi-monthly';
+    case 'monthly':
+      return 'Monthly';
+    case 'custom': {
+      const n = interval_days ?? 1;
+      return n === 1 ? 'Daily' : `Every ${n} days`;
+    }
+  }
+}
 
 export function potOf(c: Pick<Circle, 'amount' | 'slots'>): number {
   return Number(c.amount) * c.slots;
@@ -78,13 +110,12 @@ export function potOf(c: Pick<Circle, 'amount' | 'slots'>): number {
 
 export function displayStatus(k: Contribution, round: Round, circle: Pick<Circle, 'grace_days'>): DisplayStatus {
   if (k.status === 'pending' || k.status === 'rejected') {
-    const overdue = daysUntil(round.due_date) < -circle.grace_days;
-    if (overdue) return 'late';
+    if (daysUntil(k.due_date ?? round.due_date) < -circle.grace_days) return 'late';
   }
   return k.status;
 }
 
-/** Group approved members by slot (hati partners share a slot). */
+/** Group approved members by slot (split-slot partners share one). */
 export function slotsOf(members: Member[]): { group: string; slotNo: number | null; members: Member[] }[] {
   const map = new Map<string, Member[]>();
   for (const m of members) {
@@ -104,19 +135,49 @@ export function slotName(ms: Member[]): string {
 
 export function firstName(n?: string | null): string {
   if (!n) return 'Member';
-  return n.trim().split(/\s+/)[0];
+  const t = n.trim();
+  if (/^Guest [0-9A-F]{4}$/.test(t)) return t; // keep test guests distinguishable
+  return t.split(/\s+/)[0];
+}
+
+export function initials(n?: string | null): string {
+  if (!n?.trim()) return '?';
+  const parts = n.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 }
 
 /** Words that commonly appear in investment-scam "paluwagan" pitches. */
-const SCAM_WORDS = /\b(tubo|interest|interes|return|doble|double|tripl|profit|kita\s*agad|investment|invest|guaranteed)\b/i;
+const SCAM_WORDS = /\b(tubo|interest|interes|returns?|doble|double|tripl\w*|profit|kita\s*agad|investment|invest|guaranteed)\b/i;
 export function looksLikeScam(text: string): boolean {
   return SCAM_WORDS.test(text);
 }
 
-export function tiwalaLabel(score: number) {
-  if (score >= 95) return { label: 'Super Maaasahan', emoji: '💎' };
-  if (score >= 85) return { label: 'Maaasahan', emoji: '🌟' };
-  if (score >= 70) return { label: 'Okay naman', emoji: '👍' };
-  if (score >= 50) return { label: 'Madalas ma-late', emoji: '⏰' };
-  return { label: 'Ingat', emoji: '⚠️' };
+export function trustLabel(score: number): { label: string; tone: 'success' | 'info' | 'warning' | 'danger' } {
+  if (score >= 95) return { label: 'Excellent', tone: 'success' };
+  if (score >= 85) return { label: 'Very good', tone: 'success' };
+  if (score >= 70) return { label: 'Good', tone: 'info' };
+  if (score >= 50) return { label: 'Fair', tone: 'warning' };
+  return { label: 'Needs attention', tone: 'danger' };
+}
+
+type WithPayout = Schedule & {
+  /** Offline circles. */
+  payout?: { frequency: Frequency; interval_days: number | null } | null;
+  /** Online circles. */
+  payout_frequency?: Frequency | null;
+  payout_interval_days?: number | null;
+};
+
+/** The circle's sahod (payout) schedule, or null when payouts happen on every hulog date. */
+export function payoutOf(c: WithPayout): Schedule | null {
+  if (c.payout) return { frequency: c.payout.frequency, interval_days: c.payout.interval_days };
+  if (c.payout_frequency) return { frequency: c.payout_frequency, interval_days: c.payout_interval_days ?? null };
+  return null;
+}
+
+/** "Daily" or, with a separate payout schedule, "Daily hulog · weekly sahod". */
+export function payoutShort(c: WithPayout): string {
+  const p = payoutOf(c);
+  if (!p) return scheduleShort(c);
+  return `${scheduleShort(c)} hulog · ${scheduleShort(p).toLowerCase()} sahod`;
 }

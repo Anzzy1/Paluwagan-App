@@ -13,29 +13,31 @@ export function haptic(kind: 'light' | 'medium' | 'success' | 'warning' = 'light
 
 export function PressableScale({
   style,
-  scaleTo = 0.97,
+  scaleTo = 0.98,
   hapticOnPress = true,
   onPress,
   disabled,
+  dimWhenDisabled = true,
   ...rest
-}: Omit<PressableProps, 'style'> & { style?: StyleProp<ViewStyle>; scaleTo?: number; hapticOnPress?: boolean }) {
+}: Omit<PressableProps, 'style'> & { style?: StyleProp<ViewStyle>; scaleTo?: number; hapticOnPress?: boolean; dimWhenDisabled?: boolean }) {
   const scale = useSharedValue(1);
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
   return (
     <AnimatedPressable
+      accessibilityRole="button"
       {...rest}
       disabled={disabled}
       onPressIn={() => {
-        scale.set(withSpring(scaleTo, { damping: 15, stiffness: 400 }));
+        scale.set(withSpring(scaleTo, { damping: 18, stiffness: 420 }));
       }}
       onPressOut={() => {
-        scale.set(withSpring(1, { damping: 12, stiffness: 300 }));
+        scale.set(withSpring(1, { damping: 14, stiffness: 320 }));
       }}
       onPress={(e) => {
         if (hapticOnPress) haptic('light');
         onPress?.(e);
       }}
-      style={[style, animated, disabled && { opacity: 0.5 }]}
+      style={[style, animated, disabled && dimWhenDisabled && { opacity: 0.45 }, Platform.OS === 'web' && ({ cursor: disabled ? 'default' : 'pointer' } as ViewStyle)]}
     />
   );
 }

@@ -1,74 +1,130 @@
 export const palette = {
   light: {
-    bg: '#F7F5F0',
+    bg: '#F4F5F4',
     surface: '#FFFFFF',
-    surfaceAlt: '#EFECE4',
-    border: '#E7E2D8',
-    text: '#17150F',
-    textMuted: '#6F6A5E',
-    textFaint: '#A39E92',
-    accent: '#FFC83D',
-    accentInk: '#17150F',
-    ink: '#17150F', // high-contrast block (buttons, hero)
+    surfaceAlt: '#F0F2F0',
+    border: '#E9ECE9',
+    borderStrong: '#D6DBD7',
+    text: '#0C1410',
+    textMuted: '#58625D',
+    textFaint: '#98A29C',
+    brand: '#16A34A',
+    brandDeep: '#12813B',
+    brandSoft: '#E5F6EB',
+    onBrand: '#FFFFFF',
+    gold: '#F5B53D',
+    goldSoft: '#FFF5DC',
+    ink: '#0C1410',
     onInk: '#FFFFFF',
-    success: '#1F9D55',
-    successBg: '#E3F5EA',
-    warning: '#C77700',
-    warningBg: '#FFF1D6',
-    danger: '#D93B3B',
-    dangerBg: '#FCE6E4',
+    inkMuted: 'rgba(255,255,255,0.7)',
+    success: '#16A34A',
+    successBg: '#E5F6EB',
+    warning: '#E2700B',
+    warningBg: '#FFF1E2',
+    danger: '#E0393E',
+    dangerBg: '#FDECEC',
     info: '#2F6FEB',
-    infoBg: '#E5EDFD',
-    overlay: 'rgba(23,21,15,0.45)',
+    infoBg: '#EBF2FE',
+    overlay: 'rgba(12,20,16,0.45)',
+    shadow: '#0C1410',
+    /** Soft "featured" gradient (mint to sky), used for Ipon's cards. */
+    featureA: '#E2F7E9',
+    featureB: '#E5F0FD',
   },
   dark: {
-    bg: '#0F0F10',
-    surface: '#1A1A1C',
-    surfaceAlt: '#232326',
-    border: '#2C2C30',
-    text: '#F5F3EE',
-    textMuted: '#A8A49B',
-    textFaint: '#6E6B65',
-    accent: '#FFC83D',
-    accentInk: '#17150F',
-    ink: '#F5F3EE',
-    onInk: '#17150F',
-    success: '#4ADE80',
-    successBg: '#16301F',
-    warning: '#FBBF24',
-    warningBg: '#33270F',
-    danger: '#F87171',
-    dangerBg: '#3A1A1A',
-    info: '#7AA7FF',
-    infoBg: '#18233A',
+    bg: '#090C0A',
+    surface: '#131714',
+    surfaceAlt: '#1B201C',
+    border: '#222924',
+    borderStrong: '#323B35',
+    text: '#EEF3EF',
+    textMuted: '#A1ACA5',
+    textFaint: '#66716A',
+    brand: '#34D27A',
+    brandDeep: '#22B262',
+    brandSoft: '#11291A',
+    onBrand: '#04140A',
+    gold: '#F5B53D',
+    goldSoft: '#2E2410',
+    ink: '#EEF3EF',
+    onInk: '#0C1410',
+    inkMuted: 'rgba(12,20,16,0.62)',
+    success: '#45D07F',
+    successBg: '#0F2A1C',
+    warning: '#FF9A3D',
+    warningBg: '#2E1E0E',
+    danger: '#FF6B6E',
+    dangerBg: '#331617',
+    info: '#6EA2FF',
+    infoBg: '#14213A',
     overlay: 'rgba(0,0,0,0.6)',
+    shadow: '#000000',
+    featureA: '#0F2619',
+    featureB: '#111E30',
   },
 } as const;
 
 export type Colors = { [K in keyof typeof palette.light]: string };
 
-/** Pastel card tints for circles. [light, dark, strong] */
+/**
+ * Circle colours. Keys are stored in the database (`circles.color`), so they stay stable.
+ * `grad` drives the colourful circle cards; `soft`/`dark` tint icon tiles.
+ */
 export const circleTints = {
-  mango: { light: '#FFE7A3', dark: '#3A3015', strong: '#FFC83D' },
-  leaf: { light: '#CDEFD6', dark: '#173322', strong: '#3CC66C' },
-  sky: { light: '#CFE3FF', dark: '#172741', strong: '#4C8DFF' },
-  blush: { light: '#FFD6E0', dark: '#3D1C25', strong: '#FF6F91' },
-  grape: { light: '#E3D7FF', dark: '#2A2142', strong: '#8B5CF6' },
-  coral: { light: '#FFD9C7', dark: '#3D2318', strong: '#FF7A45' },
+  mango: { name: 'Orange', strong: '#F2711C', grad: ['#FFA24C', '#F2671C'], light: '#FFF0E3', dark: '#2E1C0F' },
+  leaf: { name: 'Green', strong: '#16A34A', grad: ['#3BD47E', '#13954A'], light: '#E5F6EB', dark: '#11291A' },
+  sky: { name: 'Blue', strong: '#2F6FEB', grad: ['#5AA2FF', '#2A5FE0'], light: '#EAF1FE', dark: '#14213A' },
+  blush: { name: 'Pink', strong: '#E5365F', grad: ['#FF7896', '#E2365E'], light: '#FFECF0', dark: '#33141C' },
+  grape: { name: 'Purple', strong: '#7350E8', grad: ['#A387FF', '#6A45E3'], light: '#F1ECFF', dark: '#211A3D' },
+  coral: { name: 'Gold', strong: '#D9961A', grad: ['#FFCB52', '#EE9F1C'], light: '#FFF4D9', dark: '#2E2410' },
 } as const;
 export type CircleTint = keyof typeof circleTints;
 export const tintNames = Object.keys(circleTints) as CircleTint[];
 
-export const radius = { sm: 12, md: 18, lg: 24, xl: 32, pill: 999 } as const;
-export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32 } as const;
+export const radius = { xs: 8, sm: 12, md: 16, lg: 24, xl: 28, pill: 999 } as const;
 
 export const font = {
-  regular: 'PlusJakartaSans_400Regular',
-  medium: 'PlusJakartaSans_500Medium',
-  semibold: 'PlusJakartaSans_600SemiBold',
-  bold: 'PlusJakartaSans_700Bold',
-  extrabold: 'PlusJakartaSans_800ExtraBold',
+  regular: 'PlusJakartaSans_500Medium',
+  medium: 'PlusJakartaSans_600SemiBold',
+  semibold: 'PlusJakartaSans_700Bold',
+  bold: 'PlusJakartaSans_800ExtraBold',
+  black: 'PlusJakartaSans_800ExtraBold',
 } as const;
 
-export const circleEmojis = ['💰', '🏠', '🎓', '✈️', '🛵', '💍', '🎄', '🍜', '📱', '🌴', '🐷', '⭐'];
-export const avatarEmojis = ['🙂', '😎', '🤑', '🥳', '🦊', '🐼', '🐯', '🐸', '🌻', '🔥', '👑', '🍀'];
+/** Green gradients for icon tiles (quick actions, categories). */
+export const tileGradients = {
+  green: ['#3BD47E', '#13954A'],
+  emerald: ['#2DC6A0', '#0E8F72'],
+  olive: ['#9BC93A', '#5E9420'],
+  teal: ['#3FC1D6', '#1488A8'],
+  forest: ['#4F9A5E', '#24653A'],
+} as const;
+
+/** Icons offered for circles and goals, with what the money is for (stored in the `emoji` columns). */
+export const iconChoices = [
+  { icon: 'dollar-sign', label: 'Savings' },
+  { icon: 'home', label: 'House' },
+  { icon: 'book-open', label: 'School' },
+  { icon: 'briefcase', label: 'Business' },
+  { icon: 'umbrella', label: 'Emergency' },
+  { icon: 'globe', label: 'Travel' },
+  { icon: 'gift', label: 'Gifts' },
+  { icon: 'heart', label: 'Wedding' },
+  { icon: 'award', label: 'Graduation' },
+  { icon: 'smartphone', label: 'Gadgets' },
+  { icon: 'truck', label: 'Vehicle' },
+  { icon: 'shopping-bag', label: 'Shopping' },
+  { icon: 'coffee', label: 'Food' },
+  { icon: 'activity', label: 'Health' },
+  { icon: 'zap', label: 'Bills' },
+  { icon: 'users', label: 'Barkada' },
+  { icon: 'sun', label: 'Vacation' },
+  { icon: 'music', label: 'Events' },
+  { icon: 'tool', label: 'Repairs' },
+  { icon: 'star', label: 'Dream' },
+] as const;
+export const circleIcons = iconChoices.map((x) => x.icon);
+
+export const DESKTOP_BREAKPOINT = 1024;
+export const SIDEBAR_WIDTH = 256;
+export const CONTENT_MAX_WIDTH = 1120;

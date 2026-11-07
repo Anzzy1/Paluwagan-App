@@ -40,15 +40,15 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Ginagamit ang camera para i-scan ang QR invite at kunan ang resibo.",
+          "cameraPermission": "Paluwagan uses the camera to scan invite QR codes and photograph payment receipts.",
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Pumili ng screenshot ng resibo ng bayad.",
-          "cameraPermission": "Kunan ng litrato ang resibo ng bayad."
+          "photosPermission": "Choose a screenshot of a payment receipt or an invite QR code.",
+          "cameraPermission": "Take a photo of your payment receipt."
         }
       ],
       [
