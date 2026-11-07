@@ -40,7 +40,7 @@ export function Text({
     faint: c.textFaint,
     onInk: c.onInk,
     inkMuted: c.inkMuted,
-    brand: c.brand,
+    brand: c.brandText,
     success: c.success,
     warning: c.warning,
     danger: c.danger,
