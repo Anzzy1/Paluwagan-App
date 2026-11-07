@@ -59,7 +59,7 @@ export function useRounds({ participants, order, onDone }: DrawGameProps) {
 
   /** Start the suspense: drumroll on, music down. */
   const suspense = (on: boolean) => {
-    loop('drumroll', on, 0.7);
+    loop('drumroll', on, 0.6);
     duckMusic(on);
   };
 

@@ -44,8 +44,8 @@ function Envelope({
     if (shake) {
       haptic('light');
       sfx('shake', 0.8);
-      setTimeout(() => sfx('shake', 1), shake * 0.5);
-      if (number === 1) loop('drumroll', true, 0.7);
+      setTimeout(() => sfx('shake', 0.7), shake * 0.5);
+      if (number === 1) loop('drumroll', true, 0.6);
       // Builds from a nervous tremble to a hard shake, then flips open.
       wiggle.set(
         withSequence(
