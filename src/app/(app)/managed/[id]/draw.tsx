@@ -15,11 +15,12 @@ import { Text } from '@/components/ui/Text';
 import { notifyError } from '@/lib/alert';
 import { shortDate } from '@/lib/format';
 import { commitDraw, prepareDraw, useManagedCircle, type DrawStyle } from '@/lib/local';
-import { useColors } from '@/lib/prefs';
+import { useColors, useIsDesktop } from '@/lib/prefs';
 import { radius } from '@/theme/tokens';
 
 export default function ManagedDraw() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const desktop = useIsDesktop();
   const c = useColors();
   const circle = useManagedCircle(id);
   const [style, setStyle] = useState<DrawStyle | null>(circle?.draw_style ?? null);
@@ -109,12 +110,16 @@ export default function ManagedDraw() {
   }
 
   // ---------------- play / results
+  const goButton = <Button title="Go to paluwagan" icon="arrow-right" variant="brand" full={!desktop} onPress={() => router.replace(`/managed/${circle.id}` as Href)} />;
   return (
     <View style={{ flex: 1 }}>
       <Screen
         back
         title={playing && !done ? DRAW_STYLES.find((s) => s.id === (style ?? circle.draw_style))?.title ?? 'Draw' : 'Draw results'}
-        subtitle={circle.name}>
+        subtitle={circle.name}
+        // Always-visible next step once the order is known.
+        footer={(!playing || done) && !desktop && goButton}
+        right={(!playing || done) && desktop ? goButton : undefined}>
         {playing ? (
           <Card style={{ paddingVertical: 24 }}>
             <DrawStage style={style ?? circle.draw_style ?? 'balls'} participants={participants} order={circle.order ?? []} onDone={finished} />
@@ -129,7 +134,6 @@ export default function ManagedDraw() {
                   <Notice tone="success" icon="check-circle" title="Payout order is set!" body="The paluwagan has started. Track payments from the paluwagan page." />
                 )}
                 {results}
-                <Button title="Go to paluwagan" icon="arrow-right" onPress={() => router.replace(`/managed/${circle.id}` as Href)} />
               </>
             }
             side={

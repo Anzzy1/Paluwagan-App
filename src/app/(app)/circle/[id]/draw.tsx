@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
@@ -19,7 +19,7 @@ import { useCircle, useCircleAction } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { verifyDraw, type VerifyResult } from '@/lib/draw';
 import { dateTime, shortDate, slotName, slotsOf } from '@/lib/format';
-import { useColors } from '@/lib/prefs';
+import { useColors, useIsDesktop } from '@/lib/prefs';
 import type { DrawStyle } from '@/lib/local';
 import type { Member } from '@/lib/types';
 import { radius } from '@/theme/tokens';
@@ -29,6 +29,7 @@ const people = (ms: Member[]) => ms.map((m) => ({ id: m.user_id, name: m.profile
 
 export default function DrawScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const desktop = useIsDesktop();
   const c = useColors();
   const { userId } = useAuth();
   const q = useCircle(id);
@@ -139,8 +140,15 @@ export default function DrawScreen() {
   }
 
   const order = circle.draw_order ?? [];
+  const goButton = <Button title="Go to paluwagan" icon="arrow-right" variant="brand" full={!desktop} onPress={() => router.replace(`/circle/${id}`)} />;
   return (
-    <Screen back title={playing ? DRAW_STYLES.find((d) => d.id === style)?.title ?? 'Drawing…' : 'Draw results'} subtitle={circle.drawn_at ? `${circle.name} · ${dateTime(circle.drawn_at)}` : circle.name}>
+    <Screen
+      back
+      title={playing ? DRAW_STYLES.find((d) => d.id === style)?.title ?? 'Drawing…' : 'Draw results'}
+      subtitle={circle.drawn_at ? `${circle.name} · ${dateTime(circle.drawn_at)}` : circle.name}
+      // Always-visible next step once the results are showing.
+      footer={!playing && !desktop && goButton}
+      right={!playing && desktop ? goButton : undefined}>
       <Columns
         main={
           playing ? (
