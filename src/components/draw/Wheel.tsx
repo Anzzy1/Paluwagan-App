@@ -19,6 +19,7 @@ import Animated, {
 import Svg, { Circle, G, Path, Text as SvgText } from 'react-native-svg';
 
 import { colorAt, shortName, type DrawGameProps } from '@/components/draw/common';
+import { slotLabel, SuspenseText } from '@/components/draw/Suspense';
 import { Button } from '@/components/ui/Button';
 import { Confetti } from '@/components/ui/Confetti';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
@@ -61,6 +62,7 @@ export function WheelDraw({ participants, order, onDone }: DrawGameProps) {
   const [winner, setWinner] = useState<string | null>(null); // lit on the wheel + shown in the popup until closed
   const [party, setParty] = useState(0);
   const [lights, setLights] = useState(0);
+  const [creeping, setCreeping] = useState(false); // the slow final crawl
 
   const rot = useSharedValue(0);
   const flap = useSharedValue(0);
@@ -117,6 +119,7 @@ export function WheelDraw({ participants, order, onDone }: DrawGameProps) {
   const announce = (w: string) => {
     haptic('success');
     setSpinning(false);
+    setCreeping(false);
     setWinner(w);
     setParty((x) => x + 1);
     const next = [...revealed, w];
@@ -143,13 +146,16 @@ export function WheelDraw({ participants, order, onDone }: DrawGameProps) {
       return;
     }
     // Brake point: the wheel spins fast up to here, then suddenly slows and creeps the last bit.
-    const brake = target - Math.min(300, 140 + step * 1.6);
+    // Brake early so the wheel crawls past several names before it settles: that's the tension.
+    const brake = target - Math.min(460, 220 + step * 2.2);
+    setCreeping(false);
+    setTimeout(() => setCreeping(true), 300 + 1000 + 2800);
     rot.set(
       withSequence(
-        withTiming(-18, { duration: 260, easing: Easing.out(Easing.quad) }), // wind-up
-        withTiming(540, { duration: 700, easing: Easing.in(Easing.quad) }), // launch
-        withTiming(brake, { duration: 1500, easing: Easing.linear }), // full speed
-        withTiming(target, { duration: 3200, easing: Easing.bezier(0.05, 0.9, 0.15, 1) }, (f) => {
+        withTiming(-24, { duration: 300, easing: Easing.out(Easing.quad) }), // wind-up
+        withTiming(540, { duration: 1000, easing: Easing.in(Easing.quad) }), // launch
+        withTiming(brake, { duration: 2800, easing: Easing.linear }), // full speed
+        withTiming(target, { duration: 6200, easing: Easing.bezier(0.08, 0.75, 0.12, 1) }, (f) => {
           if (f) runOnJS(announce)(w);
         }), // sudden brake + creep
       ),
@@ -234,9 +240,14 @@ export function WheelDraw({ participants, order, onDone }: DrawGameProps) {
               All slots drawn!
             </Text>
           </Animated.View>
+        ) : spinning ? (
+          <SuspenseText
+            text={creeping ? 'Slowing down… who will it be' : `Spinning for ${slotLabel(revealed.length + 1, order.length)}`}
+            fast={creeping}
+          />
         ) : (
           <Button
-            title={spinning ? 'Spinning…' : `Spin for slot #${revealed.length + 1}`}
+            title={`Spin for slot #${revealed.length + 1}`}
             icon="refresh-cw"
             variant="brand"
             onPress={() => spin()}

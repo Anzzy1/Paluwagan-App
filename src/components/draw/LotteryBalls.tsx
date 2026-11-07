@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { BounceIn, Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 
 import { colorAt, shortName, type DrawGameProps } from '@/components/draw/common';
+import { slotLabel, SuspenseText } from '@/components/draw/Suspense';
 import { Button } from '@/components/ui/Button';
 import { haptic } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
@@ -14,6 +15,7 @@ export function LotteryBalls({ participants, order, onDone }: DrawGameProps) {
   const c = useColors();
   const [count, setCount] = useState(0);
   const [running, setRunning] = useState(false);
+  const [drawing, setDrawing] = useState<number | null>(null); // slot whose ball is about to drop
   const spin = useSharedValue(0);
   const drum = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.get()}deg` }] }));
   const doneRef = useRef(onDone);
@@ -23,21 +25,42 @@ export function LotteryBalls({ participants, order, onDone }: DrawGameProps) {
 
   useEffect(() => {
     if (!running) return;
-    spin.set(withRepeat(withTiming(360, { duration: 900, easing: Easing.linear }), -1, false));
-    let k = 0;
-    const t = setInterval(() => {
-      k++;
-      haptic('medium');
-      setCount(k);
-      if (k >= order.length) {
-        clearInterval(t);
+    // Each ball: the drum churns faster and faster (suspense), then the ball pops out.
+    // The first and last slots get a longer build-up.
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const total = order.length;
+    const churnFor = (slot: number) => (slot === 1 || slot === total ? 3000 : total > 12 ? 1400 : 2200);
+    let at = 0;
+    for (let k = 1; k <= total; k++) {
+      const churn = churnFor(k);
+      timers.push(
+        setTimeout(() => {
+          setDrawing(k);
+          haptic('light');
+          spin.set(0);
+          spin.set(withRepeat(withTiming(360, { duration: 380, easing: Easing.linear }), -1, false));
+        }, at),
+      );
+      at += churn;
+      timers.push(
+        setTimeout(() => {
+          haptic('medium');
+          setCount(k);
+          spin.set(withRepeat(withTiming(360, { duration: 1400, easing: Easing.linear }), -1, false));
+        }, at),
+      );
+      at += 900;
+    }
+    timers.push(
+      setTimeout(() => {
         spin.set(0);
+        setDrawing(null);
         setRunning(false);
         haptic('success');
-        setTimeout(() => doneRef.current(), 500);
-      }
-    }, order.length > 12 ? 600 : 1000);
-    return () => clearInterval(t);
+        setTimeout(() => doneRef.current(), 600);
+      }, at),
+    );
+    return () => timers.forEach(clearTimeout);
   }, [running, order.length, spin]);
 
   return (
@@ -56,9 +79,13 @@ export function LotteryBalls({ participants, order, onDone }: DrawGameProps) {
       {count === 0 && !running ? (
         <Button title="Roll the drum!" icon="play" variant="brand" full={false} style={{ paddingHorizontal: 28, alignSelf: 'center' }} onPress={() => setRunning(true)} />
       ) : (
-        <Text variant="h3" tone="muted">
-          {running ? 'Rolling…' : 'All balls drawn!'}
-        </Text>
+        running && drawing !== null && count < drawing ? (
+          <SuspenseText text={`Drawing ${slotLabel(drawing, order.length)}`} fast={drawing === 1 || drawing === order.length} />
+        ) : (
+          <Text variant="h3" tone="muted">
+            {running ? 'Next ball coming up…' : 'All balls drawn!'}
+          </Text>
+        )
       )}
       <View style={styles.tray}>
         {order.slice(0, count).map((id, i) => {

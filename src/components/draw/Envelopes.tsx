@@ -1,47 +1,98 @@
 import { Feather } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming, ZoomIn } from 'react-native-reanimated';
 
 import { colorAt, shortName, type DrawGameProps } from '@/components/draw/common';
+import { slotLabel, SuspenseText } from '@/components/draw/Suspense';
 import { Button } from '@/components/ui/Button';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { radius } from '@/theme/tokens';
 
-function Envelope({ name, number, color, open, onOpen }: { name: string; number: number; color: string; open: boolean; onOpen: () => void }) {
-  const flip = useSharedValue(1);
-  const [face, setFace] = useState(open);
-  const style = useAnimatedStyle(() => ({ transform: [{ scaleX: flip.get() }] }));
+/** How long an envelope shakes before it opens. The #1 envelope shakes longest. */
+const SHAKE_MS = 1300;
 
-  const tap = () => {
-    if (face) return;
-    haptic('medium');
-    flip.set(
-      withSequence(
-        withTiming(0, { duration: 160, easing: Easing.in(Easing.quad) }),
-        withTiming(1, { duration: 220, easing: Easing.out(Easing.back(2)) }),
-      ),
-    );
+function Envelope({
+  name,
+  number,
+  total,
+  color,
+  autoOpen,
+  onOpen,
+}: {
+  name: string;
+  number: number;
+  total: number;
+  color: string;
+  /** Set to true to open it from "Open all". */
+  autoOpen: boolean;
+  onOpen: () => void;
+}) {
+  const reduce = useReducedMotion();
+  const flip = useSharedValue(1);
+  const wiggle = useSharedValue(0);
+  const [face, setFace] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const style = useAnimatedStyle(() => ({ transform: [{ scaleX: flip.get() }, { rotate: `${wiggle.get()}deg` }] }));
+
+  const open = () => {
+    if (face || busy) return;
+    setBusy(true);
+    const shake = reduce ? 0 : number === 1 ? SHAKE_MS * 1.6 : SHAKE_MS;
+    if (shake) {
+      haptic('light');
+      // Builds from a nervous tremble to a hard shake, then flips open.
+      wiggle.set(
+        withSequence(
+          withRepeat(withSequence(withTiming(-3, { duration: 70 }), withTiming(3, { duration: 70 })), Math.round(shake / 280)),
+          withRepeat(withSequence(withTiming(-8, { duration: 50 }), withTiming(8, { duration: 50 })), Math.round(shake / 200)),
+          withTiming(0, { duration: 60 }),
+        ),
+      );
+    }
     setTimeout(() => {
-      setFace(true);
-      onOpen();
-    }, 160);
+      haptic('medium');
+      flip.set(
+        withSequence(
+          withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }),
+          withTiming(1, { duration: 260, easing: Easing.out(Easing.back(2)) }),
+        ),
+      );
+      setTimeout(() => {
+        setFace(true);
+        setBusy(false);
+        onOpen();
+      }, 180);
+    }, shake);
   };
 
-  const shown = face || open;
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  });
+  useEffect(() => {
+    if (autoOpen) openRef.current();
+  }, [autoOpen]);
+
+  const tag = number === 1 ? 'First payout' : number === total ? 'Last payout' : null;
   return (
-    <PressableScale onPress={tap} hapticOnPress={false} scaleTo={0.94} style={styles.cell}>
-      <Animated.View style={[styles.env, { backgroundColor: shown ? '#FFFFFF' : color, borderColor: color }, style]}>
-        {shown ? (
-          <>
+    <PressableScale onPress={open} hapticOnPress={false} scaleTo={0.94} style={styles.cell}>
+      <Animated.View style={[styles.env, { backgroundColor: face ? '#FFFFFF' : color, borderColor: color }, style]}>
+        {face ? (
+          <Animated.View entering={ZoomIn.springify()} style={{ alignItems: 'center' }}>
             <Text variant="overline" color={color}>
               Slot
             </Text>
             <Text variant="hero" color={color} style={{ fontSize: 40, lineHeight: 44 }}>
               {number}
             </Text>
-          </>
+            {tag && (
+              <Text variant="caption" color={color} style={{ fontWeight: '700' }}>
+                {tag}
+              </Text>
+            )}
+          </Animated.View>
         ) : (
           <>
             <View style={styles.flap} />
@@ -49,7 +100,7 @@ function Envelope({ name, number, color, open, onOpen }: { name: string; number:
               <Feather name="star" size={14} color={color} />
             </View>
             <Text variant="caption" color="rgba(255,255,255,0.85)" style={{ marginTop: 8 }}>
-              Tap to open
+              {busy ? 'Opening…' : 'Tap to open'}
             </Text>
           </>
         )}
@@ -61,42 +112,67 @@ function Envelope({ name, number, color, open, onOpen }: { name: string; number:
   );
 }
 
-/** Lucky Envelopes (bunot): each member opens their own sealed envelope to see their slot. */
+/**
+ * Lucky Envelopes (bunot): each member opens their own sealed envelope to see their slot.
+ * "Reveal one by one" opens them from the LAST slot up to #1, so the first payout comes last.
+ */
 export function EnvelopesDraw({ participants, order, onDone }: DrawGameProps) {
   const [opened, setOpened] = useState<string[]>([]);
-  const [all, setAll] = useState(false);
+  const [autoIds, setAutoIds] = useState<string[]>([]);
+  const [revealing, setRevealing] = useState<number | null>(null); // slot being revealed in the sequence
+  const doneRef = useRef(onDone);
+  useEffect(() => {
+    doneRef.current = onDone;
+  });
 
   const markOpen = (id: string) =>
     setOpened((prev) => {
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
-      if (next.length === participants.length) setTimeout(onDone, 600);
+      if (next.length === participants.length) setTimeout(() => doneRef.current(), 900);
       return next;
     });
 
+  const revealAll = () => {
+    // Last slot first, #1 last; skip envelopes already opened by hand.
+    const queue = [...order].reverse().filter((id) => !opened.includes(id));
+    let delay = 0;
+    queue.forEach((id) => {
+      const slot = order.indexOf(id) + 1;
+      setTimeout(() => {
+        setRevealing(slot);
+        setAutoIds((a) => [...a, id]);
+      }, delay);
+      delay += (slot === 1 ? SHAKE_MS * 1.6 : SHAKE_MS) + 1100;
+    });
+    setTimeout(() => setRevealing(null), delay);
+  };
+
+  const sequenceRunning = revealing !== null || autoIds.length > 0;
   return (
     <View style={{ gap: 16 }}>
-      <Text variant="small" tone="muted" center>
-        Pass the device around: each member taps the envelope with their name.
-      </Text>
+      {revealing !== null ? (
+        <SuspenseText text={`Opening ${slotLabel(revealing, order.length)}`} fast={revealing === 1} />
+      ) : (
+        <Text variant="small" tone="muted" center>
+          Pass the device around: each member taps the envelope with their name.
+        </Text>
+      )}
       <View style={styles.grid}>
         {participants.map((p, i) => (
-          <Envelope key={p.id} name={p.name} number={order.indexOf(p.id) + 1} color={colorAt(i)} open={all} onOpen={() => markOpen(p.id)} />
+          <Envelope
+            key={p.id}
+            name={p.name}
+            number={order.indexOf(p.id) + 1}
+            total={order.length}
+            color={colorAt(i)}
+            autoOpen={autoIds.includes(p.id)}
+            onOpen={() => markOpen(p.id)}
+          />
         ))}
       </View>
-      {opened.length < participants.length && !all && (
-        <Button
-          title="Open all envelopes"
-          variant="secondary"
-          size="md"
-          full={false}
-          style={{ alignSelf: 'center' }}
-          onPress={() => {
-            setAll(true);
-            haptic('success');
-            setTimeout(onDone, 600);
-          }}
-        />
+      {opened.length < participants.length && !sequenceRunning && (
+        <Button title="Reveal one by one" icon="eye" variant="secondary" size="md" full={false} style={{ alignSelf: 'center' }} onPress={revealAll} />
       )}
     </View>
   );
@@ -105,7 +181,7 @@ export function EnvelopesDraw({ participants, order, onDone }: DrawGameProps) {
 const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 12 },
   cell: { width: 104, gap: 6 },
-  env: { height: 120, borderRadius: radius.md, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  env: { height: 124, borderRadius: radius.md, borderWidth: 2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   flap: {
     position: 'absolute',
     top: -52,

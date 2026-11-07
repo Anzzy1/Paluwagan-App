@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming, ZoomIn } from 'react-native-reanimated';
 
 import { colorAt, shortName, type DrawGameProps } from '@/components/draw/common';
+import { SuspenseText } from '@/components/draw/Suspense';
 import { Button } from '@/components/ui/Button';
 import { haptic } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
@@ -13,6 +14,9 @@ import { radius } from '@/theme/tokens';
 /** Width of the lane number + name column. */
 const GUTTER = 96;
 const HORSE = 34;
+/** Base race length; each finishing place adds GAP_MS so the finish is spread out. */
+const RACE_MS = 9000;
+const GAP_MS = 650;
 
 /** Deterministic pseudo-random per lane so the race looks lively but stays reproducible. */
 function rnd(seed: number) {
@@ -27,17 +31,22 @@ function Lane({ name, color, rank, index, trackWidth, go }: { name: string; colo
 
   useEffect(() => {
     if (!go) return;
-    // Finishing time is fixed by rank (fair order); the mid-race surge varies so horses overtake each other.
-    const total = 4200 + rank * 380;
-    const midAt = 0.3 + rnd(index + go) * 0.4;
-    const midPos = 0.25 + rnd(index * 7 + go) * 0.5;
+    // Finishing time is fixed by rank (the fair order). On the way there each horse surges and
+    // fades at random checkpoints, so the lead changes and the eventual winner often comes from behind.
+    const total = RACE_MS + rank * GAP_MS;
+    const c1 = 0.1 + rnd(index + go) * 0.22;
+    let c2 = 0.3 + rnd(index * 3 + go) * 0.3;
+    if (rank === 0) c2 -= 0.12; // the winner trails mid-race: comeback
+    const c3 = Math.max(c2 + 0.06, 0.58 + rnd(index * 7 + go) * 0.25);
     x.set(0);
     x.set(
       withDelay(
         200,
         withSequence(
-          withTiming(midPos, { duration: total * midAt, easing: Easing.inOut(Easing.quad) }),
-          withTiming(1, { duration: total * (1 - midAt), easing: Easing.out(Easing.quad) }),
+          withTiming(c1, { duration: total * 0.22, easing: Easing.out(Easing.quad) }),
+          withTiming(c2, { duration: total * 0.3, easing: Easing.inOut(Easing.quad) }),
+          withTiming(c3, { duration: total * 0.26, easing: Easing.inOut(Easing.quad) }),
+          withTiming(1, { duration: total * 0.22, easing: Easing.out(Easing.cubic) }), // photo-finish slow-down
         ),
       ),
     );
@@ -61,6 +70,9 @@ function Lane({ name, color, rank, index, trackWidth, go }: { name: string; colo
   );
 }
 
+const CALLS = ['And they’re off', 'Neck and neck', 'Here comes a surprise', 'Final stretch', 'Photo finish'];
+const CALL_AT = [0, 0.22, 0.48, 0.72, 0.9];
+
 /** Horse Race: finishing order = the fair payout order. */
 export function HorseRace({ participants, order, onDone }: DrawGameProps) {
   const c = useColors();
@@ -68,6 +80,7 @@ export function HorseRace({ participants, order, onDone }: DrawGameProps) {
   const [go, setGo] = useState(0);
   const [count, setCount] = useState<number | null>(null);
   const [finished, setFinished] = useState(false);
+  const [call, setCall] = useState(0); // race commentary step
 
   const start = () => {
     if (count !== null) return;
@@ -82,7 +95,9 @@ export function HorseRace({ participants, order, onDone }: DrawGameProps) {
         setCount(null);
         setGo((g) => g + 1);
         haptic('medium');
-        const total = 4200 + (order.length - 1) * 380 + 600;
+        const total = 200 + RACE_MS + (order.length - 1) * GAP_MS + 700;
+        setCall(0);
+        CALLS.forEach((_, k) => k > 0 && setTimeout(() => setCall(k), RACE_MS * CALL_AT[k]));
         setTimeout(() => {
           setFinished(true);
           haptic('success');
@@ -92,7 +107,7 @@ export function HorseRace({ participants, order, onDone }: DrawGameProps) {
         setCount(n);
         haptic('light');
       }
-    }, 700);
+    }, 1000);
   };
 
   return (
@@ -125,9 +140,7 @@ export function HorseRace({ participants, order, onDone }: DrawGameProps) {
           onPress={start}
         />
       ) : (
-        <Text variant="h3" center tone="muted">
-          And they’re off!
-        </Text>
+        <SuspenseText text={CALLS[call]} fast={call >= CALLS.length - 1} />
       )}
 
       {finished && (
@@ -135,6 +148,11 @@ export function HorseRace({ participants, order, onDone }: DrawGameProps) {
           <Text variant="h3" center>
             Finish order
           </Text>
+          {order.length > 3 && (
+            <Text variant="small" tone="muted" center>
+              Last to finish: <Text variant="smallBold">{participants.find((x) => x.id === order[order.length - 1])?.name}</Text>
+            </Text>
+          )}
           <View style={styles.podium}>
             {order.slice(0, 3).map((id, i) => {
               const p = participants.find((x) => x.id === id)!;
@@ -142,7 +160,7 @@ export function HorseRace({ participants, order, onDone }: DrawGameProps) {
               return (
                 <Animated.View key={id} entering={ZoomIn.delay(i * 150)} style={[styles.place, { backgroundColor: colorAt(idx), height: [110, 90, 76][i] }]}>
                   <Text variant="h1" color="#fff">
-                    {['🥇', '🥈', '🥉'][i]}
+                    {['1st', '2nd', '3rd'][i]}
                   </Text>
                   <Text variant="caption" color="#fff" numberOfLines={1}>
                     {shortName(p.name, 10)}
