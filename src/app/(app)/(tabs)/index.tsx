@@ -24,7 +24,7 @@ import { useColors, useIsDesktop } from '@/lib/prefs';
 import { homeTip, onTimeStreak } from '@/lib/rewards';
 import { goalProgress } from '@/lib/ipon';
 import { useManagedCircles } from '@/lib/local';
-import { radius } from '@/theme/tokens';
+import { font, radius } from '@/theme/tokens';
 
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
@@ -89,17 +89,13 @@ export default function Home() {
           ))}
         </View>
       </View>
-      <View>
-        <Text variant="body" tone="muted">
-          {greeting()},
+      {/* Greeting and name on one line to save vertical space. */}
+      <Text variant="h1" numberOfLines={1}>
+        <Text variant="h1" tone="muted" style={{ fontFamily: font.medium }}>
+          {greeting()},{' '}
         </Text>
-        <Text variant="display" style={{ marginTop: 2 }}>
-          {name}
-          <Text variant="display" tone="brand">
-            .
-          </Text>
-        </Text>
-      </View>
+        {name}
+      </Text>
     </View>
   );
 
