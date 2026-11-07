@@ -90,11 +90,13 @@ export default function Home() {
         </View>
       </View>
       {/* Greeting and name on one line to save vertical space. */}
-      <Text variant="h1" numberOfLines={1}>
-        <Text variant="h1" tone="muted" style={{ fontFamily: font.medium }}>
+      <Text numberOfLines={1} style={styles.greet}>
+        <Text tone="muted" style={[styles.greet, { fontFamily: font.cute }]}>
           {greeting()},{' '}
         </Text>
-        {name}
+        <Text color={c.brandText} style={styles.greet}>
+          {name}
+        </Text>
       </Text>
     </View>
   );
@@ -394,6 +396,7 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
+  greet: { fontFamily: font.cuteBold, fontSize: 28, lineHeight: 36, letterSpacing: 0.2 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   round: { width: 44, height: 44, borderRadius: 22, borderWidth: 0, alignItems: 'center', justifyContent: 'center' },
   newGoal: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, height: 32, borderRadius: 16 },

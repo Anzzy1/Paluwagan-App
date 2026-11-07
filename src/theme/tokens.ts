@@ -92,6 +92,9 @@ export const font = {
   semibold: 'PlusJakartaSans_700Bold',
   bold: 'PlusJakartaSans_800ExtraBold',
   black: 'PlusJakartaSans_800ExtraBold',
+  /** Rounded, friendly display face for the Home greeting. */
+  cute: 'Fredoka_500Medium',
+  cuteBold: 'Fredoka_600SemiBold',
 } as const;
 
 /** Icons offered for circles and goals, with what the money is for (stored in the `emoji` columns). */

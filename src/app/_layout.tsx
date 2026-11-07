@@ -5,6 +5,7 @@ import {
   PlusJakartaSans_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/plus-jakarta-sans';
+import { Fredoka_500Medium, Fredoka_600SemiBold } from '@expo-google-fonts/fredoka';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -23,7 +24,7 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({ PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold });
+  const [fontsLoaded] = useFonts({ PlusJakartaSans_500Medium, PlusJakartaSans_600SemiBold, PlusJakartaSans_700Bold, PlusJakartaSans_800ExtraBold, Fredoka_500Medium, Fredoka_600SemiBold });
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
