@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Modal, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -58,7 +58,7 @@ export function WheelDraw({ participants, order, onDone }: DrawGameProps) {
   const reduce = useReducedMotion();
   const [revealed, setRevealed] = useState<string[]>([]);
   const [spinning, setSpinning] = useState(false);
-  const [winner, setWinner] = useState<string | null>(null); // highlighted on the wheel, then removed
+  const [winner, setWinner] = useState<string | null>(null); // lit on the wheel + shown in the popup until closed
   const [party, setParty] = useState(0);
   const [lights, setLights] = useState(0);
 
@@ -124,18 +124,14 @@ export function WheelDraw({ participants, order, onDone }: DrawGameProps) {
     const left = participants.filter((p) => !next.includes(p.id));
     if (left.length === 1) next.push(left[0].id);
     setRevealed(next);
-    // Keep the winning slice lit for a moment, then take it off the wheel.
-    setTimeout(() => {
-      setWinner(null);
-      rot.set(0);
-      if (next.length >= order.length) onDone();
-    }, 1600);
   };
 
-  const spin = () => {
-    if (spinning || winner || done) return;
+  /** Spin for the next slot. `list` is who is on the wheel (defaults to what's shown now). */
+  const spin = (list = onWheel) => {
+    if (spinning || revealed.length >= order.length) return;
+    const step = 360 / Math.max(1, list.length);
     const w = order[revealed.length];
-    const idx = onWheel.findIndex((p) => p.id === w);
+    const idx = list.findIndex((p) => p.id === w);
     const wobble = (((revealed.length + 1) * 37) % 10) / 10 - 0.5; // land off-centre so it feels natural
     const center = (idx + 0.5) * step + wobble * step * 0.55;
     const target = 360 * 7 + ((360 - center) % 360);
@@ -160,13 +156,25 @@ export function WheelDraw({ participants, order, onDone }: DrawGameProps) {
     );
   };
 
+  /** Close the winner popup; the winning slice leaves the wheel. Optionally spin again right away. */
+  const closeWin = (spinNext: boolean) => {
+    setWinner(null);
+    rot.set(0);
+    if (revealed.length >= order.length) {
+      onDone();
+      return;
+    }
+    if (spinNext) {
+      const rest = participants.filter((p) => !revealed.includes(p.id));
+      setTimeout(() => spin(rest), 300);
+    }
+  };
+
   const fontSize = n > 10 ? 10 : n > 6 ? 12 : 14;
   const lastSlot = order.length;
 
   return (
     <View style={{ gap: 18, alignItems: 'center', alignSelf: 'stretch' }}>
-      <Confetti run={party} count={done ? 80 : 36} />
-
       <View style={{ width: SIZE, height: SIZE + 18 }}>
         <Animated.View style={[{ width: SIZE, height: SIZE, marginTop: 18 }, wheelStyle]}>
           <Svg width={SIZE} height={SIZE}>
@@ -203,7 +211,7 @@ export function WheelDraw({ participants, order, onDone }: DrawGameProps) {
 
         {/* SPIN hub (doesn't rotate) */}
         <Animated.View style={[styles.hubWrap, hubStyle]}>
-          <PressableScale onPress={spin} disabled={spinning || !!winner || done} dimWhenDisabled={false} hapticOnPress={false} scaleTo={0.9} accessibilityLabel="Spin" style={[styles.hub, { borderColor: c.ink }]}>
+          <PressableScale onPress={() => spin()} disabled={spinning || !!winner || done} dimWhenDisabled={false} hapticOnPress={false} scaleTo={0.9} accessibilityLabel="Spin" style={[styles.hub, { borderColor: c.ink }]}>
             <Text variant="caption" style={{ fontFamily: font.black, fontSize: 13, letterSpacing: 0.5 }} color={c.ink}>
               {done ? 'DONE' : spinning ? '•••' : 'SPIN'}
             </Text>
@@ -219,18 +227,8 @@ export function WheelDraw({ participants, order, onDone }: DrawGameProps) {
         </Animated.View>
       </View>
 
-      {/* announcement */}
-      <View style={{ minHeight: 64, alignItems: 'center', justifyContent: 'center' }}>
-        {winner ? (
-          <Animated.View key={winner} entering={ZoomIn.springify().damping(12)} style={[styles.winner, { backgroundColor: colorOf(winner) }]}>
-            <Text variant="overline" color="rgba(255,255,255,0.85)">
-              Slot #{revealed.indexOf(winner) + 1} · {revealed.indexOf(winner) === 0 ? 'First payout' : `${ordinal(revealed.indexOf(winner) + 1)} payout`}
-            </Text>
-            <Text variant="h1" color="#fff" numberOfLines={1}>
-              {nameOf(winner)}!
-            </Text>
-          </Animated.View>
-        ) : done ? (
+      <View style={{ minHeight: 56, alignItems: 'center', justifyContent: 'center' }}>
+        {done && !winner ? (
           <Animated.View entering={FadeIn}>
             <Text variant="h2" tone="brand">
               All slots drawn!
@@ -241,8 +239,8 @@ export function WheelDraw({ participants, order, onDone }: DrawGameProps) {
             title={spinning ? 'Spinning…' : `Spin for slot #${revealed.length + 1}`}
             icon="refresh-cw"
             variant="brand"
-            onPress={spin}
-            disabled={spinning}
+            onPress={() => spin()}
+            disabled={spinning || !!winner}
             full={false}
             style={{ paddingHorizontal: 28, alignSelf: 'center' }}
           />
@@ -286,7 +284,122 @@ export function WheelDraw({ participants, order, onDone }: DrawGameProps) {
           );
         })}
       </View>
+
+      {winner && !spinning && (
+        <WinnerPopup
+          party={party}
+          slot={revealed.indexOf(winner) + 1}
+          total={order.length}
+          name={nameOf(winner)}
+          color={colorOf(winner)}
+          autoLast={revealed.length === order.length && revealed[revealed.length - 1] !== winner ? nameOf(revealed[revealed.length - 1]) : null}
+          onNext={() => closeWin(true)}
+          onClose={() => closeWin(false)}
+        />
+      )}
     </View>
+  );
+}
+
+const RAY = (deg: number) => {
+  const a = (deg * Math.PI) / 180;
+  return `${(100 + 100 * Math.sin(a)).toFixed(1)} ${(100 - 100 * Math.cos(a)).toFixed(1)}`;
+};
+
+/** "We have a winner" popup, like the classic name wheels, with a turning sunburst and confetti. */
+function WinnerPopup({
+  party,
+  slot,
+  total,
+  name,
+  color,
+  autoLast,
+  onNext,
+  onClose,
+}: {
+  party: number;
+  slot: number;
+  total: number;
+  name: string;
+  color: string;
+  autoLast: string | null;
+  onNext: () => void;
+  onClose: () => void;
+}) {
+  const c = useColors();
+  const reduce = useReducedMotion();
+  const turn = useSharedValue(0);
+  useEffect(() => {
+    if (reduce) return;
+    turn.set(withRepeat(withTiming(360, { duration: 14000, easing: Easing.linear }), -1));
+  }, [reduce, turn]);
+  const rays = useAnimatedStyle(() => ({ transform: [{ rotate: `${turn.get()}deg` }] }));
+  const finished = slot >= total || !!autoLast;
+  const label = slot === 1 ? 'First payout' : slot === total ? 'Last payout' : `${ordinal(slot)} payout`;
+  const initials = name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join('');
+
+  return (
+    <Modal transparent visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <View style={[styles.backdrop, { backgroundColor: c.overlay }]}>
+        <Confetti run={party} count={finished ? 90 : 50} />
+        <Animated.View entering={ZoomIn.springify().damping(13)} style={[styles.popup, { backgroundColor: c.surface }]}>
+          <Text variant="overline" tone="muted">
+            We have a winner!
+          </Text>
+
+          <View style={styles.burst}>
+            <Animated.View style={[StyleSheet.absoluteFill, rays]}>
+              <Svg width={200} height={200} viewBox="0 0 200 200">
+                {Array.from({ length: 12 }, (_, i) => (
+                  <Path key={i} d={`M100 100 L${RAY(i * 30)} L${RAY(i * 30 + 15)} Z`} fill={color} opacity={0.16} />
+                ))}
+              </Svg>
+            </Animated.View>
+            <View style={[styles.avatar, { backgroundColor: color }]}>
+              <Text style={{ fontFamily: font.black, fontSize: 36, lineHeight: 42 }} color="#fff">
+                {initials}
+              </Text>
+            </View>
+            <View style={[styles.medal, { backgroundColor: c.gold, borderColor: c.surface }]}>
+              <Text style={{ fontFamily: font.black, fontSize: 16, lineHeight: 20 }} color="#5A3A00">
+                #{slot}
+              </Text>
+            </View>
+          </View>
+
+          <Text variant="display" center numberOfLines={2} style={{ fontSize: 30, lineHeight: 36 }}>
+            {name}
+          </Text>
+          <View style={[styles.slotChip, { backgroundColor: slot === 1 ? c.brandSoft : c.surfaceAlt }]}>
+            <Feather name={slot === 1 ? 'award' : 'hash'} size={14} color={slot === 1 ? c.brandText : c.textMuted} />
+            <Text variant="smallBold" color={slot === 1 ? c.brandText : c.textMuted}>
+              Slot {slot} of {total} · {label}
+            </Text>
+          </View>
+          {autoLast && (
+            <Text variant="small" tone="muted" center>
+              {autoLast} is the only one left and takes the last payout.
+            </Text>
+          )}
+
+          <View style={{ alignSelf: 'stretch', gap: 8, marginTop: 6 }}>
+            {finished ? (
+              <Button title="See payout order" icon="list" onPress={onClose} />
+            ) : (
+              <>
+                <Button title={`Spin for slot #${slot + 1}`} icon="refresh-cw" onPress={onNext} />
+                <Button title="Close" variant="secondary" onPress={onClose} />
+              </>
+            )}
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
@@ -294,7 +407,12 @@ const styles = StyleSheet.create({
   pointer: { position: 'absolute', top: 0, left: SIZE / 2 - 21, width: 42, height: 46, transformOrigin: '50% 13px' },
   hubWrap: { position: 'absolute', top: 18 + C - HUB, left: C - HUB, width: HUB * 2, height: HUB * 2 },
   hub: { width: HUB * 2, height: HUB * 2, borderRadius: HUB, backgroundColor: '#FFFFFF', borderWidth: 5, alignItems: 'center', justifyContent: 'center' },
-  winner: { paddingHorizontal: 22, paddingVertical: 10, borderRadius: radius.lg, alignItems: 'center', maxWidth: 320 },
+  backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
+  popup: { width: '100%', maxWidth: 360, borderRadius: radius.xl, padding: 22, alignItems: 'center', gap: 10 },
+  burst: { width: 200, height: 200, alignItems: 'center', justifyContent: 'center', marginVertical: -12 },
+  avatar: { width: 108, height: 108, borderRadius: 54, alignItems: 'center', justifyContent: 'center', borderWidth: 5, borderColor: '#FFFFFF' },
+  medal: { position: 'absolute', bottom: 40, right: 44, minWidth: 44, height: 44, paddingHorizontal: 6, borderRadius: 22, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
+  slotChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
   order: { alignSelf: 'stretch', borderWidth: 1, borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 6 },
   orderHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 6, borderTopWidth: 1, borderRadius: radius.sm },
