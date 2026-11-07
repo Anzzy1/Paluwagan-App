@@ -24,7 +24,7 @@ import { useColors, useIsDesktop } from '@/lib/prefs';
 import { homeTip, onTimeStreak } from '@/lib/rewards';
 import { goalProgress } from '@/lib/ipon';
 import { useManagedCircles } from '@/lib/local';
-import { radius, tileGradients } from '@/theme/tokens';
+import { radius, tileColors } from '@/theme/tokens';
 
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
@@ -131,7 +131,7 @@ export default function Home() {
   );
 
   // ---------------- quick actions
-  const actions: { icon: NavIconName; label: string; tone: keyof typeof tileGradients; onPress: () => void }[] = [
+  const actions: { icon: NavIconName; label: string; tone: keyof typeof tileColors; onPress: () => void }[] = [
     { icon: 'create', label: 'Create', tone: 'green', onPress: () => router.push('/create') },
     { icon: 'join', label: 'Join', tone: 'blue', onPress: () => router.push('/join') },
     {
