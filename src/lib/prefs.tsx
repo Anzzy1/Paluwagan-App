@@ -8,8 +8,8 @@ import { DESKTOP_BREAKPOINT, palette, type Colors } from '@/theme/tokens';
 export type ThemePref = 'system' | 'light' | 'dark';
 
 /** On/off device settings, stored in kv as '1'/'0'. */
-export type Toggles = { hideAmounts: boolean; haptics: boolean; celebrations: boolean; mascotTips: boolean; push: boolean };
-const TOGGLE_DEFAULTS: Toggles = { hideAmounts: false, haptics: true, celebrations: true, mascotTips: true, push: true };
+export type Toggles = { hideAmounts: boolean; haptics: boolean; celebrations: boolean; mascotTips: boolean; push: boolean; sounds: boolean };
+const TOGGLE_DEFAULTS: Toggles = { hideAmounts: false, haptics: true, celebrations: true, mascotTips: true, push: true, sounds: true };
 
 function readToggles(): Toggles {
   const out = { ...TOGGLE_DEFAULTS };

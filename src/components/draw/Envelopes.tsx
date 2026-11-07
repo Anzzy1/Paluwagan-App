@@ -7,6 +7,7 @@ import { colorAt, shortName, type DrawGameProps } from '@/components/draw/common
 import { slotLabel, SuspenseText } from '@/components/draw/Suspense';
 import { Button } from '@/components/ui/Button';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
+import { loop, sfx } from '@/lib/sfx';
 import { Text } from '@/components/ui/Text';
 import { radius } from '@/theme/tokens';
 
@@ -42,6 +43,9 @@ function Envelope({
     const shake = reduce ? 0 : number === 1 ? SHAKE_MS * 1.6 : SHAKE_MS;
     if (shake) {
       haptic('light');
+      sfx('shake', 0.8);
+      setTimeout(() => sfx('shake', 1), shake * 0.5);
+      if (number === 1) loop('drumroll', true, 0.7);
       // Builds from a nervous tremble to a hard shake, then flips open.
       wiggle.set(
         withSequence(
@@ -53,6 +57,8 @@ function Envelope({
     }
     setTimeout(() => {
       haptic('medium');
+      loop('drumroll', false);
+      sfx(number === 1 || number === total ? 'win' : 'pop');
       flip.set(
         withSequence(
           withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }),

@@ -122,7 +122,7 @@ export default function ManagedDraw() {
         right={(!playing || done) && desktop ? goButton : undefined}>
         {playing ? (
           <Card style={{ paddingVertical: 24 }}>
-            <DrawStage style={style ?? circle.draw_style ?? 'balls'} participants={participants} order={circle.order ?? []} onDone={finished} />
+            <DrawStage style={style ?? circle.draw_style ?? 'plinko'} participants={participants} order={circle.order ?? []} onDone={finished} />
           </Card>
         ) : null}
 

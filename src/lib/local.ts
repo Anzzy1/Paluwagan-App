@@ -17,7 +17,9 @@ import { kv } from '@/lib/storage';
 import type { Frequency } from '@/lib/types';
 import type { CircleTint } from '@/theme/tokens';
 
-export type DrawStyle = 'wheel' | 'race' | 'envelopes' | 'balls';
+export type DrawStyle = 'wheel' | 'envelopes' | 'slots' | 'plinko' | 'claw' | LegacyDrawStyle;
+/** Retired games; draws saved with them replay as Slot Machine / Plinko. */
+export type LegacyDrawStyle = 'race' | 'balls';
 
 export type LocalMember = { id: string; name: string; phone?: string };
 

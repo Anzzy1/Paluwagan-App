@@ -1,19 +1,21 @@
 import { Feather } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
-import { DRAW_STYLES, type DrawGameProps } from '@/components/draw/common';
+import { ClawMachine } from '@/components/draw/ClawMachine';
+import { DRAW_STYLES, gameOf, type DrawGameProps, type GameId } from '@/components/draw/common';
 import { DRAW_TINT, DrawArt } from '@/components/draw/DrawArt';
 import { EnvelopesDraw } from '@/components/draw/Envelopes';
-import { HorseRace } from '@/components/draw/HorseRace';
-import { LotteryBalls } from '@/components/draw/LotteryBalls';
+import { Plinko } from '@/components/draw/Plinko';
+import { SlotMachine } from '@/components/draw/SlotMachine';
 import { WheelDraw } from '@/components/draw/Wheel';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import type { DrawStyle } from '@/lib/local';
-import { useColors, useIsDark, useIsDesktop } from '@/lib/prefs';
+import { useColors, useIsDark, useIsDesktop, usePrefs } from '@/lib/prefs';
+import { useGameMusic } from '@/lib/sfx';
 import { radius } from '@/theme/tokens';
 
-export function DrawStylePicker({ value, onChange }: { value: DrawStyle | null; onChange: (s: DrawStyle) => void }) {
+export function DrawStylePicker({ value, onChange }: { value: DrawStyle | null; onChange: (s: GameId) => void }) {
   const c = useColors();
   const dark = useIsDark();
   const desktop = useIsDesktop();
@@ -51,7 +53,7 @@ export function DrawStylePicker({ value, onChange }: { value: DrawStyle | null; 
 }
 
 /** One row per game for "replay the draw": illustration + title. */
-export function DrawReplayList({ onPick }: { onPick: (s: DrawStyle) => void }) {
+export function DrawReplayList({ onPick }: { onPick: (s: GameId) => void }) {
   const c = useColors();
   const dark = useIsDark();
   return (
@@ -73,10 +75,37 @@ export function DrawReplayList({ onPick }: { onPick: (s: DrawStyle) => void }) {
 
 /** Renders the chosen draw game. The `order` is decided beforehand by the fair seeded shuffle. */
 export function DrawStage({ style, ...props }: DrawGameProps & { style: DrawStyle }) {
-  if (style === 'wheel') return <WheelDraw {...props} />;
-  if (style === 'race') return <HorseRace {...props} />;
-  if (style === 'envelopes') return <EnvelopesDraw {...props} />;
-  return <LotteryBalls {...props} />;
+  useGameMusic();
+  const game = gameOf(style);
+  return (
+    <View style={{ gap: 6 }}>
+      <SoundButton />
+      {game === 'wheel' && <WheelDraw {...props} />}
+      {game === 'envelopes' && <EnvelopesDraw {...props} />}
+      {game === 'slots' && <SlotMachine {...props} />}
+      {game === 'plinko' && <Plinko {...props} />}
+      {game === 'claw' && <ClawMachine {...props} />}
+    </View>
+  );
+}
+
+/** Small speaker toggle for music + sound effects (same as Settings → Game sounds). */
+function SoundButton() {
+  const c = useColors();
+  const { toggles, setToggle } = usePrefs();
+  const on = toggles.sounds;
+  return (
+    <PressableScale
+      onPress={() => setToggle('sounds', !on)}
+      hapticOnPress={false}
+      accessibilityLabel={on ? 'Mute game sounds' : 'Turn on game sounds'}
+      style={[styles.sound, { backgroundColor: on ? c.brandSoft : c.surfaceAlt }]}>
+      <Feather name={on ? 'volume-2' : 'volume-x'} size={16} color={on ? c.brandText : c.textMuted} />
+      <Text variant="caption" color={on ? c.brandText : c.textMuted}>
+        {on ? 'Sound on' : 'Muted'}
+      </Text>
+    </PressableScale>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -85,5 +114,6 @@ const styles = StyleSheet.create({
   art: { width: 76, height: 76, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   replay: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, paddingLeft: 8, paddingRight: 14, borderRadius: radius.md, minHeight: 56 },
   replayArt: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  sound: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 32, borderRadius: 16 },
   check: { position: 'absolute', top: 10, right: 10, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
 });

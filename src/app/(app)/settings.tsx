@@ -80,6 +80,8 @@ export default function SettingsScreen() {
           <Divider />
           <Row icon="star" title="Celebration effects" subtitle="Confetti on draws and finished goals" value={toggles.celebrations} onChange={flip('celebrations')} />
           <Divider />
+          <Row icon="volume-2" title="Game sounds" subtitle="Music and sound effects during the bunutan" value={toggles.sounds} onChange={flip('sounds')} />
+          <Divider />
           <Row
             icon="smartphone"
             title="Haptic feedback"
