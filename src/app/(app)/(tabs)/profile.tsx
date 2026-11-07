@@ -1,9 +1,10 @@
 import { Feather } from '@expo/vector-icons';
+import { router, type Href } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Mascot } from '@/components/Mascot';
-import { Avatar, Chip, Divider, Input, ProgressRing, Segmented, Stat } from '@/components/ui/bits';
+import { Avatar, Chip, Divider, IconButton, Input, ProgressRing, Stat } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Columns, Screen } from '@/components/ui/Screen';
@@ -12,13 +13,12 @@ import { Text } from '@/components/ui/Text';
 import { useMyCircles, useUpdateProfile } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { peso, trustLabel } from '@/lib/format';
-import { useColors, usePrefs, type ThemePref } from '@/lib/prefs';
+import { useColors } from '@/lib/prefs';
 import { badgesFor, onTimeStreak } from '@/lib/rewards';
-import { confirmAction, notifyError } from '@/lib/alert';
+import { notifyError } from '@/lib/alert';
 
 export default function ProfileTab() {
-  const { profile, session, signOut, isDemo, isGuest, newGuest, enterDemo } = useAuth();
-  const { themePref, setThemePref } = usePrefs();
+  const { profile, session, isDemo, isGuest } = useAuth();
   const circles = useMyCircles();
   const [edit, setEdit] = useState(false);
 
@@ -34,16 +34,6 @@ export default function ProfileTab() {
   const streak = onTimeStreak(all);
   const badges = badgesFor(all, profile);
   const earned = badges.filter((b) => b.earned).length;
-
-  const confirmSignOut = () =>
-    confirmAction(isDemo ? 'Exit sample data?' : 'Sign out?', '', signOut, { confirmText: isDemo ? 'Exit' : 'Sign out', destructive: true });
-  const confirmNewGuest = () =>
-    confirmAction(
-      'Start as a new test user?',
-      'You’ll get a fresh guest account. The current guest can’t be restored, but circles it joined keep its records. Tip: use a private/incognito window to test as several members at once.',
-      newGuest,
-      { confirmText: 'Start fresh', destructive: true },
-    );
 
   const identity = (
     <Card style={{ gap: 16 }}>
@@ -129,49 +119,23 @@ export default function ProfileTab() {
     </Card>
   );
 
-  const settings = (
-    <Card style={{ gap: 14 }}>
-      <Text variant="h3">Appearance</Text>
-      <Segmented<ThemePref>
-        value={themePref}
-        onChange={setThemePref}
-        options={[
-          { value: 'system', label: 'System' },
-          { value: 'light', label: 'Light' },
-          { value: 'dark', label: 'Dark' },
-        ]}
-      />
-      <Divider />
-      <Text variant="h3">Testing</Text>
-      {isDemo ? (
-        <Button title="Exit sample data" icon="log-out" variant="secondary" onPress={signOut} />
-      ) : (
-        <Button title="Preview with sample data" icon="eye" variant="secondary" onPress={enterDemo} />
-      )}
-      {(isGuest || isDemo) && <Button title="Start as a new test user" icon="user-plus" variant="secondary" onPress={confirmNewGuest} />}
-      {!isGuest && !isDemo && <Button title="Sign out" variant="danger" icon="log-out" onPress={confirmSignOut} />}
-      <Text variant="small" tone="faint" center>
-        Paluwagan records contributions and payouts. It never holds funds.
-      </Text>
-    </Card>
-  );
-
   return (
-    <Screen tabs title="Profile">
+    <Screen tabs title="Profile" right={<IconButton icon="settings" label="Settings" onPress={() => router.push('/settings' as Href)} />}>
       <Columns
         main={
           <>
             {identity}
             {trust}
             {rewards}
-            <View style={styles.stats}>
-              <Stat label="Circles" value={String(all.length)} />
-              <Stat label="On-time rate" value={paid.length ? `${Math.round((onTime / paid.length) * 100)}%` : '—'} />
-              <Stat label="Received" value={peso(received, { compact: true })} />
-            </View>
           </>
         }
-        side={settings}
+        side={
+          <View style={styles.stats}>
+            <Stat label="Circles" value={String(all.length)} />
+            <Stat label="On-time rate" value={paid.length ? `${Math.round((onTime / paid.length) * 100)}%` : '—'} />
+            <Stat label="Received" value={peso(received, { compact: true })} />
+          </View>
+        }
       />
       <EditProfileSheet open={edit} onClose={() => setEdit(false)} />
     </Screen>
@@ -222,5 +186,5 @@ function EditProfileSheet({ open, onClose }: { open: boolean; onClose: () => voi
 }
 
 const styles = StyleSheet.create({
-  stats: { flexDirection: 'row', gap: 12 },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
 });

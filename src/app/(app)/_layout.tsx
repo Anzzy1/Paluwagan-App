@@ -21,6 +21,7 @@ export default function AppLayout() {
       <Stack.Screen name="create" options={{ presentation: desktop ? 'card' : 'modal' }} />
       <Stack.Screen name="join" options={{ presentation: desktop ? 'card' : 'modal' }} />
       <Stack.Screen name="assistant" options={{ presentation: desktop ? 'card' : 'modal' }} />
+      <Stack.Screen name="settings" />
     </Stack>
   );
 

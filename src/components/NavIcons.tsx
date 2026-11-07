@@ -1,6 +1,6 @@
 import Svg, { Circle, Path } from 'react-native-svg';
 
-export type NavIconName = 'home' | 'circles' | 'ipon' | 'assistant' | 'activity' | 'profile' | 'create' | 'join' | 'pay';
+export type NavIconName = 'home' | 'circles' | 'ipon' | 'assistant' | 'activity' | 'profile' | 'create' | 'join' | 'pay' | 'settings';
 
 type Props = { name: NavIconName; color: string; size?: number; active?: boolean; /** Stroke width override for bolder glyphs. */ weight?: number };
 
@@ -70,6 +70,18 @@ export function NavIcon({ name, color, size = 24, active = false, weight }: Prop
         <>
           <Path d="M20.2 3.8 4.4 10.1c-.8.3-.8 1.4 0 1.7l5.9 2.1 2.1 5.9c.3.8 1.4.8 1.7 0z" fill={color} fillOpacity={soft} {...stroke} />
           <Path d="m10.3 13.9 4.4-4.4" {...stroke} />
+        </>
+      )}
+
+      {name === 'settings' && (
+        <>
+          <Path
+            d="M10.3 3.9a1.8 1.8 0 0 1 3.4 0l.3.9a1.8 1.8 0 0 0 2.4 1l.8-.4a1.8 1.8 0 0 1 2.4 2.4l-.4.8a1.8 1.8 0 0 0 1 2.4l.9.3a1.8 1.8 0 0 1 0 3.4l-.9.3a1.8 1.8 0 0 0-1 2.4l.4.8a1.8 1.8 0 0 1-2.4 2.4l-.8-.4a1.8 1.8 0 0 0-2.4 1l-.3.9a1.8 1.8 0 0 1-3.4 0l-.3-.9a1.8 1.8 0 0 0-2.4-1l-.8.4a1.8 1.8 0 0 1-2.4-2.4l.4-.8a1.8 1.8 0 0 0-1-2.4l-.9-.3a1.8 1.8 0 0 1 0-3.4l.9-.3a1.8 1.8 0 0 0 1-2.4l-.4-.8a1.8 1.8 0 0 1 2.4-2.4l.8.4a1.8 1.8 0 0 0 2.4-1z"
+            fill={color}
+            fillOpacity={soft}
+            {...stroke}
+          />
+          <Circle cx={12} cy={12} r={2.8} fill={active ? color : 'none'} {...stroke} />
         </>
       )}
 

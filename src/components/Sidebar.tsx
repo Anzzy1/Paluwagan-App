@@ -17,7 +17,7 @@ import { onTimeStreak } from '@/lib/rewards';
 import { useManagedCircles } from '@/lib/local';
 import { radius, SIDEBAR_WIDTH } from '@/theme/tokens';
 
-type Item = { href: '/' | '/circles' | '/ipon' | '/assistant' | '/activity' | '/profile'; icon: NavIconName; label: string };
+type Item = { href: '/' | '/circles' | '/ipon' | '/assistant' | '/activity' | '/profile' | '/settings'; icon: NavIconName; label: string };
 
 const ITEMS: Item[] = [
   { href: '/', icon: 'home', label: 'Home' },
@@ -26,6 +26,7 @@ const ITEMS: Item[] = [
   { href: '/assistant', icon: 'assistant', label: 'Ask Ipon' },
   { href: '/activity', icon: 'activity', label: 'Activity' },
   { href: '/profile', icon: 'profile', label: 'Profile' },
+  { href: '/settings', icon: 'settings', label: 'Settings' },
 ];
 
 /** Desktop navigation. */

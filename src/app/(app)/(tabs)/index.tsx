@@ -88,7 +88,7 @@ export default function Home() {
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {[
             { icon: 'bell' as IconName, go: () => router.push('/activity') },
-            { icon: 'settings' as IconName, go: () => router.push('/profile') },
+            { icon: 'settings' as IconName, go: () => router.push('/settings' as Href) },
           ].map((b) => (
             <PressableScale key={b.icon} onPress={b.go} hapticOnPress={false} style={[styles.round, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Feather name={b.icon} size={18} color={c.brand} />
