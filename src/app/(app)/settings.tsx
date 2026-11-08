@@ -20,7 +20,7 @@ const isWeb = Platform.OS === 'web';
 
 /** App settings: how the app behaves on this device. Who you are lives in Profile. */
 export default function SettingsScreen() {
-  const { signOut, isDemo, isGuest, newGuest, enterDemo, userId } = useAuth();
+  const { signOut, isDemo, isGuest, newGuest, enterDemo, userId, isOffline, exitOffline } = useAuth();
   const { themePref, setThemePref, toggles, setToggle } = usePrefs();
   const chat = useChat();
   const version = Constants.expoConfig?.version ?? '1.0.0';
@@ -49,6 +49,19 @@ export default function SettingsScreen() {
 
   return (
     <Screen back title="Settings" narrow>
+      {(isOffline || isGuest) && (
+        <Section title="Account">
+          <Card style={styles.list}>
+            <Row
+              icon="user"
+              title="Log in or create account"
+              subtitle={isOffline ? 'Unlock online paluwagan, Ipon goals and Ask Ipon. Offline paluwagan stay on this device.' : 'Guest accounts are for testing. Log in to keep your data.'}
+              onPress={isOffline ? exitOffline : signOut}
+            />
+          </Card>
+        </Section>
+      )}
+
       <Section title="Notifications">
         <Card style={styles.list}>
           <Row
@@ -116,7 +129,7 @@ export default function SettingsScreen() {
           ) : (
             <Row icon="eye" title="Preview with sample data" subtitle="See the app filled with example paluwagan" onPress={enterDemo} />
           )}
-          {(isGuest || isDemo) && (
+          {(isGuest || isDemo) && !isOffline && (
             <>
               <Divider />
               <Row icon="user-plus" title="Start as a new test user" subtitle="Get a fresh guest account" onPress={confirmNewGuest} />
@@ -125,7 +138,7 @@ export default function SettingsScreen() {
         </Card>
       </Section>
 
-      {!isGuest && !isDemo && (
+      {!isGuest && !isDemo && !isOffline && (
         <Card style={styles.list}>
           <Row icon="log-out" title="Sign out" danger onPress={confirmSignOut} />
         </Card>

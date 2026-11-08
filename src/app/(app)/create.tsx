@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { useRequireAccount } from '@/components/AccountGate';
 import { Avatar, Chip, CircleIcon, IconButton, type IconName, Input, Notice, ProgressBar, PurposeIcon } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card, useTint } from '@/components/ui/Card';
@@ -14,6 +15,7 @@ import { Columns, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { notifyError } from '@/lib/alert';
 import { useCreateCircle } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { createManagedCircle, payoutPlan, roundDueDate, suggestFirstPayout, type PayoutSchedule } from '@/lib/local';
 import { longDate, looksLikeScam, payoutShort, peso, scheduleLabel, scheduleShort, shortDate, todayISO, toISODate } from '@/lib/format';
 import { useColors, useIsDesktop } from '@/lib/prefs';
@@ -231,7 +233,10 @@ export default function CreateCircle() {
   const [startDate, setStartDate] = useState(nextSemiMonthly());
   const [lateFee, setLateFee] = useState('0');
   const [grace, setGrace] = useState(1);
-  const [rules, setRules] = useState(DEFAULT_RULES);
+  const { isOffline } = useAuth();
+  const requireAccount = useRequireAccount();
+  // Offline users can only run managed paluwagan, so start there.
+  const [rules, setRules] = useState(isOffline ? '' : DEFAULT_RULES);
   const [orderMode, setOrderMode] = useState<'draw' | 'manual'>('draw');
   const [intervalDays, setIntervalDays] = useState(3);
   const [sahodMode, setSahodMode] = useState<SahodMode>('same');
@@ -241,7 +246,7 @@ export default function CreateCircle() {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
 
-  const [kind, setKind] = useState<'online' | 'managed'>('online');
+  const [kind, setKind] = useState<'online' | 'managed'>(isOffline ? 'managed' : 'online');
   const [memberNames, setMemberNames] = useState<string[]>([]);
   const [newMember, setNewMember] = useState('');
   const managed = kind === 'managed';
@@ -377,11 +382,13 @@ export default function CreateCircle() {
             selected={!managed}
             icon="wifi"
             title="Online paluwagan"
-            body="Every member uses the app. They join with an invite code, upload receipts and confirm payments themselves."
-            onPress={() => {
-              setKind('online');
-              if (!rules.trim()) setRules(DEFAULT_RULES);
-            }}
+            body={`Every member uses the app. They join with an invite code, upload receipts and confirm payments themselves.${isOffline ? ' Needs an account.' : ''}`}
+            onPress={() =>
+              requireAccount(() => {
+                setKind('online');
+                if (!rules.trim()) setRules(DEFAULT_RULES);
+              }, 'Online paluwagan')
+            }
           />
           <TypeCard
             selected={managed}

@@ -21,6 +21,7 @@ import { plannedHulogPerSahod } from '@/lib/derive';
 import { useColors, useIsDesktop } from '@/lib/prefs';
 import type { CirclePreview } from '@/lib/types';
 import { font, radius } from '@/theme/tokens';
+import { withAccount } from '@/components/AccountGate';
 
 type Method = 'code' | 'link' | 'scan';
 
@@ -208,7 +209,7 @@ function CircleHero({ p, onChange }: { p: CirclePreview; onChange: () => void })
 }
 
 // ---------------------------------------------------------------- screen
-export default function Join() {
+function JoinScreen() {
   const c = useColors();
   const desktop = useIsDesktop();
   const params = useLocalSearchParams<{ code?: string }>();
@@ -469,3 +470,5 @@ const styles = StyleSheet.create({
   toggle: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: radius.lg, borderWidth: 2 },
   agree: { flexDirection: 'row', gap: 10, alignItems: 'center', padding: 12, borderRadius: radius.md },
 });
+
+export default withAccount(JoinScreen, 'Join a paluwagan');

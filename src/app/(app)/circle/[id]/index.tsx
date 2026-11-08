@@ -19,6 +19,7 @@ import { dueOf, hulogInRound, myNextContribution, plannedHulogPerSahod, recipien
 import { displayStatus, longDate, payoutShort, peso, potOf, relativeDue, shortDate, slotName } from '@/lib/format';
 import { useColors, useIsDesktop, useT } from '@/lib/prefs';
 import { radius } from '@/theme/tokens';
+import { withAccount } from '@/components/AccountGate';
 
 type Tab = 'timeline' | 'members' | 'rules' | 'activity';
 
@@ -35,7 +36,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function CircleScreen() {
+function CircleScreenScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useT();
   const c = useColors();
@@ -375,3 +376,5 @@ const styles = StyleSheet.create({
   hash: { padding: 12, borderRadius: radius.sm, gap: 4 },
   myPay: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderRadius: radius.md, padding: 14 },
 });
+
+export default withAccount(CircleScreenScreen, 'Online paluwagan');

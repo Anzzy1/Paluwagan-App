@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { DEMO_USER_ID, demoQuery, demoState } from '@/lib/demo';
+import { kv } from '@/lib/storage';
 import { errMsg, isSupabaseConfigured, supabase } from '@/lib/supabase';
 import type { Profile } from '@/lib/types';
 
@@ -23,21 +24,35 @@ type AuthState = {
   retryGuest: () => Promise<void>;
   isDemo: boolean;
   enterDemo: () => void;
+  /** Using the app without an account: only managed (offline) paluwagan on this device. */
+  isOffline: boolean;
+  /** Start (or go back to) offline mode, with no account. */
+  goOffline: () => void;
+  /** Leave offline mode to log in or create an account. Offline paluwagan stay on this device. */
+  exitOffline: () => void;
 };
+
+const OFFLINE_KEY = 'offline-mode-v1';
 
 const AuthContext = createContext<AuthState | null>(null);
 
 /**
- * Sign-in is deferred for now: the app starts on an automatic guest account
- * (Supabase anonymous sign-in) so every feature can be tested immediately.
- * Email / phone login can later upgrade a guest via `supabase.auth.updateUser`.
+ * People choose how to start: log in / create an account (email or phone code),
+ * or continue offline with no account (managed paluwagan only, stored on the device).
+ * Offline users can log in later from Profile or Settings.
+ * Older automatic guest (anonymous) sessions keep working.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(isSupabaseConfigured);
   const [guestError, setGuestError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
+  const [offline, setOffline] = useState(() => kv.get(OFFLINE_KEY) === '1');
   const qc = useQueryClient();
+  const saveOffline = (on: boolean) => {
+    kv.set(OFFLINE_KEY, on ? '1' : '0');
+    setOffline(on);
+  };
 
   const startGuest = async () => {
     const { data, error } = await supabase.auth.signInAnonymously();
@@ -52,18 +67,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured) return;
     let cancelled = false;
     (async () => {
+      // No automatic guest any more: without a session the user picks log in or offline.
       const { data } = await supabase.auth.getSession();
-      if (!data.session) {
-        const res = await supabase.auth.signInAnonymously();
-        if (cancelled) return;
-        if (res.error) setGuestError(errMsg(res.error));
-        else setSession(res.data.session);
-      } else if (!cancelled) {
-        setSession(data.session);
-      }
-      if (!cancelled) setInitializing(false);
+      if (cancelled) return;
+      setSession(data.session);
+      setInitializing(false);
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
+      if (s) kv.set(OFFLINE_KEY, '0');
+    });
     return () => {
       cancelled = true;
       sub.subscription.unsubscribe();
@@ -85,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Give new guests a default display name (editable in Profile).
   const profile = profileQuery.data ?? null;
-  const needsName = !isDemo && !!userId && profileQuery.isSuccess && !!profile && !profile.full_name;
+  const needsName = !isDemo && !!session?.user.is_anonymous && !!userId && profileQuery.isSuccess && !!profile && !profile.full_name;
   useEffect(() => {
     if (!needsName || !userId) return;
     supabase
@@ -129,6 +142,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       demoState.on = true;
       qc.clear();
       setIsDemo(true);
+    },
+    isOffline: offline && !session && !isDemo,
+    goOffline: () => saveOffline(true),
+    exitOffline: () => {
+      demoState.on = false;
+      setIsDemo(false);
+      saveOffline(false);
     },
   };
 

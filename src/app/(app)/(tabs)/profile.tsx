@@ -14,13 +14,15 @@ import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { useMyCircles, useSetAvatar, useUpdateProfile } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useManagedCircles } from '@/lib/local';
 import { peso, trustLabel } from '@/lib/format';
 import { useColors } from '@/lib/prefs';
 import { badgesFor, onTimeStreak } from '@/lib/rewards';
 import { notify, notifyError } from '@/lib/alert';
 
 export default function ProfileTab() {
-  const { profile, session, isDemo, isGuest } = useAuth();
+  const { profile, session, isDemo, isGuest, isOffline, exitOffline } = useAuth();
+  const managed = useManagedCircles();
   const circles = useMyCircles();
   const [edit, setEdit] = useState(false);
   const [photo, setPhoto] = useState(false);
@@ -37,6 +39,57 @@ export default function ProfileTab() {
   const streak = onTimeStreak(all);
   const badges = badgesFor(all, profile);
   const earned = badges.filter((b) => b.earned).length;
+
+  if (isOffline) {
+    return (
+      <Screen tabs title="Profile" right={<IconButton icon="settings" label="Settings" onPress={() => router.push('/settings' as Href)} />}>
+        <View style={{ gap: 16, maxWidth: 640 }}>
+              <Card style={{ gap: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  <View style={[styles.offlineAvatar, { backgroundColor: c.surfaceAlt }]}>
+                    <Feather name="smartphone" size={26} color={c.textMuted} />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text variant="h2">Offline mode</Text>
+                    <Text variant="small" tone="muted">
+                      No account · {managed.length} managed paluwagan on this device
+                    </Text>
+                  </View>
+                </View>
+                <Divider />
+                <Text variant="small" tone="muted">
+                  Log in or create a free account to unlock everything below. Your offline paluwagan stay on this device after you log in.
+                </Text>
+                <Button title="Log in or create account" icon="user" onPress={exitOffline} />
+              </Card>
+              <Card style={{ gap: 14 }}>
+                <Text variant="h3">With an account you can</Text>
+                {(
+                  [
+                    ['wifi', 'Run online paluwagan', 'Members join with an invite and upload their own receipts.'],
+                    ['log-in', 'Join a paluwagan', 'Use an invite code or QR from an organiser.'],
+                    ['target', 'Save with Ipon goals', 'Set targets and track every hulog you save.'],
+                    ['message-circle', 'Ask Ipon', 'Get AI advice that knows your paluwagan.'],
+                    ['shield', 'Build your Trust Score', 'An on-time record that follows you across paluwagan.'],
+                  ] as const
+                ).map(([icon, title, body]) => (
+                  <View key={title} style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                    <View style={[styles.perk, { backgroundColor: c.brandSoft }]}>
+                      <Feather name={icon} size={16} color={c.brandText} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text variant="bodyBold">{title}</Text>
+                      <Text variant="small" tone="muted">
+                        {body}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </Card>
+        </View>
+      </Screen>
+    );
+  }
 
   const identity = (
     <Card style={{ gap: 16 }}>
@@ -275,6 +328,8 @@ function PhotoSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  offlineAvatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
+  perk: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   camBadgeLg: { width: 32, height: 32, borderRadius: 16, right: 0, bottom: 0 },
   camBadge: { position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },

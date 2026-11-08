@@ -16,6 +16,7 @@ import { longDate, shortDate, slotName } from '@/lib/format';
 import { useColors } from '@/lib/prefs';
 import type { Swap } from '@/lib/types';
 import { radius } from '@/theme/tokens';
+import { withAccount } from '@/components/AccountGate';
 
 const STATUS: Record<Swap['status'], { label: string; tone: ChipTone }> = {
   pending: { label: 'Awaiting response', tone: 'neutral' },
@@ -26,7 +27,7 @@ const STATUS: Record<Swap['status'], { label: string; tone: ChipTone }> = {
   cancelled: { label: 'Cancelled', tone: 'neutral' },
 };
 
-export default function Swaps() {
+function SwapsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const c = useColors();
   const { userId } = useAuth();
@@ -178,3 +179,5 @@ const styles = StyleSheet.create({
   rowPad: { paddingHorizontal: 16, paddingVertical: 12 },
   cand: { flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 1, borderRadius: radius.xs },
 });
+
+export default withAccount(SwapsScreen, 'Online paluwagan');

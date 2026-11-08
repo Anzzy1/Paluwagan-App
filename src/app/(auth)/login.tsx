@@ -22,7 +22,7 @@ function toE164(raw: string) {
 
 export default function Login() {
   const t = useT();
-  const { enterDemo } = useAuth();
+  const { enterDemo, goOffline } = useAuth();
   const [mode, setMode] = useState<'email' | 'phone'>('email');
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -55,7 +55,11 @@ export default function Login() {
           <Divider />
         </View>
       </View>
-      <Button title="Explore the demo" variant="secondary" icon="eye" onPress={enterDemo} />
+      <Button title="Continue offline" variant="secondary" icon="smartphone" onPress={goOffline} />
+      <Text variant="caption" tone="faint" center>
+        No account needed. Run paluwagan on this device only. Online paluwagan, Ipon goals and Ask Ipon need an account, and you can log in anytime from Profile.
+      </Text>
+      <Button title="Explore the demo" variant="ghost" icon="eye" onPress={enterDemo} />
     </>
   );
 

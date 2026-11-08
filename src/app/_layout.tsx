@@ -16,7 +16,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { DialogHost } from '@/components/ui/DialogHost';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { PrefsProvider, useColors, useIsDark } from '@/lib/prefs';
-import { isSupabaseConfigured } from '@/lib/supabase';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -39,7 +38,7 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { session, initializing, profile, profileLoading, guestError } = useAuth();
+  const { session, initializing, profile, profileLoading, guestError, isOffline } = useAuth();
   const dark = useIsDark();
   const c = useColors();
   const ready = !initializing && !profileLoading;
@@ -58,17 +57,17 @@ function RootNavigator() {
     <ThemeProvider value={{ ...navTheme, colors: { ...navTheme.colors, background: c.bg } }}>
       <StatusBar style={dark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
-        <Stack.Protected guard={!signedIn && (!isSupabaseConfigured || !!guestError)}>
+        <Stack.Protected guard={!signedIn && !isOffline && !!guestError}>
           <Stack.Screen name="not-configured" />
         </Stack.Protected>
-        {/* Email / phone sign-in is built but deferred: the app starts on a guest account for now. */}
-        <Stack.Protected guard={false}>
+        {/* Start: log in / create an account, or continue offline. */}
+        <Stack.Protected guard={!signedIn && !isOffline && !guestError}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
         <Stack.Protected guard={signedIn && !profileDone}>
           <Stack.Screen name="setup" />
         </Stack.Protected>
-        <Stack.Protected guard={signedIn && profileDone}>
+        <Stack.Protected guard={(signedIn && profileDone) || (!signedIn && isOffline)}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
       </Stack>

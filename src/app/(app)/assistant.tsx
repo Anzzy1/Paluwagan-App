@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/auth';
 import { firstName } from '@/lib/format';
 import { useColors, useIsDesktop } from '@/lib/prefs';
 import { font, radius } from '@/theme/tokens';
+import { withAccount } from '@/components/AccountGate';
 
 const SUGGESTIONS = [
   'What do I need to pay this week?',
@@ -45,7 +46,7 @@ function Bubble({ m }: { m: ChatMessage }) {
   );
 }
 
-export default function Assistant() {
+function AssistantScreen() {
   const c = useColors();
   const desktop = useIsDesktop();
   const insets = useSafeAreaInsets();
@@ -201,3 +202,5 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 15, minHeight: 36, maxHeight: 120, paddingVertical: 8 },
   send: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });
+
+export default withAccount(AssistantScreen, 'Ask Ipon');

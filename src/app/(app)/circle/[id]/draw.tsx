@@ -23,11 +23,12 @@ import { useColors, useIsDesktop } from '@/lib/prefs';
 import type { DrawStyle } from '@/lib/local';
 import type { Member } from '@/lib/types';
 import { radius } from '@/theme/tokens';
+import { withAccount } from '@/components/AccountGate';
 
 const sha256 = (s: string) => Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, s);
 const people = (ms: Member[]) => ms.map((m) => ({ id: m.user_id, name: m.profiles?.full_name, uri: m.profiles?.avatar_url }));
 
-export default function DrawScreen() {
+function DrawScreenScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const desktop = useIsDesktop();
   const c = useColors();
@@ -455,3 +456,5 @@ const styles = StyleSheet.create({
   reelBody: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
   placeholder: { height: 10, width: '40%', borderRadius: 5 },
 });
+
+export default withAccount(DrawScreenScreen, 'Online paluwagan');

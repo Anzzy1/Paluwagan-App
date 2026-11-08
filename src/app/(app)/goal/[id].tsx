@@ -22,6 +22,7 @@ import { goalProgress, planLabel, planPer, projectedFinish } from '@/lib/ipon';
 import { useColors } from '@/lib/prefs';
 import { reactToDeposit } from '@/lib/reactions';
 import { radius } from '@/theme/tokens';
+import { withAccount } from '@/components/AccountGate';
 
 function Fact({ label, value, tone }: { label: string; value: string; tone?: 'warning' | 'brand' }) {
   const c = useColors();
@@ -37,7 +38,7 @@ function Fact({ label, value, tone }: { label: string; value: string; tone?: 'wa
   );
 }
 
-export default function GoalDetail() {
+function GoalDetailScreen() {
   const c = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const goals = useGoals();
@@ -254,3 +255,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 12, borderTopWidth: 1 },
   rowIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
 });
+
+export default withAccount(GoalDetailScreen, 'Ipon goals');

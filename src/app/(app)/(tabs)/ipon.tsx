@@ -18,6 +18,7 @@ import { peso, timeAgo } from '@/lib/format';
 import { goalProgress, iponStreak } from '@/lib/ipon';
 import { useColors, useIsDesktop } from '@/lib/prefs';
 import { radius } from '@/theme/tokens';
+import { withAccount } from '@/components/AccountGate';
 
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
@@ -32,7 +33,7 @@ function HeroStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function Ipon() {
+function IponScreen() {
   const c = useColors();
   const desktop = useIsDesktop();
   const goals = useGoals();
@@ -175,3 +176,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 12, borderTopWidth: 1 },
   rowIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
 });
+
+export default withAccount(IponScreen, 'Ipon goals', { back: false });

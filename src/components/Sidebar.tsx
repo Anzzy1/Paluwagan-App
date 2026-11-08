@@ -33,7 +33,7 @@ const ITEMS: Item[] = [
 export function Sidebar() {
   const c = useColors();
   const path = usePathname();
-  const { profile, isDemo, isGuest } = useAuth();
+  const { profile, isDemo, isGuest, isOffline } = useAuth();
   const circles = useMyCircles();
   const managed = useManagedCircles();
   const [open, setOpen] = useState(false);
@@ -117,7 +117,7 @@ export function Sidebar() {
             {streak > 0 ? `${streak} on-time streak` : 'No streak yet'}
           </Text>
           <Text variant="caption" tone="warning" style={{ opacity: 0.8 }}>
-            {isDemo ? 'Sample data' : isGuest ? 'Testing mode · guest account' : 'Pay on time to keep it going'}
+            {isDemo ? 'Sample data' : isOffline ? 'Offline mode · no account' : isGuest ? 'Testing mode · guest account' : 'Pay on time to keep it going'}
           </Text>
         </View>
       </View>

@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { CircleCard } from '@/components/circle/CircleCard';
 import { GoalSheet } from '@/components/GoalSheet';
+import { useRequireAccount } from '@/components/AccountGate';
 import { GoalRow } from '@/components/ipon/GoalRow';
 import { ManagedCard } from '@/components/ManagedCard';
 import { Mascot } from '@/components/Mascot';
@@ -54,7 +55,8 @@ function CardTitle({ title, action, onAction }: { title: string; action?: string
 export default function Home() {
   const c = useColors();
   const desktop = useIsDesktop();
-  const { profile, isDemo, signOut } = useAuth();
+  const { profile, isDemo, signOut, isOffline, exitOffline } = useAuth();
+  const requireAccount = useRequireAccount();
   const circles = useMyCircles();
   const goals = useGoals();
   const deposits = useDeposits();
@@ -62,7 +64,7 @@ export default function Home() {
 
   const list = circles.data ?? [];
   const managed = useManagedCircles();
-  const name = firstName(profile?.full_name);
+  const name = isOffline ? 'there' : firstName(profile?.full_name);
   const alerts = useNotifications().count;
   const tip = homeTip(list, name);
   const streak = onTimeStreak(list);
@@ -126,7 +128,7 @@ export default function Home() {
             // Nothing urgent: keep a way to start a new paluwagan right here.
             <BubbleButton primary label="New paluwagan" icon="plus" onPress={() => router.push('/create')} />
           )}
-          <BubbleButton label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => router.push('/assistant' as Href)} />
+          <BubbleButton label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => requireAccount(() => router.push('/assistant' as Href), `Ask ${MASCOT_NAME}`)} />
         </>
       }>
       <Text variant="body" style={{ lineHeight: 22 }}>
@@ -138,14 +140,14 @@ export default function Home() {
   // ---------------- quick actions
   const actions: { icon: NavIconName; label: string; onPress: () => void }[] = [
     { icon: 'create', label: 'Create', onPress: () => router.push('/create') },
-    { icon: 'join', label: 'Join', onPress: () => router.push('/join') },
+    { icon: 'join', label: 'Join', onPress: () => requireAccount(() => router.push('/join'), 'Joining a paluwagan') },
     {
       icon: 'pay',
       label: 'Pay',
       onPress: () => (dues[0] ? router.push(`/circle/${dues[0].mc.circle.id}/round/${dues[0].round.id}`) : router.push('/circles')),
     },
-    { icon: 'ipon', label: 'Ipon', onPress: () => router.push('/ipon' as Href) },
-    { icon: 'assistant', label: `${MASCOT_NAME} AI`, onPress: () => router.push('/assistant' as Href) },
+    { icon: 'ipon', label: 'Ipon', onPress: () => requireAccount(() => router.push('/ipon' as Href), 'Ipon goals') },
+    { icon: 'assistant', label: `${MASCOT_NAME} AI`, onPress: () => requireAccount(() => router.push('/assistant' as Href), `Ask ${MASCOT_NAME}`) },
   ];
   const quick = (
     <Card style={{ gap: 14 }}>
@@ -318,7 +320,7 @@ export default function Home() {
             New paluwagan
           </Text>
         </PressableScale>
-        <PressableScale onPress={() => router.push('/join')} style={[styles.pillBtn, { backgroundColor: c.surfaceAlt }]}>
+        <PressableScale onPress={() => requireAccount(() => router.push('/join'), 'Joining a paluwagan')} style={[styles.pillBtn, { backgroundColor: c.surfaceAlt }]}>
           <Feather name="log-in" size={16} color={c.text} />
           <Text variant="bodyBold">Join</Text>
         </PressableScale>
@@ -331,7 +333,7 @@ export default function Home() {
     <Card style={{ gap: 16 }}>
       <View style={styles.cardTitle}>
         <Text variant="h3">Ipon goals</Text>
-        <PressableScale onPress={() => setGoalSheet(true)} hapticOnPress={false} hitSlop={8} accessibilityLabel="New ipon goal" style={[styles.newGoal, { backgroundColor: c.brandSoft }]}>
+        <PressableScale onPress={() => requireAccount(() => setGoalSheet(true), 'Ipon goals')} hapticOnPress={false} hitSlop={8} accessibilityLabel="New ipon goal" style={[styles.newGoal, { backgroundColor: c.brandSoft }]}>
           <Feather name="plus" size={14} color={c.brandText} />
           <Text variant="smallBold" tone="brand">
             New goal
@@ -358,6 +360,18 @@ export default function Home() {
     </Card>
   );
 
+  const offlineBanner = isOffline && (
+    <PressableScale onPress={exitOffline} hapticOnPress={false} style={[styles.demo, { backgroundColor: c.surfaceAlt }]}>
+      <Feather name="smartphone" size={16} color={c.textMuted} />
+      <Text variant="smallBold" tone="muted" style={{ flex: 1 }}>
+        Offline mode · managed paluwagan only
+      </Text>
+      <Text variant="smallBold" tone="brand">
+        Log in
+      </Text>
+    </PressableScale>
+  );
+
   const demoBanner = isDemo && (
     <PressableScale onPress={signOut} hapticOnPress={false} style={[styles.demo, { backgroundColor: c.infoBg }]}>
       <Feather name="eye" size={16} color={c.info} />
@@ -374,6 +388,7 @@ export default function Home() {
     <Screen tabs refreshing={circles.isRefetching} onRefresh={() => { circles.refetch(); goals.refetch(); deposits.refetch(); }}>
       {header}
       {demoBanner}
+      {offlineBanner}
       {desktop ? (
         <>
           <View style={{ flexDirection: 'row', gap: 20, alignItems: 'flex-start' }}>

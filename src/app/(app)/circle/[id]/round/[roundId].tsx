@@ -20,8 +20,9 @@ import { displayStatus, longDate, peso, potOf, relativeDue, shortDate, timeAgo }
 import { useColors } from '@/lib/prefs';
 import type { Contribution, Member } from '@/lib/types';
 import { radius } from '@/theme/tokens';
+import { withAccount } from '@/components/AccountGate';
 
-export default function RoundScreen() {
+function RoundScreenScreen() {
   const { id, roundId } = useLocalSearchParams<{ id: string; roundId: string }>();
   const c = useColors();
   const { userId } = useAuth();
@@ -239,3 +240,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   receipt: { height: 360, borderRadius: radius.lg, overflow: 'hidden', backgroundColor: '#8881' },
 });
+
+export default withAccount(RoundScreenScreen, 'Online paluwagan');

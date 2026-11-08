@@ -4,12 +4,14 @@ import { View } from 'react-native';
 
 import { CircleCard } from '@/components/circle/CircleCard';
 import { DeletedHistory } from '@/components/circle/DeletedHistory';
+import { useRequireAccount } from '@/components/AccountGate';
 import { ManagedCard } from '@/components/ManagedCard';
 import { EmptyState, Segmented } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { useDeletedCircles, useMyCircles } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { useManagedCircles } from '@/lib/local';
 import { useIsDesktop, useT } from '@/lib/prefs';
 
@@ -17,6 +19,8 @@ export default function CirclesTab() {
   const t = useT();
   const desktop = useIsDesktop();
   const q = useMyCircles();
+  const { isOffline } = useAuth();
+  const requireAccount = useRequireAccount();
   const deleted = useDeletedCircles().data ?? [];
   const [filter, setFilter] = useState<'ongoing' | 'done' | 'deleted'>('ongoing');
   const all = q.data ?? [];
@@ -26,13 +30,13 @@ export default function CirclesTab() {
 
   const actions = (
     <>
-      <Button title={t('circles.join')} icon="log-in" size="md" variant="secondary" full={false} style={desktop ? undefined : { flex: 1, paddingHorizontal: 12 }} onPress={() => router.push('/join')} />
+      <Button title={t('circles.join')} icon="log-in" size="md" variant="secondary" full={false} style={desktop ? undefined : { flex: 1, paddingHorizontal: 12 }} onPress={() => requireAccount(() => router.push('/join'), 'Joining a paluwagan')} />
       <Button title={t('circles.create')} icon="plus" size="md" full={false} style={desktop ? undefined : { flex: 1, paddingHorizontal: 12 }} onPress={() => router.push('/create')} />
     </>
   );
 
   return (
-    <Screen tabs title={t('circles.title')} subtitle={`${all.length} online · ${managedAll.length} managed on this device`} right={desktop ? actions : undefined} refreshing={q.isRefetching} onRefresh={q.refetch}>
+    <Screen tabs title={t('circles.title')} subtitle={isOffline ? `${managedAll.length} managed on this device · offline mode` : `${all.length} online · ${managedAll.length} managed on this device`} right={desktop ? actions : undefined} refreshing={q.isRefetching} onRefresh={q.refetch}>
       {!desktop && <View style={{ flexDirection: 'row', gap: 10 }}>{actions}</View>}
       <View style={{ maxWidth: 420 }}>
         <Segmented
@@ -48,7 +52,7 @@ export default function CirclesTab() {
       </View>
       {filter === 'deleted' ? (
         <DeletedHistory items={deleted} />
-      ) : list.length === 0 && managed.length === 0 && !q.isPending ? (
+      ) : list.length === 0 && managed.length === 0 && !q.isLoading ? (
         <Card>
           <EmptyState
             icon={filter === 'done' ? 'flag' : 'layers'}
