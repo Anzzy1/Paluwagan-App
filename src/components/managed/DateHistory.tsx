@@ -208,22 +208,18 @@ export function DateHistory({ circle }: { circle: LocalCircle }) {
           const isRecipient = m.id === r.member_id;
           const at = r.paid[date]?.[m.id];
           const late = paidLate(circle, date, at);
-          const sub = isRecipient
-            ? 'Receives this sahod (own hulog counted)'
-            : at
-              ? `Paid ${shortDate(at.slice(0, 10))}${late ? ' · late' : date > today ? ' · in advance' : ''}`
-              : isPast
-                ? `Missed · owes ${peso(circle.amount)}`
-                : `Owes ${peso(circle.amount)}`;
+          const sub = at
+            ? `Paid ${shortDate(at.slice(0, 10))}${late ? ' · late' : date > today ? ' · in advance' : ''}`
+            : isPast
+              ? `Missed · owes ${peso(circle.amount)}`
+              : `Owes ${peso(circle.amount)}`;
           return (
             <PressableScale
               key={m.id}
-              disabled={isRecipient}
-              dimWhenDisabled={false}
               hapticOnPress
               scaleTo={0.99}
               onPress={() => toggle(m.id, m.name)}
-              style={[styles.row, { borderTopColor: c.border }, !!at && !isRecipient && { backgroundColor: c.successBg }, !at && isPast && { backgroundColor: c.dangerBg }]}>
+              style={[styles.row, { borderTopColor: c.border }, !!at && { backgroundColor: c.successBg }, !at && isPast && { backgroundColor: c.dangerBg }]}>
               <Avatar name={m.name} seed={m.id} size={36} />
               <View style={{ flex: 1 }}>
                 <Text variant="bodyBold" numberOfLines={1}>
@@ -233,13 +229,10 @@ export function DateHistory({ circle }: { circle: LocalCircle }) {
                   {sub}
                 </Text>
               </View>
-              {isRecipient ? (
-                <Chip label="Sahod" tone="brand" icon="gift" />
-              ) : (
-                <View style={[styles.check, { backgroundColor: at ? c.success : c.surface, borderColor: at ? c.success : isPast ? c.danger : c.borderStrong }]}>
-                  {at && <Feather name="check" size={16} color="#fff" />}
-                </View>
-              )}
+              {isRecipient && <Chip label="Sahod" tone="brand" icon="gift" />}
+              <View style={[styles.check, { backgroundColor: at ? c.success : c.surface, borderColor: at ? c.success : isPast ? c.danger : c.borderStrong }]}>
+                {at && <Feather name="check" size={16} color="#fff" />}
+              </View>
             </PressableScale>
           );
         })}

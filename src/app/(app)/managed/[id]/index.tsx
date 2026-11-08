@@ -178,31 +178,26 @@ function HulogToday({ circle }: { circle: LocalCircle }) {
         return (
           <PressableScale
             key={m.id}
-            disabled={isRecipient}
-            dimWhenDisabled={false}
             hapticOnPress
             scaleTo={0.99}
             onPress={() => {
               togglePaid(circle.id, r.round_no, m.id, date);
               if (!paidAt) reactToMarkPaid(m.name, paidCount + 1, n, r.round_no, recipient?.name ?? 'the recipient', pot);
             }}
-            style={[styles.row, { borderTopColor: c.border }, !!paidAt && !isRecipient && { backgroundColor: c.successBg }]}>
+            style={[styles.row, { borderTopColor: c.border }, !!paidAt && { backgroundColor: c.successBg }]}>
             <Avatar name={m.name} seed={m.id} size={36} />
             <View style={{ flex: 1 }}>
               <Text variant="bodyBold" numberOfLines={1}>
                 {m.name}
               </Text>
               <Text variant="caption" tone="faint">
-                {isRecipient ? 'Receives this sahod' : paidAt ? `Paid ${timeAgo(paidAt)}` : `Owes ${peso(circle.amount)}`}
+                {paidAt ? `Paid ${timeAgo(paidAt)}` : `Owes ${peso(circle.amount)}`}
               </Text>
             </View>
-            {isRecipient ? (
-              <Chip label="Sahod" tone="brand" icon="gift" />
-            ) : (
-              <View style={[styles.check, { backgroundColor: paidAt ? c.success : c.surface, borderColor: paidAt ? c.success : c.borderStrong }]}>
-                {paidAt && <Feather name="check" size={16} color="#fff" />}
-              </View>
-            )}
+            {isRecipient && <Chip label="Sahod" tone="brand" icon="gift" />}
+            <View style={[styles.check, { backgroundColor: paidAt ? c.success : c.surface, borderColor: paidAt ? c.success : c.borderStrong }]}>
+              {paidAt && <Feather name="check" size={16} color="#fff" />}
+            </View>
           </PressableScale>
         );
       })}

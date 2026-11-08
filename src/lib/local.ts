@@ -34,7 +34,7 @@ export type LocalRound = {
   /** Hulog dates collected for this payout (just [due_date] when hulog and sahod are the same). */
   dates: string[];
   status: 'upcoming' | 'active' | 'completed';
-  /** hulog date -> memberId -> ISO time paid (or 'recipient' for the recipient's own share). */
+  /** hulog date -> memberId -> ISO time paid. Everyone pays, the sahod recipient included. */
   paid: Record<string, Record<string, string>>;
   payout_at: string | null;
 };
@@ -68,15 +68,32 @@ export type LocalCircle = {
 
 const KEY = 'managed-circles-v1';
 
+/**
+ * Older versions auto-counted the sahod recipient's own hulog ('recipient' marker).
+ * Past dates stay counted (as paid on the day) so they don't suddenly show as missed;
+ * today and future dates go back to unpaid, so the recipient is marked like everyone else.
+ */
+function dropRecipientShare(paid: LocalRound['paid']): LocalRound['paid'] {
+  const today = todayISO();
+  return Object.fromEntries(
+    Object.entries(paid).map(([date, day]) => [
+      date,
+      Object.fromEntries(
+        Object.entries(day).flatMap(([id, at]) => (at !== 'recipient' ? [[id, at]] : date < today ? [[id, `${date}T00:00:00.000Z`]] : [])),
+      ),
+    ]),
+  );
+}
+
 /** Upgrade circles saved before hulog/sahod schedules were separate. */
 function normalize(c: LocalCircle): LocalCircle {
   return {
     ...c,
     payout: c.payout ?? null,
     rounds: (c.rounds ?? []).map((r) => {
-      if (Array.isArray(r.dates)) return r;
       const legacy = r.paid as unknown as Record<string, string>;
-      return { ...r, dates: [r.due_date], paid: { [r.due_date]: legacy ?? {} } };
+      const round = Array.isArray(r.dates) ? r : { ...r, dates: [r.due_date], paid: { [r.due_date]: legacy ?? {} } };
+      return { ...round, paid: dropRecipientShare(round.paid) };
     }),
   };
 }
@@ -261,7 +278,8 @@ export function commitDraw(id: string, draw: { seed: string; hash: string; order
       due_date: plan[i].payout_date,
       dates: plan[i].dates,
       status: i === 0 ? 'active' : 'upcoming',
-      paid: Object.fromEntries(plan[i].dates.map((d) => [d, { [memberId]: 'recipient' }])),
+      // Everyone pays every hulog, including whoever receives this sahod.
+      paid: Object.fromEntries(plan[i].dates.map((d) => [d, {}])),
       payout_at: null,
     }));
     return log(
@@ -278,7 +296,7 @@ export function togglePaid(id: string, roundNo: number, memberId: string, date: 
     let text = '';
     const rounds = c.rounds.map((r) => {
       const day = r.paid[date] ?? {};
-      if (r.round_no !== roundNo || day[memberId] === 'recipient') return r;
+      if (r.round_no !== roundNo) return r;
       const next = { ...day };
       if (next[memberId]) {
         delete next[memberId];
