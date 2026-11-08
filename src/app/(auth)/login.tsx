@@ -13,6 +13,16 @@ import { useT } from '@/lib/prefs';
 import { notifyError } from '@/lib/alert';
 import { supabase } from '@/lib/supabase';
 
+/** Plain-language version of the auth server's "couldn't send" errors. */
+function sendError(e: { message: string }): Error {
+  const m = e.message;
+  if (/not authori[sz]ed/i.test(m))
+    return new Error('This email address can’t receive codes yet. The email service is still in test mode and only sends to the project team’s emails.');
+  if (/rate limit|too many/i.test(m)) return new Error('Too many codes were sent in a short time. Please wait a while, then try again.');
+  if (/sending|smtp|mail/i.test(m)) return new Error('The email service couldn’t send your code right now. Please try again in a few minutes.');
+  return new Error(m);
+}
+
 /** Normalises PH mobile numbers to E.164 (+639XXXXXXXXX). */
 function toE164(raw: string) {
   const d = raw.replace(/\D/g, '');
@@ -41,7 +51,7 @@ export default function Login() {
       mode === 'email' ? { email: target, options: { shouldCreateUser: true, emailRedirectTo: Platform.OS === 'web' ? window.location.origin : undefined } } : { phone: target },
     );
     setLoading(false);
-    if (error) return notifyError(error, 'Couldn’t send code');
+    if (error) return notifyError(sendError(error), 'Couldn’t send code');
     router.push({ pathname: '/verify', params: { mode, target } });
   };
 
