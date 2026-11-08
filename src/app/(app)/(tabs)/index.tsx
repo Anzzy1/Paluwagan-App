@@ -23,6 +23,7 @@ import { daysUntil, firstName, parseDate, peso, shortDate } from '@/lib/format';
 import { useColors, useIsDesktop } from '@/lib/prefs';
 import { homeTip, onTimeStreak } from '@/lib/rewards';
 import { goalProgress } from '@/lib/ipon';
+import { useNotifications } from '@/lib/notifications';
 import { useManagedCircles } from '@/lib/local';
 import { font, radius } from '@/theme/tokens';
 
@@ -62,6 +63,7 @@ export default function Home() {
   const list = circles.data ?? [];
   const managed = useManagedCircles();
   const name = firstName(profile?.full_name);
+  const alerts = useNotifications().count;
   const tip = homeTip(list, name);
   const streak = onTimeStreak(list);
   const next = nextPayout(list);
@@ -80,11 +82,18 @@ export default function Home() {
         </PressableScale>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {[
-            { icon: 'bell' as IconName, go: () => router.push('/activity') },
-            { icon: 'settings' as IconName, go: () => router.push('/settings' as Href) },
+            { icon: 'bell' as IconName, label: 'Notifications', badge: alerts, go: () => router.push('/notifications' as Href) },
+            { icon: 'settings' as IconName, label: 'Settings', badge: 0, go: () => router.push('/settings' as Href) },
           ].map((b) => (
-            <PressableScale key={b.icon} onPress={b.go} hapticOnPress={false} style={[styles.round, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <PressableScale key={b.icon} onPress={b.go} hapticOnPress={false} accessibilityLabel={b.badge ? `${b.label}, ${b.badge} new` : b.label} style={[styles.round, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Feather name={b.icon} size={18} color={c.brand} />
+              {b.badge > 0 && (
+                <View style={[styles.badge, { backgroundColor: c.danger, borderColor: c.bg }]}>
+                  <Text variant="caption" color="#fff" style={{ fontSize: 10, lineHeight: 13, fontWeight: '800' }}>
+                    {b.badge > 9 ? '9+' : b.badge}
+                  </Text>
+                </View>
+              )}
             </PressableScale>
           ))}
         </View>
@@ -399,6 +408,7 @@ const styles = StyleSheet.create({
   greet: { fontFamily: font.cuteBold, fontSize: 28, lineHeight: 36, letterSpacing: 0.2 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   round: { width: 44, height: 44, borderRadius: 22, borderWidth: 0, alignItems: 'center', justifyContent: 'center' },
+  badge: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   newGoal: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, height: 32, borderRadius: 16 },
   seeAll: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: 4 },
   cardTitle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

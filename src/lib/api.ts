@@ -112,6 +112,44 @@ export function useCircle(id: string | undefined) {
   });
 }
 
+export type Inbox = {
+  /** circle id -> people waiting for approval to join (admin only). */
+  joinRequests: Record<string, number>;
+  /** circle id -> payment proofs waiting for review (admin only). */
+  proofs: Record<string, number>;
+  /** circle id -> turn swap requests sent to me. */
+  swaps: Record<string, number>;
+};
+
+/** Things waiting on the user in their online paluwagan, for Notifications. */
+export function useInbox() {
+  const { userId } = useAuth();
+  const mine = useMyCircles().data ?? [];
+  const adminIds = mine.filter((mc) => mc.membership.role === 'admin').map((mc) => mc.circle.id);
+  const memberIds = mine.map((mc) => mc.membership.id);
+  return useQuery({
+    queryKey: ['inbox', userId, adminIds.join(','), memberIds.join(',')],
+    enabled: !!userId,
+    queryFn: async (): Promise<Inbox> => {
+      const empty: Inbox = { joinRequests: {}, proofs: {}, swaps: {} };
+      if (demoState.on) return empty;
+      const count = (rows: { circle_id: string }[]) =>
+        rows.reduce<Record<string, number>>((acc, r) => ((acc[r.circle_id] = (acc[r.circle_id] ?? 0) + 1), acc), {});
+      const none = Promise.resolve({ data: [], error: null });
+      const [joins, proofs, swaps] = await Promise.all([
+        adminIds.length ? supabase.from('circle_members').select('circle_id').in('circle_id', adminIds).eq('status', 'pending') : none,
+        adminIds.length ? supabase.from('contributions').select('circle_id').in('circle_id', adminIds).eq('status', 'submitted') : none,
+        memberIds.length ? supabase.from('swap_requests').select('circle_id').in('to_member', memberIds).eq('status', 'pending') : none,
+      ]);
+      return {
+        joinRequests: count(must(joins) as { circle_id: string }[]),
+        proofs: count(must(proofs) as { circle_id: string }[]),
+        swaps: count(must(swaps) as { circle_id: string }[]),
+      };
+    },
+  });
+}
+
 export function useActivity(circleId?: string) {
   const { userId } = useAuth();
   return useQuery({
@@ -204,6 +242,7 @@ export function useRealtimeSync() {
         if (circleId) qc.invalidateQueries({ queryKey: ['circle', circleId] });
         qc.invalidateQueries({ queryKey: ['my-circles'] });
         if (table === 'activity') qc.invalidateQueries({ queryKey: ['activity'] });
+        qc.invalidateQueries({ queryKey: ['inbox'] });
       });
     }
     channel.subscribe();
@@ -221,6 +260,7 @@ function useInvalidate() {
     if (circleId) qc.invalidateQueries({ queryKey: ['circle', circleId] });
     qc.invalidateQueries({ queryKey: ['my-circles'] });
     qc.invalidateQueries({ queryKey: ['activity'] });
+    qc.invalidateQueries({ queryKey: ['inbox'] });
   };
 }
 
