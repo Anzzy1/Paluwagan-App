@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { AnimatedMascot } from '@/components/AnimatedMascot';
+import { ConfirmSheet } from '@/components/circle/Lifecycle';
 import { DateHistory } from '@/components/managed/DateHistory';
 import { Mascot } from '@/components/Mascot';
 import { Avatar, Chip, Notice, ProgressBar, PurposeIcon, Segmented } from '@/components/ui/bits';
@@ -46,6 +47,33 @@ function Metric({ label, value }: { label: string; value: string }) {
         {value}
       </Text>
     </View>
+  );
+}
+
+/** Red "Delete paluwagan" button + the in-app warning sheet (no browser confirm). */
+function DeleteManagedButton({ circle }: { circle: LocalCircle }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button title="Delete paluwagan" icon="trash-2" variant="danger" size="md" onPress={() => setOpen(true)} />
+      <ConfirmSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        tone="danger"
+        icon="trash-2"
+        title="Delete this paluwagan?"
+        points={[
+          `“${circle.name}”, its members, payments and history will be removed from this device.`,
+          'This can’t be undone.',
+        ]}
+        confirmLabel="Delete paluwagan"
+        onConfirm={() => {
+          setOpen(false);
+          deleteManagedCircle(circle.id);
+          router.replace('/circles');
+        }}
+      />
+    </>
   );
 }
 
@@ -401,18 +429,7 @@ export default function ManagedCircle() {
           </Text>
         </Card>
       ) : null}
-      <Button
-        title="Delete paluwagan"
-        icon="trash-2"
-        variant="danger"
-        size="md"
-        onPress={() =>
-          confirmAction('Delete this paluwagan?', 'It will be removed from this device. This can’t be undone.', () => {
-            deleteManagedCircle(circle.id);
-            router.replace('/circles');
-          }, { confirmText: 'Delete', destructive: true })
-        }
-      />
+      <DeleteManagedButton circle={circle} />
     </>
   );
 
