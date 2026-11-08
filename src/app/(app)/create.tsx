@@ -15,7 +15,7 @@ import { Text } from '@/components/ui/Text';
 import { notifyError } from '@/lib/alert';
 import { useCreateCircle } from '@/lib/api';
 import { createManagedCircle, payoutPlan, roundDueDate, suggestFirstPayout, type PayoutSchedule } from '@/lib/local';
-import { longDate, looksLikeScam, payoutShort, peso, scheduleLabel, scheduleShort, shortDate, toISODate } from '@/lib/format';
+import { longDate, looksLikeScam, payoutShort, peso, scheduleLabel, scheduleShort, shortDate, todayISO, toISODate } from '@/lib/format';
 import { useColors, useIsDesktop } from '@/lib/prefs';
 import type { Frequency } from '@/lib/types';
 import { circleIcons, circleTints, font, iconChoices, radius, tintNames, type CircleTint } from '@/theme/tokens';
@@ -259,7 +259,11 @@ export default function CreateCircle() {
   const perSahod = plan[0]?.dates.length ?? 1;
   const varies = new Set(plan.map((x) => x.dates.length)).size > 1;
   const pot = amt * slotCount * perSahod;
-  const sahodValid = !payout || payout.first_date >= startDate;
+  const firstHulog = roundDueDate(frequency, startDate, 1, interval);
+  const sahodValid = !payout || payout.first_date >= firstHulog;
+  // With a separate sahod schedule, the first sahod should collect as many hulog as the others.
+  const firstShort = !!payout && plan.length > 1 && plan[0].dates.length < plan[1].dates.length;
+  const suggestedSahod = payout ? suggestFirstPayout(startDate, payout.frequency, sahodInterval) : null;
   const canNext = [true, name.trim().length > 0, amt > 0 && slotCount >= 2, !!startDate, sahodValid, managed || password.length >= 4][step];
   const last = step === STEPS.length - 1;
 
@@ -351,11 +355,11 @@ export default function CreateCircle() {
       </View>
       <View style={styles.sumRow}>
         <Text tone="muted">First hulog</Text>
-        <Text variant="bodyMedium">{longDate(startDate)}</Text>
+        <Text variant="bodyMedium">{longDate(firstHulog)}</Text>
       </View>
       <View style={styles.sumRow}>
         <Text tone="muted">First sahod</Text>
-        <Text variant="bodyMedium">{longDate(plan[0]?.payout_date ?? startDate)}</Text>
+        <Text variant="bodyMedium">{longDate(plan[0]?.payout_date ?? firstHulog)}</Text>
       </View>
       <View style={styles.sumRow}>
         <Text tone="muted">Type</Text>
@@ -484,7 +488,8 @@ export default function CreateCircle() {
                   hapticOnPress={false}
                   onPress={() => {
                     setFrequency(o.value);
-                    if (o.value === 'kinsenas') setStartDate(nextSemiMonthly());
+                    // Hulog starts right away (kinsenas: the next payday), so there is money before the first sahod.
+                    setStartDate(o.value === 'kinsenas' ? nextSemiMonthly() : todayISO());
                   }}
                   style={[styles.schedTile, { flexBasis: desktop ? '18%' : '31%', backgroundColor: on ? c.brandSoft : c.surface, borderColor: on ? c.brand : 'transparent' }]}>
                   <View style={[styles.schedIcon, { backgroundColor: on ? c.brand : c.surfaceAlt }]}>
@@ -522,9 +527,9 @@ export default function CreateCircle() {
             </Card>
           )}
           <View style={{ gap: 4 }}>
-            <Text variant="smallBold">First payment date</Text>
+            <Text variant="smallBold">First hulog date</Text>
             <Text variant="small" tone="muted">
-              {scheduleLabel(sched)}.{frequency === 'kinsenas' ? ' Highlighted dates are paydays.' : ''}
+              {scheduleLabel(sched)}. Hulog comes first: each sahod is paid from what has been collected.{frequency === 'kinsenas' ? ' Highlighted dates are paydays.' : ''}
             </Text>
           </View>
           <Card>
@@ -619,8 +624,24 @@ export default function CreateCircle() {
               {pickSahod && <MonthCalendar value={payout.first_date} onChange={setFirstSahod} />}
               {!sahodValid && (
                 <Text variant="small" tone="danger">
-                  The first sahod can’t be before the first hulog ({longDate(startDate)}).
+                  The first sahod can’t be before the first hulog ({longDate(firstHulog)}).
                 </Text>
+              )}
+              {sahodValid && firstShort && (
+                <View style={{ gap: 8 }}>
+                  <Text variant="small" tone="warning">
+                    The first sahod only collects {plan[0].dates.length} hulog, but the next ones collect {plan[1].dates.length}. Hulog needs to run first so the first member gets a full pot.
+                  </Text>
+                  {suggestedSahod && suggestedSahod !== payout.first_date && suggestedSahod >= firstHulog && (
+                    <Button
+                      title={`Move first sahod to ${longDate(suggestedSahod)}`}
+                      size="sm"
+                      variant="secondary"
+                      full={false}
+                      onPress={() => (setFirstSahod(suggestedSahod), setPickSahod(false))}
+                    />
+                  )}
+                </View>
               )}
             </Card>
           )}
