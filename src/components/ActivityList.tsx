@@ -16,7 +16,7 @@ export function ActivityList({ items, showCircle = true }: { items: Activity[]; 
       {items.map((a, i) => {
         const d = describeActivity(a);
         return (
-          <View key={a.id} style={{ flexDirection: 'row', gap: 12 }}>
+          <View key={`${a.circle_id}-${a.id}-${a.created_at}`} style={{ flexDirection: 'row', gap: 12 }}>
             <View style={{ alignItems: 'center' }}>
               <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: toneBg[d.tone], alignItems: 'center', justifyContent: 'center' }}>
                 <Feather name={d.icon} size={15} color={toneFg[d.tone]} />

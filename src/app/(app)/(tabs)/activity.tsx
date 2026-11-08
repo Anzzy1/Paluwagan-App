@@ -3,12 +3,28 @@ import { EmptyState } from '@/components/ui/bits';
 import { Card } from '@/components/ui/Card';
 import { Screen } from '@/components/ui/Screen';
 import { useActivity } from '@/lib/api';
+import { useManagedCircles } from '@/lib/local';
+import type { Activity } from '@/lib/types';
 import { useT } from '@/lib/prefs';
 
 export default function ActivityTab() {
   const t = useT();
   const q = useActivity();
-  const items = q.data ?? [];
+  const managed = useManagedCircles();
+  // Managed paluwagan keep their log on this device; show it alongside the online activity.
+  const local: Activity[] = managed.flatMap((m) =>
+    m.log.map((l, i) => ({
+      id: m.log.length - i,
+      circle_id: m.id,
+      actor: null,
+      type: 'managed_log',
+      payload: { text: l.text },
+      created_at: l.at,
+      circles: { name: m.name, emoji: m.emoji, color: m.color },
+      profiles: null,
+    })),
+  );
+  const items = [...(q.data ?? []), ...local].sort((a, b) => b.created_at.localeCompare(a.created_at));
   return (
     <Screen
       tabs

@@ -7,10 +7,27 @@ import type { Activity } from '@/lib/types';
 type Icon = ComponentProps<typeof Feather>['name'];
 type Tone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'brand';
 
+/** Icon + tone for a managed paluwagan log line (those are stored as plain text). */
+function describeManagedLog(text: string): { icon: Icon; tone: Tone; text: string } {
+  const t = text.toLowerCase();
+  if (t.startsWith('undone')) return { icon: 'rotate-ccw', tone: 'warning', text };
+  if (t.includes('released')) return { icon: 'gift', tone: 'brand', text };
+  if (t.includes('sahod moved')) return { icon: 'clock', tone: 'warning', text };
+  if (t.includes('marked unpaid')) return { icon: 'x-circle', tone: 'neutral', text };
+  if (t.includes('marked paid') || t.includes(' paid for ')) return { icon: 'check-circle', tone: t.includes('(late)') ? 'warning' : 'success', text };
+  if (t.includes('draw')) return { icon: 'shuffle', tone: 'brand', text };
+  if (t.endsWith(' added')) return { icon: 'user-plus', tone: 'info', text };
+  if (t.endsWith(' removed')) return { icon: 'user-minus', tone: 'neutral', text };
+  if (t.includes('created')) return { icon: 'plus-circle', tone: 'brand', text };
+  return { icon: 'circle', tone: 'neutral', text };
+}
+
 export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: string } {
   const who = a.profiles?.full_name ? firstName(a.profiles.full_name) : 'A member';
   const p = a.payload as Record<string, string | number | boolean | undefined>;
   switch (a.type) {
+    case 'managed_log':
+      return describeManagedLog(String(p.text ?? ''));
     case 'circle_created':
       return { icon: 'plus-circle', tone: 'brand', text: `${who} created the paluwagan` };
     case 'member_requested':

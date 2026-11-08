@@ -4,12 +4,17 @@
  * Everything here is derived from current data, so items disappear once they're handled.
  */
 import type { Href } from 'expo-router';
+import { useSyncExternalStore } from 'react';
 
 import type { IconName } from '@/components/ui/bits';
-import { useInbox, useMyCircles, type Inbox, type MyCircle } from '@/lib/api';
+import { describeActivity } from '@/lib/activityText';
+import { useActivity, useInbox, useMyCircles, type Inbox, type MyCircle } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { summarize, unpaid } from '@/lib/derive';
-import { daysUntil, longDate, peso, relativeDue } from '@/lib/format';
-import { hulogToday, managedSummary, missedPayments, paidOn, useManagedCircles, type LocalCircle } from '@/lib/local';
+import { daysUntil, longDate, peso, relativeDue, todayISO } from '@/lib/format';
+import { kv } from '@/lib/storage';
+import type { Activity } from '@/lib/types';
+import { hulogDays, hulogToday, managedSummary, missedPayments, nextHulog, paidOn, useManagedCircles, type LocalCircle } from '@/lib/local';
 
 export type NoticeTone = 'danger' | 'warning' | 'success' | 'info';
 
@@ -84,15 +89,31 @@ function online(list: MyCircle[], inbox: Inbox | undefined): AppNotification[] {
 function managed(list: LocalCircle[]): AppNotification[] {
   const out: AppNotification[] = [];
   for (const c of list) {
-    if (c.status === 'forming') continue;
     const href = `/managed/${c.id}` as Href;
     const base = { circle: c.name, href };
     const n = c.members.length;
+    if (c.status === 'forming') {
+      out.push(
+        n < 2
+          ? { ...base, id: `m-members-${c.id}`, action: true, tone: 'info', icon: 'user-plus', title: 'Add members', body: 'Add at least 2 members so you can run the draw.', rank: 6 }
+          : { ...base, id: `m-draw-${c.id}`, action: true, tone: 'info', icon: 'shuffle', title: 'Ready for the draw', body: `${n} members are in. Run the draw to set the sahod order.`, rank: 6 },
+      );
+      continue;
+    }
+    if (c.status === 'completed' && !hulogToday(c) && !nextHulog(c)) continue;
 
     const day = hulogToday(c);
     if (day) {
       const left = n - paidOn(day.round, day.date);
       if (left > 0) out.push({ ...base, id: `m-today-${c.id}`, action: true, tone: 'warning', icon: 'calendar', title: 'Collect today’s hulog', body: `${left} of ${n} members haven’t paid yet.`, rank: 2 });
+    } else {
+      const next = nextHulog(c);
+      const started = hulogDays(c).some((d) => d.date < todayISO());
+      if (next) {
+        const days = daysUntil(next.date);
+        if (!started) out.push({ ...base, id: `m-start-${c.id}`, action: false, tone: 'info', icon: 'flag', title: `First hulog ${relativeDue(next.date).replace('Due ', '').toLowerCase()}`, body: `The paluwagan starts on ${longDate(next.date)}. Remind members to prepare ${peso(c.amount)}.`, rank: 18 });
+        else if (days <= 1) out.push({ ...base, id: `m-next-${c.id}`, action: false, tone: 'info', icon: 'clock', title: 'Hulog tomorrow', body: `Collect ${peso(c.amount)} from each of the ${n} members on ${longDate(next.date)}.`, rank: 19 });
+      }
     }
 
     const missed = missedPayments(c);
@@ -106,10 +127,52 @@ function managed(list: LocalCircle[]): AppNotification[] {
       const days = daysUntil(s.current.due_date);
       const who = s.recipient?.name ?? 'the next member';
       if (days <= 0) out.push({ ...base, id: `m-sahod-${c.id}-${s.current.round_no}`, action: true, tone: 'success', icon: 'gift', title: 'Sahod ready to release', body: `Sahod ${s.current.round_no} goes to ${who}${days < 0 ? ` · ${plural(-days, 'day')} past the date` : ' today'}.`, rank: 3 });
-      else if (days <= 2) out.push({ ...base, id: `m-sahod-${c.id}-${s.current.round_no}`, action: false, tone: 'info', icon: 'gift', title: `Sahod in ${plural(days, 'day')}`, body: `${who} receives on ${longDate(s.current.due_date)}.`, rank: 15 });
+      else if (days <= 7) out.push({ ...base, id: `m-sahod-${c.id}-${s.current.round_no}`, action: false, tone: 'info', icon: 'gift', title: days === 1 ? 'Sahod tomorrow' : `Sahod in ${plural(days, 'day')}`, body: `${who} receives on ${longDate(s.current.due_date)}.`, rank: 15 });
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------- updates (things others did)
+
+export type AppUpdate = { id: string; at: string; tone: NoticeTone | 'neutral' | 'brand'; icon: IconName; text: string; circle: string; href: Href };
+
+/** Activity types worth telling a member about. Admin-only ones need the admin role. */
+const MEMBER_TYPES = new Set([
+  'payment_confirmed', 'payment_rejected', 'nudge_sent', 'member_approved', 'draw_completed', 'order_set', 'circle_locked',
+  'circle_paused', 'circle_resumed', 'round_completed', 'circle_completed', 'circle_deleted', 'circle_restored',
+  'swap_requested', 'swap_accepted', 'swap_declined', 'swap_approved', 'swap_rejected',
+]);
+const ADMIN_TYPES = new Set(['member_requested', 'proof_submitted', 'member_left']);
+const UPDATE_DAYS = 14;
+
+export function buildUpdates(activity: Activity[], list: MyCircle[], userId: string | null): AppUpdate[] {
+  const admin = new Set(list.filter((mc) => mc.membership.role === 'admin').map((mc) => mc.circle.id));
+  const since = Date.now() - UPDATE_DAYS * 86_400_000;
+  return activity
+    .filter((a) => a.actor !== userId && new Date(a.created_at).getTime() >= since)
+    .filter((a) => MEMBER_TYPES.has(a.type) || (ADMIN_TYPES.has(a.type) && admin.has(a.circle_id)))
+    .map((a) => {
+      const d = describeActivity(a);
+      return { id: `a-${a.id}`, at: a.created_at, tone: d.tone, icon: d.icon, text: d.text, circle: a.circles?.name ?? 'Paluwagan', href: `/circle/${a.circle_id}` as Href };
+    });
+}
+
+// Last time the user opened Notifications (updates after this are unread).
+const SEEN_KEY = 'notifications-seen-v1';
+let seenAt = kv.get(SEEN_KEY) ?? '';
+const seenListeners = new Set<() => void>();
+export function markNotificationsSeen() {
+  seenAt = new Date().toISOString();
+  kv.set(SEEN_KEY, seenAt);
+  seenListeners.forEach((l) => l());
+}
+function useSeenAt() {
+  return useSyncExternalStore(
+    (l) => (seenListeners.add(l), () => void seenListeners.delete(l)),
+    () => seenAt,
+    () => seenAt,
+  );
 }
 
 export function buildNotifications(list: MyCircle[], inbox: Inbox | undefined, local: LocalCircle[]): AppNotification[] {
@@ -118,14 +181,22 @@ export function buildNotifications(list: MyCircle[], inbox: Inbox | undefined, l
 
 /** Live notifications for the signed-in user (online + managed paluwagan). */
 export function useNotifications() {
+  const { userId } = useAuth();
   const circles = useMyCircles();
   const inbox = useInbox();
+  const activity = useActivity();
   const local = useManagedCircles();
+  const seen = useSeenAt();
   const items = buildNotifications(circles.data ?? [], inbox.data, local);
+  const updates = buildUpdates(activity.data ?? [], circles.data ?? [], userId ?? null);
+  const unread = updates.filter((u) => u.at > seen).length;
   return {
     items,
-    count: items.filter((x) => x.action).length,
-    refreshing: circles.isRefetching || inbox.isRefetching,
-    refresh: () => Promise.all([circles.refetch(), inbox.refetch()]),
+    updates,
+    seenAt: seen,
+    /** Bell badge: things to do + updates not seen yet. */
+    count: items.filter((x) => x.action).length + unread,
+    refreshing: circles.isRefetching || inbox.isRefetching || activity.isRefetching,
+    refresh: () => Promise.all([circles.refetch(), inbox.refetch(), activity.refetch()]),
   };
 }
