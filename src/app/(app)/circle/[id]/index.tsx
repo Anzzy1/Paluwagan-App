@@ -277,7 +277,7 @@ export default function CircleScreen() {
             loading={nudge.isPending}
             onPress={() =>
               nudge.mutate(current.id, {
-                onSuccess: (r) => notify('Reminder sent', `${r.sent} member${r.sent === 1 ? '' : 's'} notified.`),
+                onSuccess: (r) => notify('Reminder sent', `${r.sent} member${r.sent === 1 ? '' : 's'} notified.`, 'success'),
                 onError: (e) => notifyError(e, 'Couldn’t send reminder'),
               })
             }

@@ -204,7 +204,7 @@ export default function GoalDetail() {
                 size={32}
                 color={c.textFaint}
                 label="Delete entry"
-                onPress={() => confirmAction('Delete this entry?', `${plus ? 'Deposit' : 'Withdrawal'} of ${peso(Math.abs(d.amount))}`, () => delDeposit.mutate(d.id, { onError: (e) => notifyError(e) }), { confirmText: 'Delete', destructive: true })}
+                onPress={() => confirmAction('Delete this entry?', `${plus ? 'Deposit' : 'Withdrawal'} of ${peso(Math.abs(d.amount))}`, () => delDeposit.mutate(d.id, { onError: (e) => notifyError(e) }), { confirmText: 'Delete', destructive: true, icon: 'trash-2' })}
               />
             </View>
           );

@@ -39,7 +39,7 @@ export default function Verify() {
   const resend = async () => {
     const { error } = await supabase.auth.signInWithOtp(mode === 'phone' ? { phone: target } : { email: target });
     if (error) notifyError(error);
-    else notify('Code sent', 'We sent you a new code.');
+    else notify('Code sent', 'We sent you a new code.', 'success');
   };
 
   return (

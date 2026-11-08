@@ -258,7 +258,7 @@ export default function Join() {
       {
         onSuccess: () => {
           haptic('success');
-          notify('Request sent', 'The admin will review your request. The paluwagan will appear in your list once you’re approved.');
+          notify('Request sent', 'The admin will review your request. The paluwagan will appear in your list once you’re approved.', 'success');
           router.back();
         },
         onError: (e) => notifyError(e, 'Couldn’t send request'),

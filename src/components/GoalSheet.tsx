@@ -94,6 +94,7 @@ export function GoalSheet({
     confirmAction('Delete this goal?', 'Its deposit history will be deleted too.', () => del.mutate(goal.id, { onSuccess: () => (onClose(), onDeleted?.()), onError: fail }), {
       confirmText: 'Delete',
       destructive: true,
+      icon: 'trash-2',
     });
 
   return (

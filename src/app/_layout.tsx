@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { DialogHost } from '@/components/ui/DialogHost';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { PrefsProvider, useColors, useIsDark } from '@/lib/prefs';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -71,6 +72,7 @@ function RootNavigator() {
           <Stack.Screen name="(app)" />
         </Stack.Protected>
       </Stack>
+      <DialogHost />
     </ThemeProvider>
   );
 }

@@ -254,7 +254,7 @@ export function PausedPanel({ circle, isAdmin }: { circle: Circle; isAdmin: bool
           life.resume.mutate(circle.id, {
             onSuccess: (days) => {
               setOpen(false);
-              notify('Paluwagan resumed', days ? `Upcoming dates moved ${days} day${days === 1 ? '' : 's'} later.` : 'Dates stay the same.');
+              notify('Paluwagan resumed', days ? `Upcoming dates moved ${days} day${days === 1 ? '' : 's'} later.` : 'Dates stay the same.', 'success');
             },
             onError: (e) => notifyError(e, 'Couldn’t resume'),
           })
