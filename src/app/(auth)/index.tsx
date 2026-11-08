@@ -5,7 +5,6 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { WelcomeScene } from '@/components/auth/WelcomeScene';
-import { Logo } from '@/components/Brand';
 import { Button } from '@/components/ui/Button';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
@@ -22,7 +21,6 @@ export default function Welcome() {
 
   const panel = (
     <View style={{ gap: 22, width: '100%', maxWidth: 420, alignSelf: 'center' }}>
-      {desktop && <Logo size={30} />}
       <Animated.View entering={FadeInUp.delay(150).springify().damping(16)} style={{ gap: 10 }}>
         <Text style={[styles.headline, desktop && { fontSize: 52, lineHeight: 56 }]}>
           Ipon together.{'\n'}
@@ -71,7 +69,7 @@ export default function Welcome() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <WelcomeScene style={[styles.mobileScene, { paddingTop: insets.top }]} />
+      <WelcomeScene style={styles.mobileScene} topInset={insets.top} />
       <View style={[styles.sheet, { backgroundColor: c.bg, paddingBottom: Math.max(insets.bottom, 18) }]}>{panel}</View>
     </View>
   );

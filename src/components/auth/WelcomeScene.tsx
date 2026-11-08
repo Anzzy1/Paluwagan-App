@@ -53,7 +53,48 @@ function Sticker({ icon, tint, title, value, tilt, delay }: { icon: keyof typeof
  * The green welcome scene: Ipon in the middle with a speech bubble that cycles through
  * `lines`, floating sticker cards, drifting coins and the time-of-day sky.
  */
-export function WelcomeScene({ lines = WELCOME_LINES, compact = false, style }: { lines?: string[]; compact?: boolean; style?: StyleProp<ViewStyle> }) {
+/** Bouncy "paluwagan" wordmark: letters pop in one by one, then gently wave. */
+function Wordmark({ size }: { size: number }) {
+  return (
+    <View style={styles.wordmark} accessibilityRole="header" accessibilityLabel="paluwagan">
+      {'paluwagan'.split('').map((ch, k) => (
+        <Animated.View key={k} entering={ZoomIn.delay(120 + k * 60).springify().damping(9)}>
+          <Bob delay={k * 160} amount={4}>
+            <Text
+              style={{
+                fontFamily: font.cuteBold,
+                fontSize: size,
+                lineHeight: size * 1.15,
+                color: '#FFFFFF',
+                transform: [{ rotate: `${k % 2 ? 4 : -4}deg` }],
+                textShadowColor: 'rgba(0,0,0,0.18)',
+                textShadowOffset: { width: 0, height: 3 },
+                textShadowRadius: 0,
+              }}>
+              {ch}
+            </Text>
+          </Bob>
+        </Animated.View>
+      ))}
+    </View>
+  );
+}
+
+export function WelcomeScene({
+  lines = WELCOME_LINES,
+  compact = false,
+  wordmark = true,
+  topInset = 0,
+  style,
+}: {
+  lines?: string[];
+  compact?: boolean;
+  /** Show the bouncy "paluwagan" title at the top when there's room. */
+  wordmark?: boolean;
+  /** Safe-area top padding (the wordmark sits below it). */
+  topInset?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
   const grad = useBandColors();
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -63,19 +104,33 @@ export function WelcomeScene({ lines = WELCOME_LINES, compact = false, style }: 
   }, [lines.length]);
   const line = lines[i % lines.length];
   const [w, setW] = useState(0);
+  const [h, setH] = useState(0);
   // Big = a roomy desktop panel: centre everything and make Ipon larger.
   const big = w >= 560;
   const mascot = big ? 230 : compact ? 120 : 160;
   const stage = big ? 440 : Math.min(330, Math.max(260, w - 60));
+  // Only show the wordmark when it fits above the bubble.
+  const markSize = big ? 60 : 40;
+  const stageH = big ? mascot + 150 : mascot + 130;
+  const free = big ? (h - stageH) / 2 : h - topInset - stageH;
+  const showMark = wordmark && h > 0 && free >= markSize * 1.15 + (big ? 60 : 20);
 
   return (
     <LinearGradient
       colors={grad}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      onLayout={(e) => setW(e.nativeEvent.layout.width)}
-      style={[styles.scene, big && { justifyContent: 'center' }, style]}>
+      onLayout={(e) => {
+        setW(e.nativeEvent.layout.width);
+        setH(e.nativeEvent.layout.height);
+      }}
+      style={[styles.scene, big && { justifyContent: 'center' }, { paddingTop: topInset }, style]}>
       <BandScene />
+      {showMark && (
+        <View style={[styles.markWrap, { top: topInset + (big ? 48 : 12) }]} pointerEvents="none">
+          <Wordmark size={markSize} />
+        </View>
+      )}
 
       {/* Ipon + speech bubble, with stickers floating around him */}
       <View style={[styles.stage, { width: stage, paddingBottom: big ? 0 : 34 }]}>
@@ -138,6 +193,8 @@ const styles = StyleSheet.create({
   },
   stickerIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   stage: { alignItems: 'center', alignSelf: 'center', zIndex: 1 },
+  markWrap: { position: 'absolute', left: 0, right: 0, alignItems: 'center', zIndex: 3 },
+  wordmark: { flexDirection: 'row', alignItems: 'flex-end' },
   bubble: { backgroundColor: '#FFFFFF', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 10, gap: 2, marginBottom: 14, marginHorizontal: 20 },
   tail: { position: 'absolute', bottom: -7, left: '50%', marginLeft: -8, width: 16, height: 16, backgroundColor: '#FFFFFF', transform: [{ rotate: '45deg' }], borderRadius: 3 },
   shadow: { height: 12, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.16)', marginTop: -10 },
