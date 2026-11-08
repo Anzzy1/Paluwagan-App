@@ -42,6 +42,78 @@ function defaultDay(c: LocalCircle, days: HulogDay[]): string | undefined {
 }
 
 /**
+ * Every hulog date up to today that isn't fully paid, newest first:
+ * who still owes and how much. Tap a date to open it.
+ */
+function IncompleteDates({ circle, days, onOpen }: { circle: LocalCircle; days: HulogDay[]; onOpen: (date: string) => void }) {
+  const c = useColors();
+  const today = todayISO();
+  const [all, setAll] = useState(false);
+  const n = circle.members.length;
+  const open = days.filter((d) => d.date <= today && paidOn(d.round, d.date) < n).reverse();
+  if (!open.length) return null;
+  const total = open.reduce((sum, d) => sum + dateShort(circle, d.round, d.date), 0);
+  const shown = all ? open : open.slice(0, 5);
+  return (
+    <Card padded={false}>
+      <View style={[styles.head, { paddingBottom: 12 }]}>
+        <View style={[styles.headIcon, { backgroundColor: c.dangerBg }]}>
+          <Feather name="calendar" size={18} color={c.danger} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="h3">Incomplete dates</Text>
+          <Text variant="small" tone="muted">
+            {open.length} date{open.length === 1 ? '' : 's'} not fully paid · {peso(total)} missing
+          </Text>
+        </View>
+      </View>
+      {shown.map((x) => {
+        const d = parseDate(x.date);
+        const isToday = x.date === today;
+        const fg = isToday ? c.warning : c.danger;
+        const bg = isToday ? c.warningBg : c.dangerBg;
+        const unpaid = circle.members.filter((m) => !x.round.paid[x.date]?.[m.id]);
+        return (
+          <PressableScale key={x.date} hapticOnPress={false} scaleTo={0.99} onPress={() => onOpen(x.date)} style={[styles.row, { borderTopColor: c.border }]}>
+            <View style={[styles.miniDay, { backgroundColor: bg }]}>
+              <Text variant="caption" color={fg} style={{ fontSize: 10, lineHeight: 12 }}>
+                {MON[d.getMonth()]}
+              </Text>
+              <Text variant="h3" color={fg} style={{ lineHeight: 20 }}>
+                {d.getDate()}
+              </Text>
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text variant="bodyBold" numberOfLines={1}>
+                {isToday ? 'Today' : longDay(x.date)}
+                <Text variant="small" tone="faint">
+                  {'  '}
+                  {n - unpaid.length}/{n} paid
+                </Text>
+              </Text>
+              <Text variant="caption" color={fg} numberOfLines={1}>
+                Unpaid: {unpaid.map((m) => m.name).join(', ')}
+              </Text>
+            </View>
+            <Text variant="money" color={fg}>
+              {peso(unpaid.length * circle.amount)}
+            </Text>
+            <Feather name="chevron-right" size={16} color={c.textFaint} />
+          </PressableScale>
+        );
+      })}
+      {open.length > 5 && (
+        <PressableScale hapticOnPress={false} onPress={() => setAll(!all)} style={[styles.more, { borderTopColor: c.border }]}>
+          <Text variant="smallBold" tone="brand">
+            {all ? 'Show less' : `Show all ${open.length} dates`}
+          </Text>
+        </PressableScale>
+      )}
+    </Card>
+  );
+}
+
+/**
  * Date history for a managed circle: go back to any hulog date, see who didn't pay,
  * check them off when they catch up, and see how much is still missing overall.
  */
@@ -98,6 +170,8 @@ export function DateHistory({ circle }: { circle: LocalCircle }) {
 
   return (
     <View style={{ gap: 14 }}>
+      <IncompleteDates circle={circle} days={days} onOpen={select} />
+
       {/* overall balances */}
       {missed.length > 0 ? (
         <Card padded={false}>
@@ -144,34 +218,45 @@ export function DateHistory({ circle }: { circle: LocalCircle }) {
       )}
 
       {/* date strip */}
-      <ScrollView ref={strip} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+      <ScrollView ref={strip} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 8, paddingBottom: 2, paddingHorizontal: 6 }}>
         {days.map((x) => {
           const d = parseDate(x.date);
           const on = x.date === selected;
           const s = dateShort(circle, x.round, x.date);
           const past = x.date < today;
           const isPayout = x.date === x.round.due_date && x.round.dates.length > 1;
-          const dot = s === 0 ? c.success : past ? c.danger : x.date === today ? c.warning : c.borderStrong;
+          const isToday = x.date === today;
+          // Red = past and not complete, amber = today and not complete, green = complete.
+          const state = s === 0 ? 'done' : past ? 'missed' : isToday ? 'today' : 'upcoming';
+          const dot = { done: c.success, missed: c.danger, today: c.warning, upcoming: c.borderStrong }[state];
+          const tint = state === 'missed' ? c.dangerBg : state === 'today' ? c.warningBg : c.surface;
+          const edge = on ? 'transparent' : state === 'missed' ? c.danger : state === 'today' ? c.warning : 'transparent';
+          const fg = on ? c.onInk : state === 'missed' ? c.danger : state === 'today' ? c.warning : c.text;
+          const unpaid = s / circle.amount;
           return (
             <PressableScale
               key={x.date}
               hapticOnPress={false}
               onPress={() => select(x.date)}
               accessibilityLabel={`${longDay(x.date)}${s ? `, ${peso(s)} short` : ', fully paid'}${isPayout ? ', payout day' : ''}`}
-              style={[
-                styles.day,
-                { backgroundColor: on ? c.ink : c.surface, borderColor: x.date === today && !on ? c.brand : 'transparent', opacity: !past && x.date !== today && !on ? 0.75 : 1 },
-              ]}>
-              <Text variant="caption" color={on ? c.onInk : c.textMuted}>
-                {DOW[d.getDay()]}
+              style={[styles.day, { backgroundColor: on ? c.ink : tint, borderColor: edge, opacity: state === 'upcoming' && !on ? 0.75 : 1 }]}>
+              <Text variant="caption" color={on ? c.onInk : state === 'missed' || state === 'today' ? fg : c.textMuted}>
+                {isToday ? 'Today' : DOW[d.getDay()]}
               </Text>
-              <Text variant="h2" color={on ? c.onInk : c.text} style={{ lineHeight: 24 }}>
+              <Text variant="h2" color={fg} style={{ lineHeight: 24 }}>
                 {d.getDate()}
               </Text>
               <Text variant="caption" color={on ? c.inkMuted : c.textFaint} style={{ fontSize: 10, lineHeight: 12 }}>
                 {MON[d.getMonth()]}
               </Text>
               <View style={[styles.dot, { backgroundColor: dot }]}>{s === 0 && <Feather name="check" size={8} color="#fff" />}</View>
+              {(state === 'missed' || state === 'today') && (
+                <View style={[styles.countTag, { backgroundColor: dot, borderColor: on ? c.ink : tint }]}>
+                  <Text variant="caption" color="#fff" style={{ fontSize: 10, lineHeight: 12, fontWeight: '800' }}>
+                    {state === 'missed' ? '!' : unpaid}
+                  </Text>
+                </View>
+              )}
               {isPayout && (
                 <View style={[styles.payoutTag, { backgroundColor: c.gold }]}>
                   <Feather name="gift" size={9} color="#fff" />
@@ -181,6 +266,20 @@ export function DateHistory({ circle }: { circle: LocalCircle }) {
           );
         })}
       </ScrollView>
+      <View style={styles.legend}>
+        {[
+          { color: c.danger, label: 'Not complete' },
+          { color: c.warning, label: 'Today, not complete' },
+          { color: c.success, label: 'Complete' },
+        ].map((l) => (
+          <View key={l.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: l.color }} />
+            <Text variant="caption" tone="muted">
+              {l.label}
+            </Text>
+          </View>
+        ))}
+      </View>
 
       {/* selected day */}
       <Card padded={false}>
@@ -255,6 +354,10 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1 },
   day: { width: DAY_W, paddingVertical: 10, borderRadius: radius.md, alignItems: 'center', gap: 1, borderWidth: 2 },
   dot: { width: 12, height: 12, borderRadius: 6, marginTop: 5, alignItems: 'center', justifyContent: 'center' },
+  countTag: { position: 'absolute', top: -6, left: -6, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  miniDay: { width: 44, height: 46, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
+  more: { alignItems: 'center', paddingVertical: 12, borderTopWidth: 1 },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: -6 },
   payoutTag: { position: 'absolute', top: 4, right: 4, width: 16, height: 16, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   check: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderTopWidth: 1 },
