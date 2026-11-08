@@ -47,6 +47,7 @@ export default function Verify() {
       back
       title={t('auth.verify.title')}
       subtitle={`${t('auth.verify.subtitle')} ${target}`}
+      say="Check your inbox! The code expires soon, so be quick."
       footer={<Button title={t('auth.verify.cta')} onPress={() => verify()} disabled={code.length !== LEN} loading={loading} />}>
       <Pressable onPress={() => input.current?.focus()} style={styles.boxes}>
         {Array.from({ length: LEN }, (_, i) => {

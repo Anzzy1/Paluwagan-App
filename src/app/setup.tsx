@@ -27,6 +27,8 @@ export default function Setup() {
     <AuthShell
       title={t('setup.title')}
       subtitle="Members of your paluwagan will see this information."
+      say="You’re in! What should I call you?"
+      mood="excited"
       footer={<Button title={t('setup.cta')} onPress={save} disabled={name.trim().length < 2} loading={update.isPending} />}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
         <Avatar name={name || '?'} seed={userId ?? undefined} size={56} />

@@ -1,9 +1,9 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { View } from 'react-native';
 
 import { AuthShell } from '@/components/AuthShell';
-import { Divider, Input, Segmented } from '@/components/ui/bits';
+import { Input, Segmented } from '@/components/ui/bits';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
 import { useAuth } from '@/lib/auth';
@@ -22,7 +22,9 @@ function toE164(raw: string) {
 
 export default function Login() {
   const t = useT();
-  const { enterDemo, goOffline } = useAuth();
+  const { goOffline } = useAuth();
+  const { mode: start } = useLocalSearchParams<{ mode?: 'signup' | 'login' }>();
+  const signup = start === 'signup';
   const [mode, setMode] = useState<'email' | 'phone'>('email');
   const [value, setValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,28 +45,23 @@ export default function Login() {
 
   const actions = (
     <>
-      <Button title={t('auth.send')} onPress={send} disabled={!valid} loading={loading} />
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 4 }}>
-        <View style={{ flex: 1 }}>
-          <Divider />
-        </View>
-        <Text variant="caption" tone="faint">
-          OR
+      <Button title={t('auth.send')} iconRight="arrow-right" onPress={send} disabled={!valid} loading={loading} />
+      <PressableScale onPress={goOffline} hapticOnPress={false} style={{ alignSelf: 'center', paddingVertical: 6 }}>
+        <Text variant="smallBold" tone="muted">
+          Not now? <Text variant="smallBold" tone="brand">Continue offline</Text>
         </Text>
-        <View style={{ flex: 1 }}>
-          <Divider />
-        </View>
-      </View>
-      <Button title="Continue offline" variant="secondary" icon="smartphone" onPress={goOffline} />
-      <Text variant="caption" tone="faint" center>
-        No account needed. Run paluwagan on this device only. Online paluwagan, Ipon goals and Ask Ipon need an account, and you can log in anytime from Profile.
-      </Text>
-      <Button title="Explore the demo" variant="ghost" icon="eye" onPress={enterDemo} />
+      </PressableScale>
     </>
   );
 
   return (
-    <AuthShell title={t('auth.title')} subtitle={t('auth.subtitle')} footer={actions}>
+    <AuthShell
+      back
+      title={signup ? 'Create your account' : start === 'login' ? 'Welcome back!' : t('auth.title')}
+      subtitle={signup ? 'Enter your email and we’ll send a 6-digit code. No password to remember.' : 'Enter the email or number you signed up with and we’ll send you a code.'}
+      say={signup ? 'Yay, a new member! This only takes a minute.' : start === 'login' ? 'Welcome back! I kept everything safe for you.' : 'Log in, or create a free account with the same code.'}
+      mood="excited"
+      footer={actions}>
       <Segmented
         value={mode}
         onChange={(m) => {
