@@ -15,6 +15,7 @@ import {
   missedPayments,
   paidLate,
   paidOn,
+  isPausedDate,
   togglePaid,
   type HulogDay,
   type LocalCircle,
@@ -49,7 +50,7 @@ function IncompleteDates({ circle, days, onOpen }: { circle: LocalCircle; days: 
   const today = todayISO();
   const [all, setAll] = useState(false);
   const n = circle.members.length;
-  const open = days.filter((d) => d.date <= today && paidOn(d.round, d.date) < n).reverse();
+  const open = days.filter((d) => d.date <= today && !isPausedDate(circle, d.date) && paidOn(d.round, d.date) < n).reverse();
   if (!open.length) return null;
   const total = open.reduce((sum, d) => sum + dateShort(circle, d.round, d.date), 0);
   const shown = all ? open : open.slice(0, 5);
@@ -226,7 +227,7 @@ export function DateHistory({ circle }: { circle: LocalCircle }) {
           const isPayout = x.date === x.round.due_date && x.round.dates.length > 1;
           const isToday = x.date === today;
           // Red = past and not complete, amber = today and not complete, green = complete.
-          const state = s === 0 ? 'done' : past ? 'missed' : isToday ? 'today' : 'upcoming';
+          const state = s === 0 ? 'done' : isPausedDate(circle, x.date) ? 'upcoming' : past ? 'missed' : isToday ? 'today' : 'upcoming';
           const dot = { done: c.success, missed: c.danger, today: c.warning, upcoming: c.borderStrong }[state];
           const tint = state === 'missed' ? c.dangerBg : state === 'today' ? c.warningBg : c.surface;
           const edge = on ? 'transparent' : state === 'missed' ? c.danger : state === 'today' ? c.warning : 'transparent';

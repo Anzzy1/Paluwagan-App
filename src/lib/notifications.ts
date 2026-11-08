@@ -102,6 +102,10 @@ function managed(list: LocalCircle[]): AppNotification[] {
       continue;
     }
     if (c.status === 'completed' && !hulogToday(c) && !nextHulog(c)) continue;
+    if (c.paused_at) {
+      out.push({ ...base, id: `m-paused-${c.id}`, action: false, tone: 'warning', icon: 'pause-circle', title: 'Paluwagan paused', body: `${c.pause_reason ? `“${c.pause_reason}” · ` : ''}Paused since ${longDate(c.paused_at)}. Resume when the group is ready.`, rank: 40 });
+      continue;
+    }
 
     const day = hulogToday(c);
     if (day) {

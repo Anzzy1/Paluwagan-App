@@ -48,7 +48,7 @@ export function useHulogReminders() {
   // Everything that is due today and not complete yet.
   const pending: Pending[] = [];
   for (const c of managed) {
-    if (c.status === 'forming') continue;
+    if (c.status === 'forming' || c.paused_at) continue;
     const day = hulogToday(c);
     if (!day) continue;
     const left = c.members.length - paidOn(day.round, day.date);

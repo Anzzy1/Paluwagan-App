@@ -7,6 +7,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import { AnimatedMascot } from '@/components/AnimatedMascot';
 import { ConfirmSheet } from '@/components/circle/Lifecycle';
 import { DateHistory } from '@/components/managed/DateHistory';
+import { PausedManagedCard, PauseManagedButton } from '@/components/managed/PauseManaged';
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { Sheet } from '@/components/ui/Sheet';
 import { Mascot } from '@/components/Mascot';
@@ -490,9 +491,9 @@ export default function ManagedCircle() {
           </Text>
         </View>
         <View style={styles.heroPill}>
-          <Feather name="smartphone" size={12} color="#fff" />
+          <Feather name={circle.paused_at ? 'pause' : 'smartphone'} size={12} color="#fff" />
           <Text variant="caption" color="#fff">
-            Managed offline
+            {circle.paused_at ? 'Paused' : 'Managed offline'}
           </Text>
         </View>
       </View>
@@ -525,8 +526,14 @@ export default function ManagedCircle() {
 
   const running = circle.status !== 'forming' && (
     <>
-      <HulogToday circle={circle} />
-      {circle.status === 'active' && s.current && <SahodCard circle={circle} />}
+      {circle.paused_at ? (
+        <PausedManagedCard circle={circle} />
+      ) : (
+        <>
+          <HulogToday circle={circle} />
+          {circle.status === 'active' && s.current && <SahodCard circle={circle} />}
+        </>
+      )}
       {circle.status === 'completed' && (
         <Card style={{ alignItems: 'center', gap: 8, paddingVertical: 24 }}>
           <Mascot size={110} mood="excited" pose="cheer" />
@@ -600,6 +607,7 @@ export default function ManagedCircle() {
           </Text>
         </Card>
       ) : null}
+      {circle.status === 'active' && !circle.paused_at && <PauseManagedButton circle={circle} />}
       <DeleteManagedButton circle={circle} />
     </>
   );
