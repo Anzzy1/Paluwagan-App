@@ -39,6 +39,11 @@ export type LocalRound = {
   payout_at: string | null;
 };
 
+/** A sahod change the organiser can undo. */
+export type SahodAction =
+  | { kind: 'release'; round_no: number; at: string; early: boolean }
+  | { kind: 'delay'; at: string; changes: { round_no: number; from: string; to: string }[] };
+
 export type LocalCircle = {
   id: string;
   name: string;
@@ -62,6 +67,8 @@ export type LocalCircle = {
   draw_style: DrawStyle | null;
   drawn_at: string | null;
   rounds: LocalRound[];
+  /** Sahod actions that can be undone, most recent last. */
+  sahod_history?: SahodAction[];
   log: { at: string; text: string }[];
   created_at: string;
 };
@@ -90,6 +97,7 @@ function normalize(c: LocalCircle): LocalCircle {
   return {
     ...c,
     payout: c.payout ?? null,
+    sahod_history: c.sahod_history ?? [],
     rounds: (c.rounds ?? []).map((r) => {
       const legacy = r.paid as unknown as Record<string, string>;
       const round = Array.isArray(r.dates) ? r : { ...r, dates: [r.due_date], paid: { [r.due_date]: legacy ?? {} } };
@@ -336,7 +344,76 @@ export function releasePayout(id: string, roundNo: number) {
       return r;
     });
     const done = rounds.every((r) => r.status === 'completed');
-    return log({ ...c, rounds, status: done ? 'completed' : c.status }, done ? `Payout released to ${name}${early}. All sahod released!` : `Payout released to ${name}${early}`);
+    const history = [...(c.sahod_history ?? []), { kind: 'release' as const, round_no: roundNo, at: new Date().toISOString(), early: !!early }];
+    const next = c.members.find((m) => m.id === rounds.find((r) => r.status === 'active')?.member_id)?.name;
+    return log(
+      { ...c, rounds, sahod_history: history, status: done ? 'completed' : c.status },
+      done ? `Payout released to ${name}${early}. All sahod released!` : `Payout released to ${name}${early}. Next sahod: ${next ?? 'next member'}`,
+    );
+  });
+}
+
+/**
+ * Move a sahod to a later date. With `shiftLater`, every later sahod moves by the same
+ * number of days so the order and spacing stay the same. Hulog dates don't change.
+ */
+export function delaySahod(id: string, roundNo: number, newDate: string, shiftLater: boolean) {
+  update(id, (c) => {
+    const round = c.rounds.find((r) => r.round_no === roundNo);
+    if (!round || newDate <= round.due_date) return c;
+    const days = Math.round((parseDate(newDate).getTime() - parseDate(round.due_date).getTime()) / 86_400_000);
+    const changes: { round_no: number; from: string; to: string }[] = [];
+    const rounds = c.rounds.map((r) => {
+      let to: string | null = null;
+      if (r.round_no === roundNo) to = newDate;
+      else if (shiftLater && r.round_no > roundNo && r.status !== 'completed') {
+        const d = parseDate(r.due_date);
+        d.setDate(d.getDate() + days);
+        to = toISODate(d);
+      }
+      if (!to) return r;
+      changes.push({ round_no: r.round_no, from: r.due_date, to });
+      return { ...r, due_date: to };
+    });
+    const name = c.members.find((m) => m.id === round.member_id)?.name ?? 'Member';
+    return log(
+      { ...c, rounds, sahod_history: [...(c.sahod_history ?? []), { kind: 'delay', at: new Date().toISOString(), changes }] },
+      `${name}’s sahod moved from ${shortDate(round.due_date)} to ${shortDate(newDate)}${shiftLater && changes.length > 1 ? `, later sahod moved ${days} day${days === 1 ? '' : 's'} too` : ''}`,
+    );
+  });
+}
+
+/** Describe the most recent undoable sahod action, if any. */
+export function lastSahodAction(c: LocalCircle): { action: SahodAction; text: string } | null {
+  const action = c.sahod_history?.[c.sahod_history.length - 1];
+  if (!action) return null;
+  const nameOf = (roundNo: number) => c.members.find((m) => m.id === c.rounds.find((r) => r.round_no === roundNo)?.member_id)?.name ?? 'Member';
+  if (action.kind === 'release') return { action, text: `${action.early ? 'Advance sahod' : 'Sahod'} released to ${nameOf(action.round_no)}` };
+  const first = action.changes[0];
+  return { action, text: first ? `${nameOf(first.round_no)}’s sahod moved to ${shortDate(first.to)}` : 'Sahod moved' };
+}
+
+/**
+ * Undo the most recent sahod action. A release goes back to "not yet released" (that member
+ * is next again); a delay puts the dates back. Hulog payments recorded since are kept.
+ */
+export function undoSahod(id: string) {
+  update(id, (c) => {
+    const last = lastSahodAction(c);
+    if (!last) return c;
+    const history = (c.sahod_history ?? []).slice(0, -1);
+    const { action } = last;
+    if (action.kind === 'release') {
+      const rounds = c.rounds.map((r) => {
+        if (r.round_no === action.round_no) return { ...r, status: 'active' as const, payout_at: null };
+        if (r.round_no > action.round_no && r.status === 'active') return { ...r, status: 'upcoming' as const };
+        return r;
+      });
+      return log({ ...c, rounds, status: 'active', sahod_history: history }, `Undone: ${last.text}`);
+    }
+    const back = new Map(action.changes.map((x) => [x.round_no, x.from]));
+    const rounds = c.rounds.map((r) => (back.has(r.round_no) ? { ...r, due_date: back.get(r.round_no)! } : r));
+    return log({ ...c, rounds, sahod_history: history }, `Undone: ${last.text}`);
   });
 }
 

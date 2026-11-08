@@ -229,7 +229,7 @@ export function DateHistory({ circle }: { circle: LocalCircle }) {
                   {sub}
                 </Text>
               </View>
-              {isRecipient && <Chip label="Sahod" tone="brand" icon="gift" />}
+              {isRecipient && (r.status === 'completed' ? <Chip label="Got sahod" tone="neutral" icon="check" /> : <Chip label="Sahod" tone="brand" icon="gift" />)}
               <View style={[styles.check, { backgroundColor: at ? c.success : c.surface, borderColor: at ? c.success : isPast ? c.danger : c.borderStrong }]}>
                 {at && <Feather name="check" size={16} color="#fff" />}
               </View>

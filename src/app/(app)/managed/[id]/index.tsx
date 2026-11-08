@@ -7,6 +7,8 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import { AnimatedMascot } from '@/components/AnimatedMascot';
 import { ConfirmSheet } from '@/components/circle/Lifecycle';
 import { DateHistory } from '@/components/managed/DateHistory';
+import { MonthCalendar } from '@/components/ui/MonthCalendar';
+import { Sheet } from '@/components/ui/Sheet';
 import { Mascot } from '@/components/Mascot';
 import { Avatar, Chip, Notice, ProgressBar, PurposeIcon, Segmented } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
@@ -15,12 +17,14 @@ import { haptic, PressableScale } from '@/components/ui/PressableScale';
 import { Columns, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { confirmAction } from '@/lib/alert';
-import { dateTime, daysUntil, longDate, payoutShort, peso, relativeDue, shortDate, timeAgo } from '@/lib/format';
+import { dateTime, daysUntil, longDate, parseDate, payoutShort, peso, relativeDue, shortDate, timeAgo, todayISO, toISODate } from '@/lib/format';
 import {
   addMember,
   collected,
+  delaySahod,
   deleteManagedCircle,
   hulogToday,
+  lastSahodAction,
   managedSummary,
   nextHulog,
   paidOn,
@@ -32,8 +36,10 @@ import {
   releasePayout,
   removeMember,
   togglePaid,
+  undoSahod,
   useManagedCircle,
   type LocalCircle,
+  type LocalRound,
 } from '@/lib/local';
 import { useColors, useIsDesktop } from '@/lib/prefs';
 import { reactToMarkPaid, reactToPayout } from '@/lib/reactions';
@@ -156,7 +162,10 @@ function HulogToday({ circle }: { circle: LocalCircle }) {
   const { date, round: r } = day;
   const paidCount = paidOn(r, date);
   const allPaid = paidCount >= n;
-  const recipient = circle.members.find((m) => m.id === r.member_id);
+  const owner = circle.members.find((m) => m.id === r.member_id);
+  // The sahod tag follows the payout order: whoever is next in line, not whose round this date was counted in.
+  const queue = managedSummary(circle);
+  const recipient = queue.recipient;
   const pot = potOfManaged(circle, r);
 
   return (
@@ -166,14 +175,15 @@ function HulogToday({ circle }: { circle: LocalCircle }) {
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="h3">Hulog today</Text>
           <Text variant="caption" tone="muted">
-            {peso(circle.amount)} each · for {recipient ? `${recipient.name}’s` : 'this'} sahod (payout {r.round_no})
-            {r.status === 'completed' ? ' · sahod already released' : ''}
+            {peso(circle.amount)} each
+            {recipient && queue.current ? ` · Next sahod: ${recipient.name}, ${shortDate(queue.current.due_date)}` : ' · All sahod released'}
+            {r.status === 'completed' && owner ? ` · Covers ${owner.name}’s advance sahod` : ''}
           </Text>
         </View>
         <Chip label={allPaid ? 'All paid' : `${paidCount}/${n} paid`} tone={allPaid ? 'success' : 'neutral'} />
       </View>
       {circle.members.map((m) => {
-        const isRecipient = m.id === r.member_id;
+        const isRecipient = m.id === recipient?.id;
         const paidAt = r.paid[date]?.[m.id];
         return (
           <PressableScale
@@ -194,7 +204,7 @@ function HulogToday({ circle }: { circle: LocalCircle }) {
                 {paidAt ? `Paid ${timeAgo(paidAt)}` : `Owes ${peso(circle.amount)}`}
               </Text>
             </View>
-            {isRecipient && <Chip label="Sahod" tone="brand" icon="gift" />}
+            {isRecipient && <Chip label="Next sahod" tone="brand" icon="gift" />}
             <View style={[styles.check, { backgroundColor: paidAt ? c.success : c.surface, borderColor: paidAt ? c.success : c.borderStrong }]}>
               {paidAt && <Feather name="check" size={16} color="#fff" />}
             </View>
@@ -236,6 +246,7 @@ function SahodCard({ circle }: { circle: LocalCircle }) {
   const due = daysLeft <= 0;
   const multi = r.dates.length > 1;
 
+  const [delayOpen, setDelayOpen] = useState(false);
   const go = (amount: number) => {
     releasePayout(circle.id, r.round_no);
     haptic('success');
@@ -300,8 +311,106 @@ function SahodCard({ circle }: { circle: LocalCircle }) {
             <Button title="Advance sahod" icon="fast-forward" variant="secondary" size="md" full={false} onPress={advance} />
           </>
         )}
+        <Button title="Delay sahod" icon="clock" variant="ghost" size="md" full={false} onPress={() => setDelayOpen(true)} />
       </View>
+      <UndoSahod circle={circle} />
+      <DelaySahodSheet key={`${r.round_no}-${r.due_date}`} circle={circle} round={r} name={name} open={delayOpen} onClose={() => setDelayOpen(false)} />
     </Card>
+  );
+}
+
+/** "Undo" strip for the most recent sahod release or delay. */
+function UndoSahod({ circle, bare }: { circle: LocalCircle; bare?: boolean }) {
+  const c = useColors();
+  const last = lastSahodAction(circle);
+  if (!last) return null;
+  const undo = () =>
+    confirmAction(
+      'Undo this?',
+      last.action.kind === 'release'
+        ? `${last.text} will be marked as not released, and they’ll be next in line again. Hulog already recorded stays as it is.`
+        : `${last.text} will go back to the original date${last.action.changes.length > 1 ? 's' : ''}.`,
+      () => {
+        undoSahod(circle.id);
+        haptic('warning');
+      },
+      { confirmText: 'Undo', icon: 'rotate-ccw' },
+    );
+  return (
+    <View style={[styles.undo, !bare && { borderTopWidth: 1, borderTopColor: c.border }]}>
+      <Feather name="rotate-ccw" size={14} color={c.textMuted} />
+      <Text variant="caption" tone="muted" style={{ flex: 1 }} numberOfLines={2}>
+        Last: {last.text} · {timeAgo(last.action.at)}
+      </Text>
+      <Button title="Undo" size="sm" variant="secondary" full={false} onPress={undo} />
+    </View>
+  );
+}
+
+/** Move the current sahod to a later date, optionally pushing later sahod by the same days. */
+function DelaySahodSheet({ circle, round, name, open, onClose }: { circle: LocalCircle; round: LocalRound; name: string; open: boolean; onClose: () => void }) {
+  const c = useColors();
+  const plusDays = (d: string, n: number) => {
+    const x = parseDate(d);
+    x.setDate(x.getDate() + n);
+    return toISODate(x);
+  };
+  const base = round.due_date < todayISO() ? todayISO() : round.due_date;
+  const [date, setDate] = useState(plusDays(base, 1));
+  const [shiftLater, setShiftLater] = useState(true);
+  const next = circle.rounds.find((x) => x.round_no === round.round_no + 1);
+  const days = daysUntil(date) - daysUntil(round.due_date);
+  const tooEarly = date <= round.due_date;
+  const passesNext = !shiftLater && !!next && date >= next.due_date;
+  const save = () => {
+    delaySahod(circle.id, round.round_no, date, shiftLater);
+    haptic('light');
+    onClose();
+  };
+  return (
+    <Sheet open={open} onClose={onClose} title="Delay sahod" subtitle={`${name}’s sahod is on ${longDate(round.due_date)}. Pick a new date.`}>
+      <View style={styles.wrapRow}>
+        {[1, 3, 7].map((n) => {
+          const d = plusDays(base, n);
+          return (
+            <PressableScale key={n} hapticOnPress={false} onPress={() => setDate(d)}>
+              <Chip label={`+${n} day${n === 1 ? '' : 's'}`} tone={date === d ? 'ink' : 'neutral'} />
+            </PressableScale>
+          );
+        })}
+      </View>
+      <Card>
+        <MonthCalendar value={date} onChange={setDate} />
+      </Card>
+      <PressableScale hapticOnPress={false} onPress={() => setShiftLater(!shiftLater)} style={[styles.toggle, { backgroundColor: c.surfaceAlt }]}>
+        <View style={[styles.check, { width: 24, height: 24, backgroundColor: shiftLater ? c.brand : c.surface, borderColor: shiftLater ? c.brand : c.borderStrong }]}>
+          {shiftLater && <Feather name="check" size={14} color="#fff" />}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="smallBold">Move the sahod after this too</Text>
+          <Text variant="caption" tone="muted">
+            Keeps the same order and spacing. Hulog dates don’t change.
+          </Text>
+        </View>
+      </PressableScale>
+      {tooEarly ? (
+        <Text variant="small" tone="danger">
+          Pick a date after {longDate(round.due_date)}.
+        </Text>
+      ) : passesNext ? (
+        <Text variant="small" tone="danger">
+          That’s on or after the next sahod ({longDate(next!.due_date)}). Turn on “Move the sahod after this too” to keep the order.
+        </Text>
+      ) : (
+        <Text variant="small" tone="muted">
+          Moves {days} day{days === 1 ? '' : 's'} later, to {longDate(date)}.
+        </Text>
+      )}
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Button title="Cancel" variant="secondary" full={false} style={{ flex: 1 }} onPress={onClose} />
+        <Button title="Delay sahod" icon="clock" full={false} style={{ flex: 1.4 }} disabled={tooEarly || passesNext} onPress={save} />
+      </View>
+    </Sheet>
   );
 }
 
@@ -426,6 +535,7 @@ export default function ManagedCircle() {
           <Text tone="muted" center>
             All {circle.rounds.length} payouts have been released. Great job keeping everyone on track.
           </Text>
+          <UndoSahod circle={circle} bare />
         </Card>
       )}
       {missedTotal > 0 && tab !== 'dates' && (
@@ -527,4 +637,7 @@ const styles = StyleSheet.create({
   num: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   missed: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: radius.md },
   logDot: { width: 8, height: 8, borderRadius: 4, marginTop: 7 },
+  undo: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, alignSelf: 'stretch' },
+  wrapRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  toggle: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: radius.md },
 });
