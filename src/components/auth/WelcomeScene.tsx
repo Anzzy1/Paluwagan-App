@@ -110,10 +110,13 @@ export function WelcomeScene({
   const mascot = big ? 230 : compact ? 120 : 160;
   const stage = big ? 440 : Math.min(330, Math.max(260, w - 60));
   // Only show the wordmark when it fits above the bubble.
-  const markSize = big ? 60 : 40;
+  // Size the wordmark to the free space above the bubble: as big as fits, centred in that space.
   const stageH = big ? mascot + 150 : mascot + 130;
   const free = big ? (h - stageH) / 2 : h - topInset - stageH;
-  const showMark = wordmark && h > 0 && free >= markSize * 1.15 + (big ? 60 : 20);
+  const pad = big ? 40 : 14;
+  const markSize = Math.round(Math.min(w * (big ? 0.15 : 0.17), (free - pad) / 1.15, big ? 104 : 84));
+  const markTop = topInset + Math.max(big ? 24 : 8, (free - markSize * 1.15) / 2 - (big ? 0 : 4));
+  const showMark = wordmark && h > 0 && markSize >= 34;
 
   return (
     <LinearGradient
@@ -127,7 +130,7 @@ export function WelcomeScene({
       style={[styles.scene, big && { justifyContent: 'center' }, { paddingTop: topInset }, style]}>
       <BandScene />
       {showMark && (
-        <View style={[styles.markWrap, { top: topInset + (big ? 48 : 12) }]} pointerEvents="none">
+        <View style={[styles.markWrap, { top: markTop }]} pointerEvents="none">
           <Wordmark size={markSize} />
         </View>
       )}
