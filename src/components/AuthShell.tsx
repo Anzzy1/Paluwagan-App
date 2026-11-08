@@ -27,6 +27,7 @@ export function AuthShell({
   footer,
   say,
   mood = 'happy',
+  onBack,
 }: {
   title: string;
   subtitle?: string;
@@ -36,12 +37,14 @@ export function AuthShell({
   /** What Ipon says in the speech bubble. */
   say?: string;
   mood?: MascotMood;
+  /** Custom back action (e.g. the previous step); defaults to navigating back. */
+  onBack?: () => void;
 }) {
   const c = useColors();
   const desktop = useIsDesktop();
   const insets = useSafeAreaInsets();
   const grad = useBandColors();
-  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  const goBack = onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')));
 
   const heading = (
     <Animated.View entering={FadeInUp.springify().damping(16)} style={{ gap: 8 }}>

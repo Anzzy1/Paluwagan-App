@@ -1,7 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
 import { useState } from 'react';
-import * as ImagePicker from 'expo-image-picker';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { Mascot } from '@/components/Mascot';
@@ -18,7 +17,8 @@ import { useManagedCircles } from '@/lib/local';
 import { peso, trustLabel } from '@/lib/format';
 import { useColors } from '@/lib/prefs';
 import { badgesFor, onTimeStreak } from '@/lib/rewards';
-import { notify, notifyError } from '@/lib/alert';
+import { notifyError } from '@/lib/alert';
+import { pickPhoto, type Photo } from '@/lib/photo';
 
 export default function ProfileTab() {
   const { profile, session, isDemo, isGuest, isOffline, exitOffline } = useAuth();
@@ -213,28 +213,6 @@ function Row({ label, value }: { label: string; value: string }) {
       <Text variant="bodyMedium">{value}</Text>
     </View>
   );
-}
-
-type Photo = { uri: string; mime?: string | null };
-
-/** Opens the library or camera with a square crop. Returns null if cancelled or rejected. */
-async function pickPhoto(camera: boolean): Promise<Photo | null> {
-  const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 };
-  if (camera) {
-    const p = await ImagePicker.requestCameraPermissionsAsync();
-    if (!p.granted) {
-      notify('Camera access needed', 'Allow camera access in your phone settings to take a photo.');
-      return null;
-    }
-  }
-  const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
-  const a = res.canceled ? null : res.assets[0];
-  if (!a) return null;
-  if (a.fileSize && a.fileSize > 5 * 1024 * 1024) {
-    notify('Photo too large', 'Please choose a photo under 5 MB.');
-    return null;
-  }
-  return { uri: a.uri, mime: a.mimeType };
 }
 
 function EditProfileSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
