@@ -11,9 +11,8 @@ import { notify, notifyError } from '@/lib/alert';
 import { supabase } from '@/lib/supabase';
 import { font, radius } from '@/theme/tokens';
 
-// Supabase codes are 6 digits by default, but a project can be set to 7–10.
-const MIN = 6;
-const MAX = 10;
+// Must match "Email OTP Length" in Supabase (Authentication → Sign In / Providers → Email).
+const LEN = 6;
 
 /** Plain-language version of the auth server's code errors. */
 function codeError(e: unknown): Error {
@@ -39,7 +38,7 @@ export default function Verify() {
   const input = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   const verify = async (value = code) => {
-    if (value.length < MIN || loading) return;
+    if (value.length < LEN || loading) return;
     setLoading(true);
     const { error } = await supabase.auth.verifyOtp(
       mode === 'phone' ? { phone: target, token: value, type: 'sms' } : { email: target, token: value, type: 'email' },
@@ -52,14 +51,6 @@ export default function Verify() {
     }
     haptic('success');
   };
-
-  // Auto-submit once typing stops (codes can be longer than 6 digits).
-  useEffect(() => {
-    if (code.length < MIN) return;
-    const t = setTimeout(() => verify(code), code.length >= 8 ? 200 : 900);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code]);
 
   const resend = async () => {
     if (wait > 0) return;
@@ -77,9 +68,9 @@ export default function Verify() {
       title={t('auth.verify.title')}
       subtitle={`${t('auth.verify.subtitle')} ${target}.${mode === 'email' ? ' Got a link instead of a code? Tap the link in the email to log in.' : ''}`}
       say="Check your inbox! The code expires soon, so be quick."
-      footer={<Button title={t('auth.verify.cta')} onPress={() => verify()} disabled={code.length < MIN} loading={loading} />}>
+      footer={<Button title={t('auth.verify.cta')} onPress={() => verify()} disabled={code.length < LEN} loading={loading} />}>
       <Pressable onPress={() => input.current?.focus()} style={styles.boxes}>
-        {Array.from({ length: Math.max(MIN, Math.min(MAX, code.length + (code.length >= MIN && code.length < MAX ? 1 : 0))) }, (_, i) => {
+        {Array.from({ length: LEN }, (_, i) => {
           const active = i === code.length;
           return (
             <View
@@ -94,7 +85,9 @@ export default function Verify() {
         ref={input}
         value={code}
         onChangeText={(v) => {
-          setCode(v.replace(/\D/g, '').slice(0, MAX));
+          const next = v.replace(/\D/g, '').slice(0, LEN);
+          setCode(next);
+          if (next.length === LEN) verify(next); // auto-submit once all 6 digits are in
         }}
         keyboardType="number-pad"
         autoComplete="one-time-code"
