@@ -12,6 +12,7 @@ import { useActivity, useInbox, useMyCircles, type Inbox, type MyCircle } from '
 import { useAuth } from '@/lib/auth';
 import { summarize, unpaid } from '@/lib/derive';
 import { daysUntil, longDate, peso, relativeDue, todayISO } from '@/lib/format';
+import { useNotices, type Notice } from '@/lib/notices';
 import { kv } from '@/lib/storage';
 import type { Activity } from '@/lib/types';
 import { hulogDays, hulogToday, managedSummary, missedPayments, nextHulog, paidOn, useManagedCircles, type LocalCircle } from '@/lib/local';
@@ -158,6 +159,12 @@ export function buildUpdates(activity: Activity[], list: MyCircle[], userId: str
     });
 }
 
+/** Device notices from the last UPDATE_DAYS days, shaped like updates. */
+function recentNotices(notices: Notice[]): AppUpdate[] {
+  const since = Date.now() - UPDATE_DAYS * 86_400_000;
+  return notices.filter((x) => new Date(x.at).getTime() >= since).map((x) => ({ ...x, id: `n-${x.id}` }));
+}
+
 // Last time the user opened Notifications (updates after this are unread).
 const SEEN_KEY = 'notifications-seen-v1';
 let seenAt = kv.get(SEEN_KEY) ?? '';
@@ -188,7 +195,9 @@ export function useNotifications() {
   const local = useManagedCircles();
   const seen = useSeenAt();
   const items = buildNotifications(circles.data ?? [], inbox.data, local);
-  const updates = buildUpdates(activity.data ?? [], circles.data ?? [], userId ?? null);
+  const notices = useNotices();
+  // What others did online + what happened on this device (day completed, evening reminders).
+  const updates = [...buildUpdates(activity.data ?? [], circles.data ?? [], userId ?? null), ...recentNotices(notices)].sort((a, b) => b.at.localeCompare(a.at));
   const unread = updates.filter((u) => u.at > seen).length;
   return {
     items,

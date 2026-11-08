@@ -166,7 +166,6 @@ function HulogToday({ circle }: { circle: LocalCircle }) {
   // The sahod tag follows the payout order: whoever is next in line, not whose round this date was counted in.
   const queue = managedSummary(circle);
   const recipient = queue.recipient;
-  const pot = potOfManaged(circle, r);
 
   return (
     <Card padded={false}>
@@ -192,7 +191,7 @@ function HulogToday({ circle }: { circle: LocalCircle }) {
             scaleTo={0.99}
             onPress={() => {
               togglePaid(circle.id, r.round_no, m.id, date);
-              if (!paidAt) reactToMarkPaid(m.name, paidCount + 1, n, r.round_no, recipient?.name ?? 'the recipient', pot);
+              if (!paidAt) reactToMarkPaid(circle, date, paidCount + 1, n, circle.amount, recipient?.name ?? null);
             }}
             style={[styles.row, { borderTopColor: c.border }, !!paidAt && { backgroundColor: c.successBg }]}>
             <Avatar name={m.name} seed={m.id} size={36} />
@@ -220,7 +219,7 @@ function HulogToday({ circle }: { circle: LocalCircle }) {
             size="md"
             onPress={() => {
               markAllPaid(circle.id, r.round_no, date);
-              reactToMarkPaid('Everyone', n, n, r.round_no, recipient?.name ?? 'the recipient', pot);
+              reactToMarkPaid(circle, date, n, n, circle.amount, recipient?.name ?? null);
             }}
           />
         </View>

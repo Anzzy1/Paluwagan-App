@@ -15,7 +15,6 @@ import {
   missedPayments,
   paidLate,
   paidOn,
-  potOfManaged,
   togglePaid,
   type HulogDay,
   type LocalCircle,
@@ -144,19 +143,19 @@ export function DateHistory({ circle }: { circle: LocalCircle }) {
     strip.current?.scrollTo({ x: Math.max(0, i * (DAY_W + 8) - 80), animated: true });
   };
 
-  const toggle = (memberId: string, name: string) => {
+  const toggle = (memberId: string) => {
     const wasPaid = !!r.paid[date]?.[memberId];
     togglePaid(circle.id, r.round_no, memberId, date);
     if (wasPaid) return;
-    const left = Math.max(0, short - circle.amount);
-    if (isPast) reactToBackfill(name, shortDate(date), left, Math.max(0, totalMissed - circle.amount));
-    else reactToMarkPaid(name, paidCount + 1, n, r.round_no, recipient?.name ?? 'the recipient', potOfManaged(circle, r));
+    const others = Math.max(0, totalMissed - short);
+    if (isPast) reactToBackfill(circle, date, paidCount + 1, n, circle.amount, others);
+    else reactToMarkPaid(circle, date, paidCount + 1, n, circle.amount, null);
   };
 
   const allPaid = () => {
     markAllPaid(circle.id, r.round_no, date);
-    if (isPast) reactToBackfill('Everyone', shortDate(date), 0, Math.max(0, totalMissed - short));
-    else reactToMarkPaid('Everyone', n, n, r.round_no, recipient?.name ?? 'the recipient', potOfManaged(circle, r));
+    if (isPast) reactToBackfill(circle, date, n, n, circle.amount, Math.max(0, totalMissed - short));
+    else reactToMarkPaid(circle, date, n, n, circle.amount, null);
   };
 
   const status =
@@ -317,7 +316,7 @@ export function DateHistory({ circle }: { circle: LocalCircle }) {
               key={m.id}
               hapticOnPress
               scaleTo={0.99}
-              onPress={() => toggle(m.id, m.name)}
+              onPress={() => toggle(m.id)}
               style={[styles.row, { borderTopColor: c.border }, !!at && { backgroundColor: c.successBg }, !at && isPast && { backgroundColor: c.dangerBg }]}>
               <Avatar name={m.name} seed={m.id} size={36} />
               <View style={{ flex: 1 }}>

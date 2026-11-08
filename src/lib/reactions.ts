@@ -1,12 +1,14 @@
 /**
  * Ipon's reactions: short messages that drop down from the top of the screen
- * whenever a contribution is added (ipon deposit, payment receipt, member marked paid…).
+ * when something worth celebrating happens (ipon deposit, payment receipt, a hulog day completed…).
  */
+import type { Href } from 'expo-router';
 import { useSyncExternalStore } from 'react';
 
 import type { MascotAction } from '@/components/AnimatedMascot';
 import type { MascotMood, MascotPose } from '@/components/Mascot';
-import { peso } from '@/lib/format';
+import { longDate, peso, shortDate } from '@/lib/format';
+import { pushNotice } from '@/lib/notices';
 
 export type Reaction = { id: number; mood: MascotMood; pose: MascotPose; action: MascotAction; title: string; text: string };
 
@@ -104,16 +106,33 @@ export function reactToPayment(circle: string, amount: number, late: boolean) {
 
 // ---------------------------------------------------------------- managed (offline) circles
 
-export function reactToMarkPaid(member: string, paid: number, total: number, round: number, recipient: string, pot: number) {
-  if (paid >= total) {
-    return showReaction({ mood: 'excited', pose: 'cheer', action: 'cheer', title: 'Everyone paid!', text: `All ${total} members are in for round ${round}. Ready to release ${peso(pot)} to ${recipient}.` });
-  }
+type CircleRef = { id: string; name: string };
+
+/** Note a completed hulog day in Notifications (replaces an earlier reminder for that day). */
+function noteComplete(c: CircleRef, date: string, total: number, amount: number) {
+  pushNotice({
+    id: `hulog-${c.id}-${date}`,
+    tone: 'success',
+    icon: 'check-circle',
+    text: `Hulog complete for ${longDate(date)}: all ${total} members paid, ${peso(total * amount)} collected.`,
+    circle: c.name,
+    href: `/managed/${c.id}` as Href,
+  });
+}
+
+/**
+ * Called after a member is marked paid for today. Stays quiet while people are still
+ * being checked off (no spam), and only reacts once the whole day is complete.
+ */
+export function reactToMarkPaid(c: CircleRef, date: string, paid: number, total: number, amount: number, nextSahod: string | null) {
+  if (paid < total) return;
+  noteComplete(c, date, total, amount);
   showReaction({
-    mood: 'happy',
-    pose: 'coin',
-    action: 'toss',
-    title: `${member} paid!`,
-    text: `${paid} of ${total} members are in for round ${round}. ${total - paid} more to go.`,
+    mood: 'excited',
+    pose: 'cheer',
+    action: 'cheer',
+    title: 'Today’s hulog is complete!',
+    text: `All ${total} members paid, ${peso(total * amount)} collected.${nextSahod ? ` Next sahod: ${nextSahod}.` : ''}`,
   });
 }
 
@@ -127,22 +146,15 @@ export function reactToPayout(recipient: string, pot: number, nextRound: number 
   });
 }
 
-/** A payment recorded for a past date (back-filling a missed day). */
-export function reactToBackfill(member: string, date: string, roundLeft: number, totalLeft: number) {
-  if (roundLeft <= 0) {
-    return showReaction({
-      mood: 'excited',
-      pose: 'cheer',
-      action: 'cheer',
-      title: `${date} is fully funded!`,
-      text: totalLeft > 0 ? `Got ${member}'s payment. ${peso(totalLeft)} is still unpaid on other dates.` : `Got ${member}'s payment. Everyone is caught up on past dates!`,
-    });
-  }
+/** A payment recorded for a past date (back-filling a missed day). Only reacts once that date is complete. */
+export function reactToBackfill(c: CircleRef, date: string, paid: number, total: number, amount: number, otherMissing: number) {
+  if (paid < total) return;
+  noteComplete(c, date, total, amount);
   showReaction({
-    mood: 'happy',
-    pose: 'coin',
-    action: 'toss',
-    title: `${member} caught up!`,
-    text: `Recorded ${member}'s payment for ${date}. ${peso(roundLeft)} is still missing that day.`,
+    mood: 'excited',
+    pose: 'cheer',
+    action: 'cheer',
+    title: `${shortDate(date)} is complete!`,
+    text: otherMissing > 0 ? `Everyone has paid for that date. ${peso(otherMissing)} is still unpaid on other dates.` : 'Everyone is caught up on past dates!',
   });
 }

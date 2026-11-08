@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { MascotToastHost } from '@/components/MascotToast';
 import { Sidebar } from '@/components/Sidebar';
 import { useRealtimeSync } from '@/lib/api';
+import { useHulogReminders } from '@/lib/hulogReminder';
 import { useColors, useIsDesktop } from '@/lib/prefs';
 import { usePushRegistration } from '@/lib/push';
 
@@ -14,6 +15,7 @@ export default function AppLayout() {
   const desktop = useIsDesktop();
   useRealtimeSync();
   usePushRegistration();
+  useHulogReminders();
 
   const stack = (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg }, animation: desktop ? 'none' : 'default' }}>
