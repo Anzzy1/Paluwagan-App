@@ -29,6 +29,13 @@ export default function Verify() {
   const { mode, target } = useLocalSearchParams<{ mode: 'email' | 'phone'; target: string }>();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  // Email providers limit how often codes can be sent, so resend unlocks after a short wait.
+  const [wait, setWait] = useState(60);
+  useEffect(() => {
+    if (wait <= 0) return;
+    const t = setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [wait]);
   const input = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   const verify = async (value = code) => {
@@ -55,6 +62,8 @@ export default function Verify() {
   }, [code]);
 
   const resend = async () => {
+    if (wait > 0) return;
+    setWait(60);
     const { error } = await supabase.auth.signInWithOtp(
       mode === 'phone' ? { phone: target } : { email: target, options: { emailRedirectTo: Platform.OS === 'web' ? window.location.origin : undefined } },
     );
@@ -93,9 +102,9 @@ export default function Verify() {
         autoFocus
         style={styles.hidden}
       />
-      <PressableScale onPress={resend} hapticOnPress={false} style={{ alignSelf: 'flex-start' }}>
+      <PressableScale onPress={resend} disabled={wait > 0} hapticOnPress={false} style={{ alignSelf: 'flex-start' }}>
         <Text variant="smallBold" tone="brand">
-          {t('auth.resend')}
+          {wait > 0 ? `Resend code in ${wait}s` : t('auth.resend')}
         </Text>
       </PressableScale>
     </AuthShell>
