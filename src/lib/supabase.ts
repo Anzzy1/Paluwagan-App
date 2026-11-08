@@ -14,7 +14,8 @@ export const supabase = createClient(url || 'https://placeholder.supabase.co', k
     storage: globalThis.localStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // Web: pick up the session from the URL after a Google / Facebook redirect.
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });
 

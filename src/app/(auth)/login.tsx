@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
+import { SocialButtons } from '@/components/auth/SocialButtons';
 import { AuthShell } from '@/components/AuthShell';
 import { Input, Segmented } from '@/components/ui/bits';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -35,23 +36,21 @@ export default function Login() {
     if (!valid) return;
     setLoading(true);
     const target = mode === 'email' ? value.trim().toLowerCase() : toE164(value);
-    const { error } = await supabase.auth.signInWithOtp(
-      mode === 'email' ? { email: target, options: { shouldCreateUser: true } } : { phone: target },
-    );
+    const { error } = await supabase.auth.signInWithOtp(mode === 'email' ? { email: target, options: { shouldCreateUser: true } } : { phone: target });
     setLoading(false);
     if (error) return notifyError(error, 'Couldn’t send code');
     router.push({ pathname: '/verify', params: { mode, target } });
   };
 
-  const actions = (
-    <>
-      <Button title={t('auth.send')} iconRight="arrow-right" onPress={send} disabled={!valid} loading={loading} />
-      <PressableScale onPress={goOffline} hapticOnPress={false} style={{ alignSelf: 'center', paddingVertical: 6 }}>
-        <Text variant="smallBold" tone="muted">
-          Not now? <Text variant="smallBold" tone="brand">Continue offline</Text>
+  const offline = (
+    <PressableScale onPress={goOffline} hapticOnPress={false} style={{ alignSelf: 'center', paddingVertical: 6 }}>
+      <Text variant="smallBold" tone="muted">
+        Not now?{' '}
+        <Text variant="smallBold" tone="brand">
+          Continue offline
         </Text>
-      </PressableScale>
-    </>
+      </Text>
+    </PressableScale>
   );
 
   return (
@@ -59,9 +58,14 @@ export default function Login() {
       back
       title={signup ? 'Create your account' : start === 'login' ? 'Welcome back!' : t('auth.title')}
       subtitle={signup ? 'Enter your email and we’ll send a 6-digit code. No password to remember.' : 'Enter the email or number you signed up with and we’ll send you a code.'}
-      say={signup ? 'Yay, a new member! This only takes a minute.' : start === 'login' ? 'Welcome back! I kept everything safe for you.' : 'Log in, or create a free account with the same code.'}
-      mood="excited"
-      footer={actions}>
+      say={
+        signup
+          ? 'Yay, a new member! This only takes a minute.'
+          : start === 'login'
+            ? 'Welcome back! I kept everything safe for you.'
+            : 'Log in, or create a free account with the same code.'
+      }
+      mood="excited">
       <Segmented
         value={mode}
         onChange={(m) => {
@@ -99,6 +103,9 @@ export default function Login() {
           autoFocus
         />
       )}
+      <Button title={t('auth.send')} iconRight="arrow-right" onPress={send} disabled={!valid} loading={loading} />
+      <SocialButtons />
+      {offline}
     </AuthShell>
   );
 }
