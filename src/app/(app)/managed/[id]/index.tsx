@@ -15,12 +15,16 @@ import { haptic, PressableScale } from '@/components/ui/PressableScale';
 import { Columns, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { confirmAction } from '@/lib/alert';
-import { dateTime, daysUntil, longDate, payoutShort, peso, relativeDue, shortDate, timeAgo, todayISO } from '@/lib/format';
+import { dateTime, daysUntil, longDate, payoutShort, peso, relativeDue, shortDate, timeAgo } from '@/lib/format';
 import {
   addMember,
   collected,
   deleteManagedCircle,
+  hulogToday,
   managedSummary,
+  nextHulog,
+  paidOn,
+  releasedEarly,
   missedPayments,
   markAllPaid,
   potOfManaged,
@@ -122,74 +126,51 @@ function MembersEditor({ circle }: { circle: LocalCircle }) {
   );
 }
 
-function CurrentRound({ circle }: { circle: LocalCircle }) {
+/**
+ * Today's hulog checklist. Only shows when a hulog is due today (in whichever payout round
+ * that date belongs to); otherwise a one-line note with the next hulog date.
+ */
+function HulogToday({ circle }: { circle: LocalCircle }) {
   const c = useColors();
-  const desktop = useIsDesktop();
-  const s = managedSummary(circle);
-  const r = s.current!;
-  const date = s.date!;
   const n = circle.members.length;
-  const pot = potOfManaged(circle, r);
-  const got = collected(circle, r);
-  const missing = roundShort(circle, r);
-  const fullyFunded = missing === 0;
-  const dayPaid = s.paidCount >= n;
-  const d = daysUntil(r.due_date);
-  const multi = r.dates.length > 1;
-  const today = todayISO();
+  const day = hulogToday(circle);
 
-  const release = () => {
-    const go = () => {
-      releasePayout(circle.id, r.round_no);
-      haptic('success');
-      reactToPayout(s.recipient?.name ?? 'the recipient', got, r.round_no < circle.rounds.length ? r.round_no + 1 : null);
-    };
-    if (fullyFunded) confirmAction(`Release sahod to ${s.recipient?.name}?`, `Hand over ${peso(pot)} and move to the next payout.`, go, { confirmText: 'Release sahod' });
-    else confirmAction('Not fully funded yet', `${peso(missing)} of hulog is still unpaid for this payout. Release ${peso(got)} anyway?`, go, { confirmText: 'Release anyway', destructive: true });
-  };
+  if (!day) {
+    const next = nextHulog(circle);
+    if (!next) return null;
+    return (
+      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={[styles.iconBtn, { backgroundColor: c.surfaceAlt, width: 40, height: 40, borderRadius: 20 }]}>
+          <Feather name="calendar" size={18} color={c.textMuted} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyBold">No hulog today</Text>
+          <Text variant="caption" tone="faint">
+            Next hulog {longDate(next.date)} · {relativeDue(next.date).replace('Due ', '')}
+          </Text>
+        </View>
+      </Card>
+    );
+  }
+
+  const { date, round: r } = day;
+  const paidCount = paidOn(r, date);
+  const allPaid = paidCount >= n;
+  const recipient = circle.members.find((m) => m.id === r.member_id);
+  const pot = potOfManaged(circle, r);
 
   return (
     <Card padded={false}>
-      <View style={[styles.recipient, { backgroundColor: c.goldSoft }]}>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text variant="overline" tone="muted">
-            Payout {r.round_no} of {circle.rounds.length} · {longDate(r.due_date)}
-          </Text>
-          <Text variant="small" tone="muted">
-            Sahod goes to
-          </Text>
-          <Text variant="h1">{s.recipient?.name}</Text>
-          <Chip label={fullyFunded ? 'Fully funded' : s.overdue ? 'Some hulog missed' : relativeDue(r.due_date)} tone={fullyFunded ? 'success' : s.overdue ? 'danger' : d <= 1 ? 'warning' : 'neutral'} />
-        </View>
-        <View style={{ alignItems: 'center' }}>
-          <AnimatedMascot size={86} mood={fullyFunded ? 'excited' : s.overdue ? 'worried' : 'happy'} pose={fullyFunded ? 'cheer' : 'coin'} trigger={got} action={fullyFunded ? 'cheer' : 'toss'} />
-        </View>
-      </View>
-
-      <View style={{ padding: 16, gap: 8 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text variant="smallBold">{multi ? `Collected for this sahod` : `${s.paidCount}/${n} paid`}</Text>
-          <Text variant="smallBold" tone="muted">
-            {peso(got)} of {peso(pot)}
+      <View style={[styles.dayHead, { borderTopWidth: 0, paddingVertical: 14, backgroundColor: allPaid ? c.successBg : c.surfaceAlt }]}>
+        <Feather name={allPaid ? 'check-circle' : 'calendar'} size={18} color={allPaid ? c.success : c.brand} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="h3">Hulog today</Text>
+          <Text variant="caption" tone="muted">
+            {peso(circle.amount)} each · for {recipient ? `${recipient.name}’s` : 'this'} sahod (payout {r.round_no})
+            {r.status === 'completed' ? ' · sahod already released' : ''}
           </Text>
         </View>
-        <ProgressBar progress={pot ? got / pot : 0} height={10} color={c.success} />
-        {multi && (
-          <Text variant="caption" tone="faint">
-            {r.dates.length} hulog of {peso(circle.amount)} from {n} members · {shortDate(r.dates[0])} to {shortDate(r.dates[r.dates.length - 1])}
-          </Text>
-        )}
-      </View>
-
-      <View style={[styles.dayHead, { borderTopColor: c.border, backgroundColor: c.surfaceAlt }]}>
-        <Feather name="calendar" size={14} color={c.brand} />
-        <Text variant="smallBold" style={{ flex: 1 }}>
-          Hulog for {date === today ? 'today' : longDate(date)}
-          {multi ? ` (${r.dates.indexOf(date) + 1} of ${r.dates.length})` : ''}
-        </Text>
-        <Text variant="caption" tone="muted">
-          {s.paidCount}/{n} paid
-        </Text>
+        <Chip label={allPaid ? 'All paid' : `${paidCount}/${n} paid`} tone={allPaid ? 'success' : 'neutral'} />
       </View>
       {circle.members.map((m) => {
         const isRecipient = m.id === r.member_id;
@@ -203,7 +184,7 @@ function CurrentRound({ circle }: { circle: LocalCircle }) {
             scaleTo={0.99}
             onPress={() => {
               togglePaid(circle.id, r.round_no, m.id, date);
-              if (!paidAt) reactToMarkPaid(m.name, s.paidCount + 1, n, r.round_no, s.recipient?.name ?? 'the recipient', pot);
+              if (!paidAt) reactToMarkPaid(m.name, paidCount + 1, n, r.round_no, recipient?.name ?? 'the recipient', pot);
             }}
             style={[styles.row, { borderTopColor: c.border }, !!paidAt && !isRecipient && { backgroundColor: c.successBg }]}>
             <Avatar name={m.name} seed={m.id} size={36} />
@@ -225,22 +206,105 @@ function CurrentRound({ circle }: { circle: LocalCircle }) {
           </PressableScale>
         );
       })}
-
-      <View style={[styles.actions, { borderTopColor: c.border }]}>
-        {!dayPaid && (
+      {!allPaid && (
+        <View style={[styles.actions, { borderTopColor: c.border }]}>
           <Button
             title="Mark all paid"
             icon="check-square"
             variant="secondary"
             size="md"
-            full={false}
             onPress={() => {
               markAllPaid(circle.id, r.round_no, date);
-              reactToMarkPaid('Everyone', n, n, r.round_no, s.recipient?.name ?? 'the recipient', pot);
+              reactToMarkPaid('Everyone', n, n, r.round_no, recipient?.name ?? 'the recipient', pot);
             }}
           />
+        </View>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * The next sahod (payout). Release on/after its scheduled date, or give it early as an advance.
+ */
+function SahodCard({ circle }: { circle: LocalCircle }) {
+  const c = useColors();
+  const desktop = useIsDesktop();
+  const s = managedSummary(circle);
+  const r = s.current!;
+  const name = s.recipient?.name ?? 'the recipient';
+  const pot = potOfManaged(circle, r);
+  const got = collected(circle, r);
+  const missing = roundShort(circle, r);
+  const fullyFunded = missing === 0;
+  const daysLeft = daysUntil(r.due_date);
+  const due = daysLeft <= 0;
+  const multi = r.dates.length > 1;
+
+  const go = (amount: number) => {
+    releasePayout(circle.id, r.round_no);
+    haptic('success');
+    reactToPayout(name, amount, r.round_no < circle.rounds.length ? r.round_no + 1 : null);
+  };
+  const release = () => {
+    if (fullyFunded) confirmAction(`Release sahod to ${name}?`, `Hand over ${peso(pot)} and move to the next payout.`, () => go(pot), { confirmText: 'Release sahod', icon: 'gift' });
+    else confirmAction('Not fully funded yet', `${peso(missing)} of hulog is still unpaid for this payout. Release ${peso(got)} anyway?`, () => go(got), { confirmText: 'Release anyway', destructive: true });
+  };
+  const advance = () =>
+    confirmAction(
+      `Advance sahod to ${name}?`,
+      `Release ${peso(pot)} ${daysLeft} day${daysLeft === 1 ? '' : 's'} before the sahod date (${longDate(r.due_date)}). ${peso(got)} is collected so far${
+        missing ? `; the remaining ${peso(missing)} of hulog is still collected on its dates.` : '.'
+      }`,
+      () => go(pot),
+      { confirmText: 'Advance sahod', icon: 'fast-forward' },
+    );
+
+  return (
+    <Card padded={false}>
+      <View style={[styles.recipient, { backgroundColor: c.goldSoft }]}>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text variant="overline" tone="muted">
+            Sahod {r.round_no} of {circle.rounds.length} · {longDate(r.due_date)}
+          </Text>
+          <Text variant="small" tone="muted">
+            Next sahod goes to
+          </Text>
+          <Text variant="h1">{s.recipient?.name}</Text>
+          <Chip
+            label={due ? (fullyFunded ? 'Ready to release' : s.overdue ? 'Some hulog missed' : relativeDue(r.due_date)) : relativeDue(r.due_date).replace('Due', 'Sahod')}
+            tone={due ? (fullyFunded ? 'success' : 'warning') : 'neutral'}
+          />
+        </View>
+        <AnimatedMascot size={86} mood={fullyFunded ? 'excited' : s.overdue ? 'worried' : 'happy'} pose={fullyFunded ? 'cheer' : 'coin'} trigger={got} action={fullyFunded ? 'cheer' : 'toss'} />
+      </View>
+
+      <View style={{ padding: 16, gap: 8 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text variant="smallBold">Collected for this sahod</Text>
+          <Text variant="smallBold" tone="muted">
+            {peso(got)} of {peso(pot)}
+          </Text>
+        </View>
+        <ProgressBar progress={pot ? got / pot : 0} height={10} color={c.success} />
+        {multi && (
+          <Text variant="caption" tone="faint">
+            {r.dates.length} hulog of {peso(circle.amount)} from {circle.members.length} members · {shortDate(r.dates[0])} to {shortDate(r.dates[r.dates.length - 1])}
+          </Text>
         )}
-        <Button title={desktop ? `Release sahod to ${s.recipient?.name ?? ''}` : 'Release sahod'} icon="gift" variant="brand" size="md" onPress={release} style={{ flex: 1 }} />
+      </View>
+
+      <View style={[styles.actions, { borderTopColor: c.border }]}>
+        {due ? (
+          <Button title={desktop ? `Release sahod to ${name}` : 'Release sahod'} icon="gift" variant="brand" size="md" onPress={release} style={{ flex: 1 }} />
+        ) : (
+          <>
+            <Text variant="caption" tone="muted" style={{ flex: 1, minWidth: 160, alignSelf: 'center' }}>
+              Release opens on {longDate(r.due_date)}. Need it sooner? Give it as an advance.
+            </Text>
+            <Button title="Advance sahod" icon="fast-forward" variant="secondary" size="md" full={false} onPress={advance} />
+          </>
+        )}
       </View>
     </Card>
   );
@@ -274,7 +338,9 @@ function Schedule({ circle }: { circle: LocalCircle }) {
               <Text variant="caption" tone="faint">
                 Sahod {shortDate(r.due_date)}
                 {r.dates.length > 1 ? ` · ${r.dates.length} hulog` : ''} ·{' '}
-                {r.status === 'completed' && r.payout_at ? `released ${shortDate(r.payout_at.slice(0, 10))}` : `${peso(got)} of ${peso(pot)}`}
+                {r.status === 'completed' && r.payout_at
+                  ? `${releasedEarly(r) ? 'advanced' : 'released'} ${shortDate(r.payout_at.slice(0, 10))}`
+                  : `${peso(got)} of ${peso(pot)}`}
               </Text>
             </View>
             {active && <Chip label="Current" tone="ink" />}
@@ -356,7 +422,8 @@ export default function ManagedCircle() {
 
   const running = circle.status !== 'forming' && (
     <>
-      {circle.status === 'active' && s.current && <CurrentRound circle={circle} />}
+      <HulogToday circle={circle} />
+      {circle.status === 'active' && s.current && <SahodCard circle={circle} />}
       {circle.status === 'completed' && (
         <Card style={{ alignItems: 'center', gap: 8, paddingVertical: 24 }}>
           <Mascot size={110} mood="excited" pose="cheer" />

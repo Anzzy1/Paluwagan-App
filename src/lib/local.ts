@@ -309,14 +309,16 @@ export function markAllPaid(id: string, roundNo: number, date: string) {
 /** Hand over the pot for a round and move on to the next. */
 export function releasePayout(id: string, roundNo: number) {
   update(id, (c) => {
-    const name = c.members.find((m) => m.id === c.rounds.find((r) => r.round_no === roundNo)?.member_id)?.name ?? 'Member';
+    const round = c.rounds.find((r) => r.round_no === roundNo);
+    const name = c.members.find((m) => m.id === round?.member_id)?.name ?? 'Member';
+    const early = round && todayISO() < round.due_date ? ` (advance, due ${shortDate(round.due_date)})` : '';
     const rounds = c.rounds.map((r) => {
       if (r.round_no === roundNo) return { ...r, status: 'completed' as const, payout_at: new Date().toISOString() };
       if (r.round_no === roundNo + 1) return { ...r, status: 'active' as const };
       return r;
     });
     const done = rounds.every((r) => r.status === 'completed');
-    return log({ ...c, rounds, status: done ? 'completed' : c.status }, done ? `Payout released to ${name}. Paluwagan complete!` : `Payout released to ${name}`);
+    return log({ ...c, rounds, status: done ? 'completed' : c.status }, done ? `Payout released to ${name}${early}. All sahod released!` : `Payout released to ${name}${early}`);
   });
 }
 
@@ -349,6 +351,21 @@ export function focusDate(c: LocalCircle, r: LocalRound): string {
   const n = c.members.length;
   return r.dates.find((d) => d < today && paidOn(r, d) < n) ?? r.dates.find((d) => d > today) ?? r.dates[r.dates.length - 1];
 }
+
+/** Today's hulog date, in whichever payout round it belongs to (even one already released early). */
+export function hulogToday(c: LocalCircle): HulogDay | null {
+  const today = todayISO();
+  return hulogDays(c).find((d) => d.date === today) ?? null;
+}
+
+/** The next hulog date after today, if any. */
+export function nextHulog(c: LocalCircle): HulogDay | null {
+  const today = todayISO();
+  return hulogDays(c).find((d) => d.date > today) ?? null;
+}
+
+/** True when a sahod was released before its scheduled date. */
+export const releasedEarly = (r: LocalRound) => !!r.payout_at && r.payout_at.slice(0, 10) < r.due_date;
 
 export function managedSummary(c: LocalCircle) {
   const current = c.rounds.find((r) => r.status === 'active');
