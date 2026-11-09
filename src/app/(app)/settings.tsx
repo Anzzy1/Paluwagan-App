@@ -1,9 +1,10 @@
 import { Feather } from '@expo/vector-icons';
 import Constants from 'expo-constants';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { PasswordSheet } from '@/components/PasswordSheet';
 import { Divider, type IconName, Segmented } from '@/components/ui/bits';
 import { Card } from '@/components/ui/Card';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
@@ -23,6 +24,7 @@ export default function SettingsScreen() {
   const { signOut, isDemo, isGuest, newGuest, enterDemo, userId, isOffline, exitOffline } = useAuth();
   const { themePref, setThemePref, toggles, setToggle } = usePrefs();
   const chat = useChat();
+  const [pwOpen, setPwOpen] = useState(false);
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
   const flip = (k: keyof Toggles) => (v: boolean) => {
@@ -49,6 +51,14 @@ export default function SettingsScreen() {
 
   return (
     <Screen back title="Settings" narrow>
+      {!isOffline && !isGuest && !isDemo && (
+        <Section title="Account">
+          <Card style={styles.list}>
+            <Row icon="lock" title="Set or change password" subtitle="Log in with your email and password." onPress={() => setPwOpen(true)} />
+          </Card>
+          <PasswordSheet open={pwOpen} onClose={() => setPwOpen(false)} />
+        </Section>
+      )}
       {(isOffline || isGuest) && (
         <Section title="Account">
           <Card style={styles.list}>

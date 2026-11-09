@@ -25,7 +25,7 @@ function codeError(e: unknown): Error {
 export default function Verify() {
   const t = useT();
   const c = useColors();
-  const { mode, target } = useLocalSearchParams<{ mode: 'email' | 'phone'; target: string }>();
+  const { mode, target } = useLocalSearchParams<{ mode: 'email' | 'phone' | 'signup'; target: string }>();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   // Email providers limit how often codes can be sent, so resend unlocks after a short wait.
@@ -41,7 +41,7 @@ export default function Verify() {
     if (value.length < LEN || loading) return;
     setLoading(true);
     const { error } = await supabase.auth.verifyOtp(
-      mode === 'phone' ? { phone: target, token: value, type: 'sms' } : { email: target, token: value, type: 'email' },
+      mode === 'phone' ? { phone: target, token: value, type: 'sms' } : { email: target, token: value, type: mode === 'signup' ? 'signup' : 'email' },
     );
     setLoading(false);
     if (error) {
@@ -55,9 +55,11 @@ export default function Verify() {
   const resend = async () => {
     if (wait > 0) return;
     setWait(60);
-    const { error } = await supabase.auth.signInWithOtp(
-      mode === 'phone' ? { phone: target } : { email: target, options: { emailRedirectTo: Platform.OS === 'web' ? window.location.origin : undefined } },
-    );
+    const emailRedirectTo = Platform.OS === 'web' ? window.location.origin : undefined;
+    const { error } =
+      mode === 'signup'
+        ? await supabase.auth.resend({ type: 'signup', email: target, options: { emailRedirectTo } })
+        : await supabase.auth.signInWithOtp(mode === 'phone' ? { phone: target } : { email: target, options: { emailRedirectTo } });
     if (error) notifyError(error);
     else notify('Code sent', 'We sent you a new code.', 'success');
   };
@@ -65,7 +67,7 @@ export default function Verify() {
   return (
     <AuthShell
       back
-      title={t('auth.verify.title')}
+      title={mode === 'signup' ? 'Confirm your email' : t('auth.verify.title')}
       subtitle={`${t('auth.verify.subtitle')} ${target}.${mode === 'email' ? ' Got a link instead of a code? Tap the link in the email to log in.' : ''}`}
       say="Check your inbox! The code expires soon, so be quick."
       footer={<Button title={t('auth.verify.cta')} onPress={() => verify()} disabled={code.length < LEN} loading={loading} />}>

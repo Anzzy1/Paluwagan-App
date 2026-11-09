@@ -4,12 +4,11 @@ import { Platform } from 'react-native';
 
 import { SocialButtons } from '@/components/auth/SocialButtons';
 import { AuthShell } from '@/components/AuthShell';
-import { Input, Segmented } from '@/components/ui/bits';
+import { Input } from '@/components/ui/bits';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
-import { useAuth } from '@/lib/auth';
-import { useT } from '@/lib/prefs';
+import { MIN_PASSWORD, useAuth } from '@/lib/auth';
 import { notifyError } from '@/lib/alert';
 import { supabase } from '@/lib/supabase';
 
@@ -18,107 +17,141 @@ function sendError(e: { message: string }): Error {
   const m = e.message;
   if (/not authori[sz]ed/i.test(m))
     return new Error('This email address can’t receive codes yet. The email service is still in test mode and only sends to the project team’s emails.');
-  if (/rate limit|too many/i.test(m)) return new Error('Too many codes were sent in a short time. Please wait a while, then try again.');
+  if (/rate limit|too many/i.test(m)) return new Error('Too many emails were sent in a short time. Please wait a while, then try again.');
   if (/sending|smtp|mail/i.test(m)) return new Error('The email service couldn’t send your code right now. Please try again in a few minutes.');
   return new Error(m);
 }
 
-/** Normalises PH mobile numbers to E.164 (+639XXXXXXXXX). */
-function toE164(raw: string) {
-  const d = raw.replace(/\D/g, '');
-  if (d.startsWith('63')) return '+' + d;
-  if (d.startsWith('0')) return '+63' + d.slice(1);
-  if (d.startsWith('9')) return '+63' + d;
-  return '+' + d;
+/** Plain-language version of sign-up / log-in errors. */
+function authError(e: { message: string }): Error {
+  const m = e.message;
+  if (/invalid login credentials/i.test(m)) return new Error('Wrong email or password. If you used to log in with a code, tap “Email me a code instead”, then set a password in Settings.');
+  if (/email not confirmed/i.test(m)) return new Error('Please confirm your email first. Check your inbox for the code we sent when you signed up.');
+  if (/already registered|already exists/i.test(m)) return new Error('This email already has an account. Log in instead.');
+  if (/password/i.test(m) && /(short|weak|characters)/i.test(m)) return new Error(`Please use a stronger password (at least ${MIN_PASSWORD} characters).`);
+  return sendError(e);
 }
 
+const redirect = () => (Platform.OS === 'web' ? window.location.origin : undefined);
+
 export default function Login() {
-  const t = useT();
   const { goOffline } = useAuth();
   const { mode: start } = useLocalSearchParams<{ mode?: 'signup' | 'login' }>();
   const signup = start === 'signup';
-  const [mode, setMode] = useState<'email' | 'phone'>('email');
-  const [value, setValue] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
 
-  const valid = mode === 'email' ? /\S+@\S+\.\S+/.test(value) : value.replace(/\D/g, '').length >= 10;
+  const target = email.trim().toLowerCase();
+  const emailOk = /\S+@\S+\.\S+/.test(target);
+  const mismatch = signup && confirm.length > 0 && confirm !== password;
+  const valid = emailOk && (signup ? password.length >= MIN_PASSWORD && confirm === password : password.length > 0);
 
-  const send = async () => {
-    if (!valid) return;
+  const submit = async () => {
+    if (!valid || loading) return;
     setLoading(true);
-    const target = mode === 'email' ? value.trim().toLowerCase() : toE164(value);
-    const { error } = await supabase.auth.signInWithOtp(
-      mode === 'email' ? { email: target, options: { shouldCreateUser: true, emailRedirectTo: Platform.OS === 'web' ? window.location.origin : undefined } } : { phone: target },
-    );
+    if (signup) {
+      const { data, error } = await supabase.auth.signUp({ email: target, password, options: { emailRedirectTo: redirect() } });
+      setLoading(false);
+      if (error) return notifyError(authError(error), 'Couldn’t create account');
+      // Supabase hides "already registered" by returning a user with no identities.
+      if (data.user && data.user.identities?.length === 0) return notifyError(new Error('This email already has an account. Log in instead.'), 'Couldn’t create account');
+      // With email confirmation on there's no session yet: confirm with the emailed code.
+      if (!data.session) router.push({ pathname: '/verify', params: { mode: 'signup', target } });
+      return;
+    }
+    const { error } = await supabase.auth.signInWithPassword({ email: target, password });
     setLoading(false);
-    if (error) return notifyError(sendError(error), 'Couldn’t send code');
-    router.push({ pathname: '/verify', params: { mode, target } });
+    if (error) notifyError(authError(error), 'Couldn’t log in');
   };
 
-  const offline = (
-    <PressableScale onPress={goOffline} hapticOnPress={false} style={{ alignSelf: 'center', paddingVertical: 6 }}>
-      <Text variant="smallBold" tone="muted">
-        Not now?{' '}
-        <Text variant="smallBold" tone="brand">
-          Continue offline
-        </Text>
-      </Text>
-    </PressableScale>
-  );
+  /** Fallback for forgotten passwords and accounts made before passwords existed. */
+  const emailCode = async () => {
+    if (!emailOk) return notifyError(new Error('Type your email address first.'), 'Email needed');
+    setSendingCode(true);
+    const { error } = await supabase.auth.signInWithOtp({ email: target, options: { shouldCreateUser: false, emailRedirectTo: redirect() } });
+    setSendingCode(false);
+    if (error) return notifyError(/signups not allowed|not found/i.test(error.message) ? new Error('No account uses this email yet. Create one instead.') : sendError(error), 'Couldn’t send code');
+    router.push({ pathname: '/verify', params: { mode: 'email', target } });
+  };
 
   return (
     <AuthShell
       back
-      title={signup ? 'Create your account' : start === 'login' ? 'Welcome back!' : t('auth.title')}
-      subtitle={signup ? 'Enter your email and we’ll send a sign-in code. No password to remember.' : 'Enter the email or number you signed up with and we’ll send you a code.'}
-      say={
-        signup
-          ? 'Yay, a new member! This only takes a minute.'
-          : start === 'login'
-            ? 'Welcome back! I kept everything safe for you.'
-            : 'Log in, or create a free account with the same code.'
-      }
+      title={signup ? 'Create your account' : 'Welcome back!'}
+      subtitle={signup ? 'Use your email and pick a password you’ll remember.' : 'Log in with your email and password.'}
+      say={signup ? 'Yay, a new member! This only takes a minute.' : 'Welcome back! I kept everything safe for you.'}
       mood="excited">
-      <Segmented
-        value={mode}
-        onChange={(m) => {
-          setMode(m);
-          setValue('');
-        }}
-        options={[
-          { value: 'email', label: t('auth.email') },
-          { value: 'phone', label: t('auth.phone') },
-        ]}
+      <Input
+        label="Email address"
+        placeholder="you@company.com"
+        value={email}
+        onChangeText={setEmail}
+        autoCapitalize="none"
+        autoComplete="email"
+        textContentType={signup ? 'username' : 'emailAddress'}
+        keyboardType="email-address"
+        returnKeyType="next"
+        autoFocus
       />
-      {mode === 'email' ? (
+      <Input
+        label="Password"
+        placeholder={signup ? `At least ${MIN_PASSWORD} characters` : 'Your password'}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        autoCapitalize="none"
+        autoComplete={signup ? 'new-password' : 'current-password'}
+        textContentType={signup ? 'newPassword' : 'password'}
+        returnKeyType={signup ? 'next' : 'go'}
+        onSubmitEditing={signup ? undefined : submit}
+        hint={signup && password.length > 0 && password.length < MIN_PASSWORD ? `${MIN_PASSWORD - password.length} more characters` : undefined}
+      />
+      {signup && (
         <Input
-          label="Email address"
-          placeholder="you@company.com"
-          value={value}
-          onChangeText={setValue}
+          label="Confirm password"
+          placeholder="Type it again"
+          value={confirm}
+          onChangeText={setConfirm}
+          secureTextEntry
           autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          onSubmitEditing={send}
-          autoFocus
-        />
-      ) : (
-        <Input
-          label="Mobile number"
-          placeholder="917 123 4567"
-          prefix="+63"
-          value={value}
-          onChangeText={setValue}
-          keyboardType="phone-pad"
-          autoComplete="tel"
-          onSubmitEditing={send}
-          hint="Phone sign-in requires an SMS provider to be configured in Supabase."
-          autoFocus
+          autoComplete="new-password"
+          textContentType="newPassword"
+          returnKeyType="go"
+          onSubmitEditing={submit}
+          hint={mismatch ? 'Passwords don’t match yet' : undefined}
         />
       )}
-      <Button title={t('auth.send')} iconRight="arrow-right" onPress={send} disabled={!valid} loading={loading} />
+      <Button title={signup ? 'Create account' : 'Log in'} iconRight="arrow-right" onPress={submit} disabled={!valid} loading={loading} />
+      {!signup && (
+        <PressableScale onPress={emailCode} disabled={sendingCode} hapticOnPress={false} style={{ alignSelf: 'center', paddingVertical: 4 }}>
+          <Text variant="smallBold" tone="brand">
+            {sendingCode ? 'Sending code…' : 'Forgot password? Email me a code instead'}
+          </Text>
+        </PressableScale>
+      )}
+      <PressableScale
+        onPress={() => router.setParams({ mode: signup ? 'login' : 'signup' })}
+        hapticOnPress={false}
+        style={{ alignSelf: 'center', paddingVertical: 4 }}>
+        <Text variant="smallBold" tone="muted">
+          {signup ? 'Already have an account? ' : 'New here? '}
+          <Text variant="smallBold" tone="brand">
+            {signup ? 'Log in' : 'Create an account'}
+          </Text>
+        </Text>
+      </PressableScale>
       <SocialButtons />
-      {offline}
+      <PressableScale onPress={goOffline} hapticOnPress={false} style={{ alignSelf: 'center', paddingVertical: 6 }}>
+        <Text variant="smallBold" tone="muted">
+          Not now?{' '}
+          <Text variant="smallBold" tone="brand">
+            Continue offline
+          </Text>
+        </Text>
+      </PressableScale>
     </AuthShell>
   );
 }

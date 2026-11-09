@@ -42,6 +42,9 @@ const AuthContext = createContext<AuthState | null>(null);
  * Offline users can log in later from Profile or Settings.
  * Older automatic guest (anonymous) sessions keep working.
  */
+/** Minimum password length for sign-up and password changes (Supabase's own minimum is 6). */
+export const MIN_PASSWORD = 8;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(isSupabaseConfigured);
