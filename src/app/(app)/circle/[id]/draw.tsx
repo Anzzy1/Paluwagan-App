@@ -67,6 +67,21 @@ function DrawScreenScreen() {
     return <ManualOrder circleId={id} slots={slots.map((s) => ({ group: s.group, members: s.members }))} isAdmin={!!isAdmin} />;
   }
 
+  /** Admin picked a game and confirmed: run the draw and play it with that game. */
+  const runDraw = (picked: DrawStyle) => {
+    setStyle(picked);
+    action.mutate(
+      { fn: 'run_draw', args: { p_circle: id } },
+      {
+        onSuccess: () => {
+          wasLocked.current = false;
+          setPlaying(true);
+        },
+        onError: (e) => notifyError(e),
+      },
+    );
+  };
+
   if (circle.status === 'locked') {
     return (
       <Screen back title="Verifiable draw" subtitle={`${circle.name} · ${slots.length} participants`}>
@@ -76,7 +91,10 @@ function DrawScreenScreen() {
             {isAdmin && (
               <Card style={{ gap: 12 }}>
                 <Text variant="h3">Pick a draw game</Text>
-                <DrawStylePicker value={style} onChange={setStyle} />
+                <Text variant="small" tone="muted">
+                  Tap a game to run the draw.
+                </Text>
+                <DrawStylePicker onStart={runDraw} disabled={action.isPending} />
               </Card>
             )}
             <Card padded={false}>
@@ -107,26 +125,7 @@ function DrawScreenScreen() {
                   </Text>
                 </View>
               </Card>
-              {isAdmin ? (
-                <Button
-                  title={`Run the draw · ${DRAW_STYLES.find((d) => d.id === style)?.title}`}
-                  icon="shuffle"
-                  variant="brand"
-                  loading={action.isPending}
-                  onPress={() =>
-                    action.mutate(
-                      { fn: 'run_draw', args: { p_circle: id } },
-                      {
-                        onSuccess: () => {
-                          wasLocked.current = false;
-                          setPlaying(true);
-                        },
-                        onError: (e) => notifyError(e),
-                      },
-                    )
-                  }
-                />
-              ) : (
+              {isAdmin ? null : (
                 <Card>
                   <Text variant="small" tone="muted" center>
                     Waiting for the admin to run the draw. Keep this page open to watch it live.

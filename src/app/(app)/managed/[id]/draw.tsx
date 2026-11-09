@@ -39,13 +39,13 @@ export default function ManagedDraw() {
   const participants = circle.members.map((m) => ({ id: m.id, name: m.name }));
   const drawn = !!circle.order;
 
-  const start = async () => {
-    if (!style) return;
+  const start = async (picked: DrawStyle) => {
+    setStyle(picked);
     setBusy(true);
     try {
       // Commit first, then play: the result is locked in before anyone sees the animation.
       const draw = await prepareDraw(circle.id);
-      commitDraw(circle.id, draw, style);
+      commitDraw(circle.id, draw, picked);
       setDone(false);
       setPlaying(true);
     } catch (e) {
@@ -103,8 +103,10 @@ export default function ManagedDraw() {
             Gather everyone around! The order is locked in fairly the moment you start, so the game can’t be redone to change the result.
           </Text>
         </View>
-        <DrawStylePicker value={style} onChange={setStyle} />
-        <Button title={style ? `Start: ${DRAW_STYLES.find((s) => s.id === style)?.title}` : 'Pick a draw style'} icon="play" variant="brand" disabled={!style} loading={busy} onPress={start} />
+        <Text variant="small" tone="muted" center>
+          Tap a game to start.
+        </Text>
+        <DrawStylePicker onStart={start} disabled={busy} />
       </Screen>
     );
   }

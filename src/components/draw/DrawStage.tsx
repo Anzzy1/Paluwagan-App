@@ -10,27 +10,37 @@ import { SlotMachine } from '@/components/draw/SlotMachine';
 import { WheelDraw } from '@/components/draw/Wheel';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
+import { confirmAction } from '@/lib/alert';
 import type { DrawStyle } from '@/lib/local';
 import { useColors, useIsDark, useIsDesktop, usePrefs } from '@/lib/prefs';
 import { useGameMusic } from '@/lib/sfx';
 import { radius } from '@/theme/tokens';
 
-export function DrawStylePicker({ value, onChange }: { value: DrawStyle | null; onChange: (s: GameId) => void }) {
+/**
+ * Pick a game and start: tapping a game asks "Play this?" and starts the draw on Continue.
+ * Only one game can be played, so there's no separate select-then-start step.
+ */
+export function DrawStylePicker({ onStart, disabled = false }: { onStart: (s: GameId) => void; disabled?: boolean }) {
   const c = useColors();
   const dark = useIsDark();
   const desktop = useIsDesktop();
+  const ask = (s: (typeof DRAW_STYLES)[number]) =>
+    confirmAction(
+      `Play ${s.title}?`,
+      `${s.body} The payout order is locked in the moment the draw starts, so it can’t be redone.`,
+      () => onStart(s.id),
+      { confirmText: 'Start draw', icon: 'play' },
+    );
   return (
     <View style={styles.grid}>
       {DRAW_STYLES.map((s) => {
-        const sel = value === s.id;
         return (
           <PressableScale
             key={s.id}
-            onPress={() => onChange(s.id)}
-            style={[
-              styles.option,
-              { width: desktop ? '23.5%' : '48%', backgroundColor: sel ? c.brandSoft : c.surface, borderColor: sel ? c.brand : c.border },
-            ]}>
+            onPress={() => ask(s)}
+            disabled={disabled}
+            accessibilityLabel={`Play ${s.title}`}
+            style={[styles.option, { width: desktop ? '23.5%' : '48%', backgroundColor: c.surface, borderColor: c.border }]}>
             <View style={[styles.art, { backgroundColor: dark ? DRAW_TINT[s.id].dark : DRAW_TINT[s.id].light }]}>
               <DrawArt style={s.id} size={52} />
             </View>
@@ -40,11 +50,6 @@ export function DrawStylePicker({ value, onChange }: { value: DrawStyle | null; 
             <Text variant="caption" tone="muted" center>
               {s.body}
             </Text>
-            {sel && (
-              <View style={[styles.check, { backgroundColor: c.brand }]}>
-                <Feather name="check" size={12} color={c.onBrand} />
-              </View>
-            )}
           </PressableScale>
         );
       })}
@@ -115,5 +120,4 @@ const styles = StyleSheet.create({
   replay: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, paddingLeft: 8, paddingRight: 14, borderRadius: radius.md, minHeight: 56 },
   replayArt: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   sound: { alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 32, borderRadius: 16 },
-  check: { position: 'absolute', top: 10, right: 10, width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
 });
