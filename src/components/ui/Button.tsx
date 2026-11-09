@@ -46,8 +46,10 @@ export function Button({
         styles.base,
         {
           backgroundColor: bg,
-          height: h,
-          paddingHorizontal: size === 'sm' ? 14 : 22,
+          // minHeight, not height: a label that wraps to two lines on a narrow phone gets room to breathe.
+          minHeight: h,
+          paddingVertical: size === 'sm' ? 7 : 10,
+          paddingHorizontal: { sm: 14, md: 16, lg: 22 }[size],
           alignSelf: full ? 'stretch' : 'flex-start',
         },
         style,
@@ -57,7 +59,7 @@ export function Button({
       ) : (
         <View style={styles.row}>
           {icon && <Feather name={icon} size={iconSize} color={fg} />}
-          <Text variant={size === 'sm' ? 'smallBold' : 'bodyBold'} color={fg}>
+          <Text variant={size === 'sm' ? 'smallBold' : 'bodyBold'} color={fg} style={styles.label}>
             {title}
           </Text>
           {iconRight && <Feather name={iconRight} size={iconSize} color={fg} />}
@@ -69,5 +71,6 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: { borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, maxWidth: '100%' },
+  label: { flexShrink: 1, textAlign: 'center' },
 });
