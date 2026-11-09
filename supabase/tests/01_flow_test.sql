@@ -106,6 +106,10 @@ begin
   for k in select * from contributions where round_id = r.id and status = 'submitted' loop
     perform review_contribution(k.id, true);
   end loop;
+  -- 0018: the round waits for the admin to release the sahod
+  assert (select status from rounds where id = r.id) = 'active', 'fully paid round waits for the admin';
+  perform pg_temp.login(a);
+  perform release_round(cid);
   assert (select status from rounds where id = r.id) = 'completed', 'round 1 completed';
   assert (select status from rounds where circle_id = cid and round_no = 2) = 'active', 'round 2 active';
 

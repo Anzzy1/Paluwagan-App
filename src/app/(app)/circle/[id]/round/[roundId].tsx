@@ -84,7 +84,15 @@ function RoundScreenScreen() {
           <Text variant="h3">Recipient</Text>
           <Chip label={round.status === 'completed' ? 'Paid out' : round.status === 'active' ? 'Current round' : 'Upcoming'} tone={round.status === 'completed' ? 'success' : round.status === 'active' ? 'brand' : 'neutral'} />
         </View>
-        {recipients.map((m) => (
+        {/* The recipient is announced when the admin releases the sahod. */}
+        {round.status !== 'completed' && (
+          <View style={[styles.row, { borderTopColor: c.border, borderTopWidth: 1 }]}>
+            <Text variant="small" tone="muted" style={{ flex: 1 }}>
+              Announced when the admin releases the sahod. Send your hulog to the admin.
+            </Text>
+          </View>
+        )}
+        {round.status === 'completed' && recipients.map((m) => (
           <View key={m.id} style={[styles.row, { borderTopColor: c.border, borderTopWidth: 1 }]}>
             <Avatar name={m.profiles?.full_name} seed={m.user_id} uri={m.profiles?.avatar_url} size={40} />
             <View style={{ flex: 1 }}>
@@ -154,7 +162,7 @@ function RoundScreenScreen() {
         <Columns main={list} side={summary} />
       </Screen>
       <ReviewSheet k={review} member={review ? memberById.get(review.member_id) : undefined} canReview={!!canReview && review?.user_id !== userId} canCover={!!isAdmin && review?.user_id !== userId} circleId={id} onClose={() => setReview(null)} />
-      {myK && <PaySheet open={payOpen} onClose={() => setPayOpen(false)} circle={circle} round={round} contribution={myK} recipients={recipients} />}
+      {myK && <PaySheet open={payOpen} onClose={() => setPayOpen(false)} circle={circle} round={round} contribution={myK} recipients={members.filter((m) => m.role === 'admin' && m.status === 'approved')} />}
     </View>
   );
 }

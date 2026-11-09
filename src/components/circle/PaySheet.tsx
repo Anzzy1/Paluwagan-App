@@ -93,7 +93,7 @@ export function PaySheet({
       </View>
 
       <Text variant="overline" tone="faint">
-        Step 1 · Send to the recipient
+        Step 1 · Send to the admin
       </Text>
       {recipients.map((m) => (
         <Card key={m.id} style={styles.recipient}>

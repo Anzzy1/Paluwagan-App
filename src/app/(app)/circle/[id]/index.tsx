@@ -8,7 +8,7 @@ import { ActivityList } from '@/components/ActivityList';
 import { FormingAdmin, InvitePanel, MembersList, ReplacementAdmin, RulesPanel, SlotsProgress, Timeline } from '@/components/circle/panels';
 import { DeleteCircleButton, DeletedPanel, PauseCircleButton, PausedPanel } from '@/components/circle/Lifecycle';
 import { PaySheet } from '@/components/circle/PaySheet';
-import { AvatarStack, Notice, ProgressBar, PurposeIcon, Segmented, StatusChip } from '@/components/ui/bits';
+import { Notice, ProgressBar, PurposeIcon, Segmented, StatusChip } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card, useTint } from '@/components/ui/Card';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -20,7 +20,7 @@ import { useAuth } from '@/lib/auth';
 import { unreadCount, useChatRead, useCircleChat } from '@/lib/chat';
 import { dueOf, hulogInRound, isRevealed, myNextContribution, plannedHulogPerSahod, recipientsOf, unpaid } from '@/lib/derive';
 import type { Member } from '@/lib/types';
-import { daysUntil, displayStatus, firstName, longDate, payoutShort, peso, potOf, relativeDue, shortDate, slotName, timeAgo } from '@/lib/format';
+import { daysUntil, displayStatus, firstName, longDate, payoutShort, peso, potOf, relativeDue, shortDate, slotName, timeAgo, todayISO } from '@/lib/format';
 import { useColors, useIsDesktop, useT } from '@/lib/prefs';
 import { radius } from '@/theme/tokens';
 import { withAccount } from '@/components/AccountGate';
@@ -131,13 +131,14 @@ function CircleScreenScreen() {
   const isAdmin = me?.role === 'admin';
   const current = rounds.find((r) => r.status === 'active');
   const recipients = recipientsOf(current, members);
+  // Members pay the admin, who confirms payments and releases each sahod (0018).
+  const admins = members.filter((m) => m.role === 'admin' && m.status === 'approved');
   const iAmRecipient = !!current && me?.slot_group === current.slot_group;
   const myK = myNextContribution(contributions, current, me?.id);
   const myHulog = current ? hulogInRound(contributions, current, me?.id) : 1;
   const roundKs = current ? contributions.filter((k) => k.round_id === current.id) : [];
   const confirmed = roundKs.filter((k) => k.status === 'confirmed');
   const collected = confirmed.reduce((s, k) => s + Number(k.amount), 0);
-  const toReview = roundKs.filter((k) => k.status === 'submitted').length;
   const openSwaps = data.swaps.filter((s) => s.status === 'pending' || s.status === 'accepted').length;
   const approvedMembers = members.filter((m) => m.status === 'approved');
   /** People who joined (a head count). */
@@ -146,8 +147,16 @@ function CircleScreenScreen() {
   // No fixed size: the admin locks once 3 people have joined.
   const lockable = joined >= MIN_TO_LOCK;
   const unpaidKs = roundKs.filter((k) => k.status !== 'confirmed');
-  // Once the sahod date arrives the admin can release it even if someone hasn't paid.
-  const canRelease = isAdmin && !!current && !circle.paused_at && daysUntil(current.due_date) <= 0 && unpaidKs.length > 0;
+  const perRound = current ? hulogInRound(contributions, current) : 1;
+  const roundPot = potOf(circle) * perRound;
+  // Today's hulog, for rounds that collect several (e.g. daily hulog, weekly sahod).
+  const today = todayISO();
+  const todayKs = current ? roundKs.filter((k) => dueOf(k, current) === today) : [];
+  const todayPaid = todayKs.filter((k) => k.status === 'confirmed');
+  // Every payment waiting for the admin, this round or overdue ones from earlier rounds.
+  const toConfirm = contributions.filter((k) => k.status === 'submitted');
+  // The admin releases the sahod on its date, or earlier once everyone has paid (0018).
+  const canRelease = isAdmin && !!current && !circle.paused_at && (daysUntil(current.due_date) <= 0 || unpaidKs.length === 0);
   // My hulog left unpaid in rounds that were already released.
   const myOverdue = me ? unpaid(contributions.filter((k) => k.member_id === me.id), rounds).filter((x) => x.round.status === 'completed') : [];
   const overdueTotal = myOverdue.reduce((s, x) => s + Number(x.k.amount), 0);
@@ -155,8 +164,12 @@ function CircleScreenScreen() {
   const release = () =>
     current &&
     confirmAction(
-      'Release the sahod now?',
-      `${unpaidKs.length} hulog (${peso(unpaidKs.reduce((s, k) => s + Number(k.amount), 0))}) are still unpaid. They stay on record as overdue, can still be paid later, and count against those members’ Trust Score. The paluwagan then moves to round ${current.round_no + 1}.`,
+      `Release ${peso(collected)} to ${iAmRecipient ? 'yourself' : slotName(recipients)}?`,
+      `${iAmRecipient ? 'You are' : `${slotName(recipients)} is`} the recipient for round ${current.round_no}. Everyone will see who received this sahod.${
+        unpaidKs.length
+          ? ` ${unpaidKs.length} hulog (${peso(unpaidKs.reduce((s, k) => s + Number(k.amount), 0))}) are still unpaid; they stay on record as overdue, can still be paid later, and count against those members’ Trust Score.`
+          : ''
+      }${current.round_no < rounds.length ? ` The paluwagan then moves to round ${current.round_no + 1}.` : ' This is the last round.'}`,
       () => action.mutate({ fn: 'release_round', args: { p_circle: id } }, { onError: (e) => notifyError(e) }),
       { confirmText: 'Release sahod' },
     );
@@ -287,44 +300,36 @@ function CircleScreenScreen() {
     <Card style={{ gap: 16 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text variant="overline" tone="muted">
-          Round {current.round_no} · {longDate(current.due_date)}
+          Round {current.round_no} · Sahod {longDate(current.due_date)}
         </Text>
         <Text variant="smallBold" tone="muted">
           {relativeDue(current.due_date)}
         </Text>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <AvatarStack people={recipients.map((m) => ({ id: m.user_id, name: m.profiles?.full_name, uri: m.profiles?.avatar_url }))} size={44} />
-        <View style={{ flex: 1 }}>
-          <Text variant="small" tone="muted">
-            Payout recipient
-          </Text>
-          <Text variant="h2">{iAmRecipient ? 'You' : slotName(recipients)}</Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text variant="small" tone="muted">
-            Collected
-          </Text>
-          <Text variant="h2" style={{ fontVariant: ['tabular-nums'] }}>
-            {peso(collected)}
-          </Text>
-        </View>
-      </View>
-      <View style={{ gap: 6 }}>
-        <ProgressBar progress={collected / (potOf(circle) * hulogInRound(contributions, current))} color={c.success} height={8} />
+      {/* What's been collected; the recipient is announced when the admin releases the sahod. */}
+      <View style={{ gap: 2 }}>
         <Text variant="small" tone="muted">
-          {confirmed.length} of {roundKs.length} payments confirmed · {peso(potOf(circle) * hulogInRound(contributions, current))} total
+          Collected for this round
+        </Text>
+        <Text variant="display" style={{ fontVariant: ['tabular-nums'] }}>
+          {peso(collected)}
+        </Text>
+        <Text variant="small" tone="muted">
+          of {peso(roundPot)} · {confirmed.length} of {roundKs.length} payments confirmed
         </Text>
       </View>
+      <ProgressBar progress={roundPot ? collected / roundPot : 0} color={c.success} height={8} />
+      {perRound > 1 && todayKs.length > 0 && (
+        <View style={[styles.today, { backgroundColor: c.surfaceAlt }]}>
+          <Feather name="calendar" size={15} color={c.brand} />
+          <Text variant="small" style={{ flex: 1 }}>
+            <Text variant="smallBold">Today’s hulog: </Text>
+            {todayPaid.length} of {todayKs.length} paid · {peso(todayPaid.reduce((s, k) => s + Number(k.amount), 0))} collected
+          </Text>
+        </View>
+      )}
 
-      {iAmRecipient ? (
-        <Button
-          title={toReview ? `Review ${toReview} pending ${toReview === 1 ? 'payment' : 'payments'}` : 'View payments'}
-          icon="check-circle"
-          variant={toReview ? 'brand' : 'secondary'}
-          onPress={() => router.push(`/circle/${id}/round/${current.id}`)}
-        />
-      ) : myK ? (
+      {myK && !myK.auto ? (
         <View style={[styles.myPay, { borderColor: c.border }]}>
           <View style={{ flex: 1, gap: 4 }}>
             <Text variant="small" tone="muted">
@@ -346,8 +351,32 @@ function CircleScreenScreen() {
         </View>
       ) : null}
 
+      {isAdmin && (
+        <View style={{ gap: 10 }}>
+          {toConfirm.length > 0 ? (
+            <Button
+              title={`Confirm ${toConfirm.length} ${toConfirm.length === 1 ? 'payment' : 'payments'}`}
+              icon="check-circle"
+              variant="brand"
+              onPress={() => router.push(`/circle/${id}/round/${toConfirm[0].round_id}`)}
+            />
+          ) : (
+            <Text variant="small" tone="faint" center>
+              No payments waiting for your confirmation.
+            </Text>
+          )}
+          {canRelease ? (
+            <Button title="Release sahod" icon="gift" variant={toConfirm.length ? 'secondary' : 'brand'} loading={action.isPending} onPress={release} />
+          ) : (
+            <Text variant="small" tone="faint" center>
+              You can release the sahod on {longDate(current.due_date)}, or earlier once everyone has paid.
+            </Text>
+          )}
+        </View>
+      )}
+
       <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
-        {(isAdmin || iAmRecipient) && confirmed.length < roundKs.length && (
+        {isAdmin && confirmed.length < roundKs.length && (
           <Button
             title={t('circle.nudge')}
             icon="bell"
@@ -363,10 +392,7 @@ function CircleScreenScreen() {
             }
           />
         )}
-        {canRelease && <Button title="Release sahod" icon="gift" variant="secondary" size="sm" full={false} loading={action.isPending} onPress={release} />}
-        {isAdmin && !iAmRecipient && (
-          <Button title="Open round" icon="external-link" variant="secondary" size="sm" full={false} onPress={() => router.push(`/circle/${id}/round/${current.id}`)} />
-        )}
+        <Button title="All payments" icon="list" variant="secondary" size="sm" full={false} onPress={() => router.push(`/circle/${id}/round/${current.id}`)} />
         <Button title={openSwaps ? `Turn swaps (${openSwaps})` : 'Turn swaps'} icon="repeat" variant="secondary" size="sm" full={false} onPress={() => router.push(`/circle/${id}/swaps`)} />
       </View>
     </Card>
@@ -484,12 +510,13 @@ function CircleScreenScreen() {
       ) : (
         main
       )}
-      {current && myK && <PaySheet open={payOpen} onClose={() => setPayOpen(false)} circle={circle} round={current} contribution={myK} recipients={recipients} />}
+      {current && myK && <PaySheet open={payOpen} onClose={() => setPayOpen(false)} circle={circle} round={current} contribution={myK} recipients={admins} />}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  today: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: radius.md },
   chatIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   unread: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
   hero: { borderRadius: radius.xl, padding: 22, gap: 22, overflow: 'hidden' },
