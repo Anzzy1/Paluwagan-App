@@ -2,6 +2,7 @@ import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { View } from 'react-native';
 
 import { MascotToastHost } from '@/components/MascotToast';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { RouteError } from '@/components/RouteError';
 import { Sidebar } from '@/components/Sidebar';
 import { useRealtimeSync } from '@/lib/api';
@@ -38,6 +39,7 @@ export default function AppLayout() {
     return (
       <View style={{ flex: 1 }}>
         {stack}
+        <OfflineBanner />
         <MascotToastHost />
       </View>
     );
@@ -47,6 +49,7 @@ export default function AppLayout() {
       <Sidebar />
       <View style={{ flex: 1 }}>
         {stack}
+        <OfflineBanner />
         <MascotToastHost />
       </View>
     </View>

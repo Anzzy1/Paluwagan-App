@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { useAuth } from '@/lib/auth';
 import { assertLive, demoQuery, demoState } from '@/lib/demo';
+import { addLocalDeposit, deleteLocalDeposit, deleteLocalGoal, isLocalId, saveLocalGoal, useLocalIpon, type GoalInput } from '@/lib/localIpon';
+import { useOnline } from '@/lib/network';
 import { supabase } from '@/lib/supabase';
 import type {
   Activity,
@@ -12,7 +14,6 @@ import type {
   Deposit,
   Frequency,
   Goal,
-  PlanFrequency,
   Member,
   Round,
   Swap,
@@ -169,30 +170,51 @@ export function useActivity(circleId?: string) {
   });
 }
 
+/** Ipon goals: the ones on this device first, then the online ones (last loaded copy while offline). */
 export function useGoals() {
   const { userId } = useAuth();
-  return useQuery({
+  const online = useOnline();
+  const local = useLocalIpon();
+  const q = useQuery({
     queryKey: ['goals', userId],
-    enabled: !!userId,
+    enabled: !!userId && online,
     queryFn: async ({ queryKey }) => {
       if (demoState.on) return demoQuery(queryKey) as never;
       return must(await supabase.from('goals').select('*').order('created_at', { ascending: false })) as Goal[];
     },
   });
+  const data = useMemo(() => [...local.goals, ...((q.data as Goal[] | undefined) ?? [])], [local.goals, q.data]);
+  return { ...q, data };
 }
 
 /** Every personal ipon deposit/withdrawal of the user, newest first. */
 export function useDeposits() {
   const { userId } = useAuth();
-  return useQuery({
+  const online = useOnline();
+  const local = useLocalIpon();
+  const q = useQuery({
     queryKey: ['deposits', userId],
-    enabled: !!userId,
+    enabled: !!userId && online,
     queryFn: async ({ queryKey }) => {
       if (demoState.on) return demoQuery(queryKey) as never;
       return must(await supabase.from('goal_deposits').select('*').order('created_at', { ascending: false })) as Deposit[];
     },
   });
+  const data = useMemo(
+    () => [...local.deposits, ...((q.data as Deposit[] | undefined) ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [local.deposits, q.data],
+  );
+  return { ...q, data };
 }
+
+/** Where a new goal goes: this device when there's no account or no internet. */
+function useIponOnDevice() {
+  const { isOffline } = useAuth();
+  const online = useOnline();
+  return isOffline || !online;
+}
+
+const OFFLINE_GOAL = 'You’re offline. Online goals can be changed once you’re connected again; goals on this device work anytime.';
 
 export function usePreview(code: string) {
   const clean = code.trim().toUpperCase();
@@ -433,17 +455,12 @@ export function useSetAvatar() {
 
 export function useSaveGoal() {
   const qc = useQueryClient();
+  const onDevice = useIponOnDevice();
+  const online = useOnline();
   return useMutation({
-    mutationFn: async (g: {
-      id?: string;
-      title: string;
-      target: number;
-      emoji: string;
-      circle_id: string | null;
-      deadline?: string | null;
-      plan_amount?: number | null;
-      plan_frequency?: PlanFrequency | null;
-    }) => {
+    mutationFn: async (g: GoalInput) => {
+      if (isLocalId(g.id) || (!g.id && onDevice)) return saveLocalGoal(g);
+      if (!online) throw new Error(OFFLINE_GOAL);
       assertLive();
       const { error } = g.id
         ? await supabase.from('goals').update(g).eq('id', g.id)
@@ -456,8 +473,11 @@ export function useSaveGoal() {
 
 export function useDeleteGoal() {
   const qc = useQueryClient();
+  const online = useOnline();
   return useMutation({
     mutationFn: async (id: string) => {
+      if (isLocalId(id)) return deleteLocalGoal(id);
+      if (!online) throw new Error(OFFLINE_GOAL);
       assertLive();
       const { error } = await supabase.from('goals').delete().eq('id', id);
       if (error) throw error;
@@ -468,8 +488,11 @@ export function useDeleteGoal() {
 
 export function useAddDeposit() {
   const qc = useQueryClient();
+  const online = useOnline();
   return useMutation({
     mutationFn: async (d: { goal_id: string; amount: number; note?: string | null }) => {
+      if (isLocalId(d.goal_id)) return addLocalDeposit(d);
+      if (!online) throw new Error(OFFLINE_GOAL);
       assertLive();
       const { error } = await supabase.from('goal_deposits').insert({ goal_id: d.goal_id, amount: d.amount, note: d.note?.trim() || null });
       if (error) throw error;
@@ -480,8 +503,11 @@ export function useAddDeposit() {
 
 export function useDeleteDeposit() {
   const qc = useQueryClient();
+  const online = useOnline();
   return useMutation({
     mutationFn: async (id: string) => {
+      if (isLocalId(id)) return deleteLocalDeposit(id);
+      if (!online) throw new Error(OFFLINE_GOAL);
       assertLive();
       const { error } = await supabase.from('goal_deposits').delete().eq('id', id);
       if (error) throw error;

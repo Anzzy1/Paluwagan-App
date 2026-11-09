@@ -2,8 +2,9 @@
  * Ipon AI — client side.
  *
  * Builds a compact text snapshot of the user's own data (circles, dues, ipon goals,
- * deposits, activity) and sends it with each request to the `ai` Edge Function,
- * which calls Claude with the server-side API key.
+ * deposits, activity) and sends it with each request. With internet and an account the
+ * request goes to the `ai` Edge Function (Groq, key kept on the server); otherwise to the
+ * local AI through Ollama (src/lib/localAi.ts).
  */
 import { useMutation } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
@@ -17,6 +18,8 @@ import { daysUntil, payoutShort, pesoRaw as peso } from '@/lib/format';
 import { goalProgress, iponStreak, planPer } from '@/lib/ipon';
 import { managedSummary, potOfManaged, useManagedCircles } from '@/lib/local';
 import { onTimeStreak } from '@/lib/rewards';
+import { ollamaChat } from '@/lib/localAi';
+import { isNetworkError, isOnline, useOnline } from '@/lib/network';
 import { kv } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import type { PlanFrequency } from '@/lib/types';
@@ -81,10 +84,22 @@ export function useAiContext(): string {
   return lines.join('\n');
 }
 
-// ---------------------------------------------------------------- edge function calls
+// ---------------------------------------------------------------- routing: online (Groq) or local (Ollama)
 
-async function callAi<T>(body: Record<string, unknown>): Promise<T> {
-  if (demoState.on) throw new Error('Ipon AI needs a real account. Exit the demo to try it.');
+export type AiSource = 'cloud' | 'local';
+
+/** Same rules as the server prompt, kept short for small local models. */
+const LOCAL_SYSTEM = `You are Ipon, the friendly squirrel money buddy inside Paluwagan, a Filipino app for paluwagan (rotating savings groups) and ipon (savings goals). Amounts are in Philippine pesos (₱).
+- Call a group a "paluwagan", never a "circle".
+- Use the user's data snapshot below for real numbers, names and dates. Never invent numbers that aren't in it.
+- Be warm, practical and short: plain text, short paragraphs, "• " for lists, no markdown headings, tables or bold.
+- A paluwagan has no interest: warn if one promises interest or returns (a common scam).
+- You're not a licensed financial adviser. Never ask for passwords, OTPs or PINs.`;
+
+const snapshot = (context: string) => `User data snapshot (as of ${new Date().toISOString().slice(0, 10)}):\n${context || '(no data yet)'}`;
+
+/** Online AI: the `ai` Edge Function (Groq, key kept on the server). */
+async function callCloud<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke('ai', { body });
   if (error) {
     // FunctionsHttpError keeps the response so we can show the server's message.
@@ -96,26 +111,128 @@ async function callAi<T>(body: Record<string, unknown>): Promise<T> {
     } catch {
       /* keep default */
     }
-    if (/Failed to send a request|not found/i.test(msg)) msg = 'Ipon AI isn’t deployed yet. Deploy the `ai` Edge Function first.';
+    if (/not found/i.test(msg) && !/model/i.test(msg)) msg = 'Ipon AI isn’t deployed yet. Deploy the `ai` Edge Function first.';
     throw new Error(msg);
   }
   return data as T;
 }
 
-export type ChatMessage = { role: 'user' | 'assistant'; content: string; at: string };
+/**
+ * Run an AI request: online (Groq) when signed in with internet, otherwise the local AI.
+ * If the online call can't reach the server, it falls back to the local AI.
+ */
+async function route<T>(useLocal: boolean, cloud: () => Promise<T>, local: () => Promise<T>): Promise<{ result: T; source: AiSource }> {
+  if (demoState.on) throw new Error('Ipon AI needs a real account. Exit the demo to try it.');
+  if (useLocal || !isOnline()) return { result: await local(), source: 'local' };
+  try {
+    return { result: await cloud(), source: 'cloud' };
+  } catch (e) {
+    if (!isNetworkError(e)) throw e;
+    return { result: await local(), source: 'local' };
+  }
+}
+
+/** Whether AI requests go to the local model right now. */
+export function useAiSource(): AiSource {
+  const { isOffline } = useAuth();
+  const online = useOnline();
+  return isOffline || !online ? 'local' : 'cloud';
+}
+
+export type ChatMessage = { role: 'user' | 'assistant'; content: string; at: string; source?: AiSource };
 
 export type AiPlan = { amount: number; frequency: PlanFrequency; deadline: string; summary: string; tips: string[] };
 
+const PLAN_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['amount', 'frequency', 'deadline', 'summary', 'tips'],
+  properties: {
+    amount: { type: 'number' },
+    frequency: { type: 'string', enum: ['daily', 'weekly', 'kinsenas', 'monthly'] },
+    deadline: { type: 'string' },
+    summary: { type: 'string' },
+    tips: { type: 'array', items: { type: 'string' } },
+  },
+};
+
+function planPrompt(goal: { title: string; target: number; saved: number; deadline: string | null }) {
+  return `Suggest a realistic savings plan for this goal. Reply with JSON only: {"amount": number (pesos per period), "frequency": "daily"|"weekly"|"kinsenas"|"monthly", "deadline": "YYYY-MM-DD", "summary": "one or two sentences", "tips": ["two or three short tips"]}.
+Goal: ${goal.title}
+Target: ₱${goal.target}
+Already saved: ₱${goal.saved}
+Target date the user chose: ${goal.deadline ?? 'none, propose one'}
+Today: ${new Date().toISOString().slice(0, 10)}
+Fit it around their paluwagan dues. Keep the amount achievable.`;
+}
+
+/** Small models sometimes drift: check the plan and fill safe defaults. */
+function cleanPlan(raw: unknown): AiPlan {
+  const p = (raw ?? {}) as Partial<AiPlan>;
+  const freq: PlanFrequency[] = ['daily', 'weekly', 'kinsenas', 'monthly'];
+  const amount = Math.max(0, Math.round(Number(p.amount) || 0));
+  if (!amount || !/^\d{4}-\d{2}-\d{2}$/.test(String(p.deadline))) throw new Error('The AI gave an incomplete plan. Try again.');
+  return {
+    amount,
+    frequency: freq.includes(p.frequency as PlanFrequency) ? (p.frequency as PlanFrequency) : 'weekly',
+    deadline: String(p.deadline),
+    summary: String(p.summary ?? ''),
+    tips: Array.isArray(p.tips) ? p.tips.map(String).slice(0, 3) : [],
+  };
+}
+
+const DAYS_PER: Record<PlanFrequency, number> = { daily: 1, weekly: 7, kinsenas: 15.2, monthly: 30.4 };
+
+/** Amount per period that reaches the target by the deadline, rounded up to ₱10. */
+function fixPlanMath(plan: AiPlan, goal: { target: number; saved: number }): AiPlan {
+  const remaining = Math.max(0, goal.target - goal.saved);
+  const days = Math.max(1, daysUntil(plan.deadline));
+  const periods = Math.max(1, Math.ceil(days / DAYS_PER[plan.frequency]));
+  const amount = Math.max(10, Math.ceil(remaining / periods / 10) * 10);
+  return { ...plan, amount, summary: `Save ${peso(amount)} ${planPer[plan.frequency]} until ${plan.deadline} to reach ${peso(goal.target)}.${plan.summary ? ` ${plan.summary.split(/(?<=\.)\s/)[0]}` : ''}` };
+}
+
 export function useAiPlan() {
+  const local = useAiSource() === 'local';
   return useMutation({
-    mutationFn: (v: { goal: { title: string; target: number; saved: number; deadline: string | null }; context: string }) =>
-      callAi<{ plan: AiPlan }>({ mode: 'plan', ...v }).then((r) => r.plan),
+    mutationFn: async (v: { goal: { title: string; target: number; saved: number; deadline: string | null }; context: string }) => {
+      const { result } = await route(
+        local,
+        () => callCloud<{ plan: AiPlan }>({ mode: 'plan', ...v }).then((r) => cleanPlan(r.plan)),
+        async () => {
+          const raw = await ollamaChat(
+            [
+              { role: 'system', content: `${LOCAL_SYSTEM}\n\n${snapshot(v.context)}` },
+              { role: 'user', content: planPrompt(v.goal) },
+            ],
+            { format: PLAN_SCHEMA },
+          );
+          // Small local models get the arithmetic wrong, so work out the amount here.
+          return fixPlanMath(cleanPlan(JSON.parse(raw)), v.goal);
+        },
+      );
+      return result;
+    },
   });
 }
 
 export function useAiInsight() {
+  const local = useAiSource() === 'local';
   return useMutation({
-    mutationFn: (context: string) => callAi<{ insight: string }>({ mode: 'insight', context }).then((r) => r.insight),
+    mutationFn: async (context: string) => {
+      const ask =
+        'Look at my snapshot and give me one short, specific insight about my savings and paluwagan right now (max 2 sentences, under 45 words). Mention a real number or name from my data and one next step.';
+      const { result } = await route(
+        local,
+        () => callCloud<{ insight: string }>({ mode: 'insight', context }).then((r) => r.insight),
+        () =>
+          ollamaChat([
+            { role: 'system', content: `${LOCAL_SYSTEM}\n\n${snapshot(context)}` },
+            { role: 'user', content: ask },
+          ]),
+      );
+      return result;
+    },
   });
 }
 
@@ -142,18 +259,20 @@ const subscribe = (l: () => void) => {
 
 export function useChat() {
   const messages = useSyncExternalStore(subscribe, () => chat, () => chat);
+  const local = useAiSource() === 'local';
   const send = useMutation({
     mutationFn: async ({ text, context }: { text: string; context: string }) => {
       const mine: ChatMessage = { role: 'user', content: text.trim(), at: new Date().toISOString() };
       const history = [...chat, mine];
       setChat(history);
       try {
-        const { reply } = await callAi<{ reply: string }>({
-          mode: 'chat',
-          context,
-          messages: history.map(({ role, content }) => ({ role, content })),
-        });
-        setChat([...chat, { role: 'assistant', content: reply || '…', at: new Date().toISOString() }]);
+        const turns = history.slice(-12).map(({ role, content }) => ({ role, content }));
+        const { result: reply, source } = await route(
+          local,
+          () => callCloud<{ reply: string }>({ mode: 'chat', context, messages: turns }).then((r) => r.reply),
+          () => ollamaChat([{ role: 'system', content: `${LOCAL_SYSTEM}\n\n${snapshot(context)}` }, ...turns]),
+        );
+        setChat([...chat, { role: 'assistant', content: reply || '…', at: new Date().toISOString(), source }]);
       } catch (e) {
         // Drop the unanswered message so the history stays user/assistant alternating.
         setChat(chat.filter((m) => m !== mine));

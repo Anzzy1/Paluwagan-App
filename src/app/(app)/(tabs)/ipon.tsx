@@ -18,7 +18,6 @@ import { peso, timeAgo } from '@/lib/format';
 import { goalProgress, iponStreak } from '@/lib/ipon';
 import { useColors, useIsDesktop } from '@/lib/prefs';
 import { radius } from '@/theme/tokens';
-import { withAccount } from '@/components/AccountGate';
 
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
@@ -177,4 +176,5 @@ const styles = StyleSheet.create({
   rowIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
 });
 
-export default withAccount(IponScreen, 'Ipon goals', { back: false });
+// Works offline too: goals on this device need no account or internet.
+export default IponScreen;

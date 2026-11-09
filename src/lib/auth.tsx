@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 
 import { DEMO_USER_ID, demoQuery, demoState } from '@/lib/demo';
 import { kv } from '@/lib/storage';
+import { isNetworkError } from '@/lib/network';
 import { errMsg, isSupabaseConfigured, supabase } from '@/lib/supabase';
 import type { Profile } from '@/lib/types';
 
@@ -33,6 +34,17 @@ type AuthState = {
 };
 
 const OFFLINE_KEY = 'offline-mode-v1';
+/** Last loaded profile, so a signed-in user can open the app without internet. */
+const PROFILE_CACHE_KEY = 'profile-cache-v1';
+
+function cachedProfile(userId: string): Profile | null {
+  try {
+    const p = JSON.parse(kv.get(PROFILE_CACHE_KEY) ?? 'null') as Profile | null;
+    return p?.id === userId ? p : null;
+  } catch {
+    return null;
+  }
+}
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -100,7 +112,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         () => undefined,
       );
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId!).maybeSingle();
-      if (error) throw error;
+      if (error) {
+        // No internet: keep going with the last profile we saw on this device.
+        if (isNetworkError(error)) {
+          const cached = cachedProfile(userId!);
+          if (cached) return cached;
+        }
+        throw error;
+      }
+      if (data) kv.set(PROFILE_CACHE_KEY, JSON.stringify(data));
       return data as Profile | null;
     },
   });

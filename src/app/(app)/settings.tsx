@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
+import { LocalAiSheet } from '@/components/LocalAiSheet';
 import { PasswordSheet } from '@/components/PasswordSheet';
 import { Divider, type IconName, Segmented } from '@/components/ui/bits';
 import { Card } from '@/components/ui/Card';
@@ -11,6 +12,7 @@ import { haptic, PressableScale } from '@/components/ui/PressableScale';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useChat } from '@/lib/ai';
+import { useLocalAiConfig } from '@/lib/localAi';
 import { confirmAction, notifyError } from '@/lib/alert';
 import { useAuth } from '@/lib/auth';
 import { useColors, usePrefs, type ThemePref, type Toggles } from '@/lib/prefs';
@@ -25,6 +27,8 @@ export default function SettingsScreen() {
   const { themePref, setThemePref, toggles, setToggle } = usePrefs();
   const chat = useChat();
   const [pwOpen, setPwOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const localAi = useLocalAiConfig();
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
   const flip = (k: keyof Toggles) => (v: boolean) => {
@@ -82,6 +86,13 @@ export default function SettingsScreen() {
             onChange={isWeb ? undefined : flipPush}
           />
         </Card>
+      </Section>
+
+      <Section title="Ipon AI">
+        <Card style={styles.list}>
+          <Row icon="cpu" title="Local AI (offline)" subtitle={`${localAi.model} · ${localAi.url}`} onPress={() => setAiOpen(true)} />
+        </Card>
+        <LocalAiSheet open={aiOpen} onClose={() => setAiOpen(false)} />
       </Section>
 
       <Section title="Privacy">

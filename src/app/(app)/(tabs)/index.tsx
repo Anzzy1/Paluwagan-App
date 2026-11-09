@@ -124,7 +124,7 @@ export default function Home() {
         <>
           {/* No "New paluwagan" button here: it made the band tall on phones, and Create lives in quick actions. */}
           {tip.cta && <BubbleButton primary label={tip.cta.label} iconRight="arrow-right" onPress={() => router.push(tip.cta!.href as never)} />}
-          <BubbleButton label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => requireAccount(() => router.push('/assistant' as Href), `Ask ${MASCOT_NAME}`)} />
+          <BubbleButton label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => router.push('/assistant' as Href)} />
         </>
       }>
       <Text variant="body" style={{ lineHeight: 22 }}>
@@ -142,8 +142,8 @@ export default function Home() {
       label: 'Pay',
       onPress: () => (dues[0] ? router.push(`/circle/${dues[0].mc.circle.id}/round/${dues[0].round.id}`) : router.push('/circles')),
     },
-    { icon: 'ipon', label: 'Ipon', onPress: () => requireAccount(() => router.push('/ipon' as Href), 'Ipon goals') },
-    { icon: 'assistant', label: `${MASCOT_NAME} AI`, onPress: () => requireAccount(() => router.push('/assistant' as Href), `Ask ${MASCOT_NAME}`) },
+    { icon: 'ipon', label: 'Ipon', onPress: () => router.push('/ipon' as Href) },
+    { icon: 'assistant', label: `${MASCOT_NAME} AI`, onPress: () => router.push('/assistant' as Href) },
   ];
   const quick = (
     <Card style={{ gap: 14 }}>
@@ -329,7 +329,7 @@ export default function Home() {
     <Card style={{ gap: 16 }}>
       <View style={styles.cardTitle}>
         <Text variant="h3">Ipon goals</Text>
-        <PressableScale onPress={() => requireAccount(() => setGoalSheet(true), 'Ipon goals')} hapticOnPress={false} hitSlop={8} accessibilityLabel="New ipon goal" style={[styles.newGoal, { backgroundColor: c.brandSoft }]}>
+        <PressableScale onPress={() => setGoalSheet(true)} hapticOnPress={false} hitSlop={8} accessibilityLabel="New ipon goal" style={[styles.newGoal, { backgroundColor: c.brandSoft }]}>
           <Feather name="plus" size={14} color={c.brandText} />
           <Text variant="smallBold" tone="brand">
             New goal

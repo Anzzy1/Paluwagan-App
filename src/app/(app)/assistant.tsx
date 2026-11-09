@@ -11,12 +11,12 @@ import { IconButton } from '@/components/ui/bits';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { confirmAction } from '@/lib/alert';
-import { useAiContext, useChat, type ChatMessage } from '@/lib/ai';
+import { useAiContext, useAiSource, useChat, type ChatMessage } from '@/lib/ai';
+import { useLocalAiConfig } from '@/lib/localAi';
 import { useAuth } from '@/lib/auth';
 import { firstName } from '@/lib/format';
 import { useColors, useIsDesktop } from '@/lib/prefs';
 import { font, radius } from '@/theme/tokens';
-import { withAccount } from '@/components/AccountGate';
 
 const SUGGESTIONS = [
   'What do I need to pay this week?',
@@ -53,6 +53,8 @@ function AssistantScreen() {
   const { profile } = useAuth();
   const context = useAiContext();
   const { messages, send, clear } = useChat();
+  const source = useAiSource();
+  const localAi = useLocalAiConfig();
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const scroller = useRef<ScrollViewInstance>(null);
@@ -92,7 +94,7 @@ function AssistantScreen() {
           <View style={{ flex: 1 }}>
             <Text variant="h3">Ipon</Text>
             <Text variant="caption" tone={send.isPending ? 'brand' : 'faint'}>
-              {send.isPending ? 'Typing…' : 'AI money buddy · knows your paluwagan & ipon'}
+              {send.isPending ? 'Typing…' : source === 'local' ? `Offline · local AI (${localAi.model})` : 'Online · knows your paluwagan & ipon'}
             </Text>
           </View>
           {messages.length > 0 && (
@@ -136,7 +138,7 @@ function AssistantScreen() {
               <View style={[styles.bubble, { backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
                 <ActivityIndicator size="small" color={c.brand} />
                 <Text variant="small" tone="muted">
-                  Ipon is thinking…
+                  {source === 'local' ? 'Ipon is thinking on this device… this can take up to a minute.' : 'Ipon is thinking…'}
                 </Text>
               </View>
             </View>
@@ -180,7 +182,7 @@ function AssistantScreen() {
           </PressableScale>
         </View>
         <Text variant="caption" tone="faint" center style={{ marginTop: 6 }}>
-          Ipon is an AI and can make mistakes. It isn’t a licensed financial adviser.
+          {source === 'local' ? 'No internet: using the local AI, which is simpler and slower. ' : ''}Ipon is an AI and can make mistakes. It isn’t a licensed financial adviser.
         </Text>
       </View>
     </KeyboardAvoidingView>
@@ -203,4 +205,5 @@ const styles = StyleSheet.create({
   send: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });
 
-export default withAccount(AssistantScreen, 'Ask Ipon');
+// Works offline too: without internet it uses the local AI (Ollama).
+export default AssistantScreen;

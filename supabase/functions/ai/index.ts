@@ -1,27 +1,28 @@
 // Supabase Edge Function: ai
 //
-// Every AI feature in the app goes through here, so the Claude API key never ships in the app.
-// The caller must be signed in (guest/anonymous sessions count).
+// Online AI for the app, through Groq. The Groq API key stays here on the server and
+// never ships in the app. The caller must be signed in.
+// (Without internet the app uses a local model through Ollama instead: src/lib/localAi.ts.)
 //
 // Modes (POST JSON):
 //   {"mode":"chat",    "messages":[{role,content}...], "context":"..."}  -> {"reply": "..."}
 //   {"mode":"plan",    "goal":{...}, "context":"..."}                     -> {"plan": {...}}
 //   {"mode":"insight", "context":"..."}                                   -> {"insight": "..."}
 //
-// `context` is a plain-text snapshot of the user's own circles, dues, goals and ipon,
-// built on the device (src/lib/aiContext.ts).
+// `context` is a plain-text snapshot of the user's own paluwagan, dues, goals and ipon,
+// built on the device (src/lib/ai.ts).
 //
 // Deploy:  supabase functions deploy ai
-// Secrets: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+// Secrets: supabase secrets set GROQ_API_KEY=gsk_...
+//          (optional) supabase secrets set GROQ_MODEL=openai/gpt-oss-120b
 
-import Anthropic from 'npm:@anthropic-ai/sdk';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
-const MODEL = 'claude-opus-5-5';
-
-const anthropic = new Anthropic(); // reads ANTHROPIC_API_KEY
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+// Production model on Groq that also supports strict JSON schema output (used for plans).
+const MODEL = Deno.env.get('GROQ_MODEL') || 'openai/gpt-oss-120b';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -48,38 +49,40 @@ How to answer:
 - You are not a licensed financial adviser. For investments, loans, taxes or legal matters, give general educational guidance and suggest a qualified professional for big decisions. Never ask for passwords, OTPs, PINs or full account numbers.
 - If asked about something unrelated to money, savings, budgeting or the app, answer briefly and steer back.`;
 
-function textOf(msg: Anthropic.Beta.BetaMessage): string {
-  return msg.content
-    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
-    .map((b) => b.text)
-    .join('')
-    .trim();
+type Msg = { role: 'system' | 'user' | 'assistant'; content: string };
+
+class GroqError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
-async function ask(opts: {
-  system: string;
-  context: string;
-  messages: Anthropic.Beta.BetaMessageParam[];
-  effort: 'low' | 'medium';
-  maxTokens: number;
-  schema?: Record<string, unknown>;
-}) {
-  const msg = await anthropic.beta.messages.create({
-    model: MODEL,
-    max_tokens: opts.maxTokens,
-    betas: ['server-side-fallback-2026-07-01'],
-    // If a safety classifier declines, Anthropic re-runs the request on its recommended fallback model.
-    fallbacks: 'default',
-    system: [
-      { type: 'text', text: opts.system, cache_control: { type: 'ephemeral' } },
-      { type: 'text', text: `User data snapshot (as of ${new Date().toISOString().slice(0, 10)}):\n${opts.context || '(no data yet)'}` },
-    ],
-    messages: opts.messages,
-    output_config: opts.schema ? { effort: opts.effort, format: { type: 'json_schema', schema: opts.schema } } : { effort: opts.effort },
-  } as Anthropic.Beta.MessageCreateParamsNonStreaming);
+async function ask(opts: { system: string; context: string; messages: Msg[]; maxTokens: number; schema?: Record<string, unknown> }) {
+  const res = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${Deno.env.get('GROQ_API_KEY')}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: MODEL,
+      max_completion_tokens: opts.maxTokens,
+      temperature: 0.5,
+      messages: [
+        { role: 'system', content: `${opts.system}
 
-  if (msg.stop_reason === 'refusal') throw new Error('Ipon can’t help with that one. Try asking another way.');
-  return textOf(msg);
+User data snapshot (as of ${new Date().toISOString().slice(0, 10)}):
+${opts.context || '(no data yet)'}` },
+        ...opts.messages,
+      ],
+      ...(opts.schema ? { response_format: { type: 'json_schema', json_schema: { name: 'savings_plan', strict: true, schema: opts.schema } } } : {}),
+    }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new GroqError(res.status, body?.error?.message ?? `HTTP ${res.status}`);
+  const text = String(body?.choices?.[0]?.message?.content ?? '').trim();
+  if (!text) throw new GroqError(502, 'Empty answer');
+  return text;
 }
 
 const PLAN_SCHEMA = {
@@ -98,7 +101,7 @@ const PLAN_SCHEMA = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
-  if (!Deno.env.get('ANTHROPIC_API_KEY')) return json({ error: 'AI is not set up yet. Add the ANTHROPIC_API_KEY secret to the ai function.' }, 503);
+  if (!Deno.env.get('GROQ_API_KEY')) return json({ error: 'AI is not set up yet. Add the GROQ_API_KEY secret to the ai function.' }, 503);
 
   // Signed-in users only.
   const auth = req.headers.get('Authorization') ?? '';
@@ -112,13 +115,13 @@ Deno.serve(async (req) => {
   try {
     // ---------------------------------------------------------------- chat
     if (body.mode === 'chat' && Array.isArray(body.messages)) {
-      const history: Anthropic.Beta.BetaMessageParam[] = body.messages
+      const history: Msg[] = body.messages
         .slice(-20)
         .filter((m: { role?: string }) => m?.role === 'user' || m?.role === 'assistant')
         .map((m: { role: 'user' | 'assistant'; content: unknown }) => ({ role: m.role, content: clip(m.content, 2_000) }));
       while (history.length && history[0].role !== 'user') history.shift();
       if (!history.length || history[history.length - 1].role !== 'user') return json({ error: 'Send a message first.' }, 400);
-      const reply = await ask({ system: MASCOT_PROMPT, context, messages: history, effort: 'low', maxTokens: 4096 });
+      const reply = await ask({ system: MASCOT_PROMPT, context, messages: history, maxTokens: 4096 });
       return json({ reply });
     }
 
@@ -133,22 +136,24 @@ Target date the user chose: ${g.deadline ? clip(g.deadline, 10) : 'none — prop
 Today: ${new Date().toISOString().slice(0, 10)}
 
 Use the snapshot to fit the plan around what they already pay into their paluwagan (avoid stacking big ipon on weeks with large dues) and their pay rhythm. Prefer "kinsenas" if they seem payday-based. Keep the amount achievable; if the chosen date is unrealistic, propose a later one and say why.`;
-      const raw = await ask({ system: MASCOT_PROMPT, context, messages: [{ role: 'user', content: prompt }], effort: 'medium', maxTokens: 8000, schema: PLAN_SCHEMA });
+      const raw = await ask({ system: MASCOT_PROMPT, context, messages: [{ role: 'user', content: prompt }], maxTokens: 4096, schema: PLAN_SCHEMA });
       return json({ plan: JSON.parse(raw) });
     }
 
     // ---------------------------------------------------------------- insight
     if (body.mode === 'insight') {
       const prompt = 'Look at my snapshot and give me one short, specific insight about my savings and paluwagan right now (max 2 sentences, under 45 words). Mention a real number or name from my data and one next step.';
-      const insight = await ask({ system: MASCOT_PROMPT, context, messages: [{ role: 'user', content: prompt }], effort: 'low', maxTokens: 2048 });
+      const insight = await ask({ system: MASCOT_PROMPT, context, messages: [{ role: 'user', content: prompt }], maxTokens: 2048 });
       return json({ insight });
     }
 
     return json({ error: 'Unknown mode' }, 400);
   } catch (e) {
-    if (e instanceof Anthropic.RateLimitError) return json({ error: 'Ipon is busy right now. Try again in a minute.' }, 429);
-    if (e instanceof Anthropic.AuthenticationError) return json({ error: 'The AI key is invalid. Check the ANTHROPIC_API_KEY secret.' }, 503);
-    if (e instanceof Anthropic.APIError) return json({ error: `AI error (${e.status}). Please try again.` }, 502);
+    if (e instanceof GroqError) {
+      if (e.status === 429) return json({ error: 'Ipon is busy right now. Try again in a minute.' }, 429);
+      if (e.status === 401 || e.status === 403) return json({ error: 'The AI key is invalid. Check the GROQ_API_KEY secret.' }, 503);
+      return json({ error: `AI error (${e.status}). Please try again.` }, 502);
+    }
     return json({ error: e instanceof Error ? e.message : 'Something went wrong' }, 500);
   }
 });

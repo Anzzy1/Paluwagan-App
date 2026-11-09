@@ -6,6 +6,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { peso, shortDate } from '@/lib/format';
 import { planPer, type GoalProgress } from '@/lib/ipon';
+import { isLocalId } from '@/lib/localIpon';
 import { useColors } from '@/lib/prefs';
 
 export const statusChip: Record<GoalProgress['status'], { label: string; tone: ChipTone }> = {
@@ -51,7 +52,11 @@ export function GoalRow({ p }: { p: GoalProgress }) {
         <Text variant="caption" tone="muted">
           {peso(p.saved)} of {peso(g.target)}
         </Text>
-        <Chip label={chip.label} tone={chip.tone} />
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          {/* Saved only on this phone/browser, not in the account. */}
+          {isLocalId(g.id) && <Chip label="On this device" icon="smartphone" tone="neutral" />}
+          <Chip label={chip.label} tone={chip.tone} />
+        </View>
       </View>
     </PressableScale>
   );
