@@ -30,7 +30,9 @@ export function Card({
     borderRadius: radius.lg,
     borderWidth: dark ? 1 : 0,
     borderColor: c.border,
-    padding: padded ? 20 : 0,
+    // Longhands, not `padding`: on web the shorthand beats a paddingVertical passed in `style`.
+    paddingHorizontal: padded ? 20 : 0,
+    paddingVertical: padded ? 20 : 0,
     shadowColor: c.shadow,
     shadowOpacity: dark ? 0 : 0.035,
     shadowRadius: 18,

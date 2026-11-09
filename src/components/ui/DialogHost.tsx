@@ -7,7 +7,6 @@ import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { currentDialog, dismissDialog, subscribeDialogs, type Dialog } from '@/lib/alert';
 import { useColors } from '@/lib/prefs';
-import { radius } from '@/theme/tokens';
 
 /** Renders the in-app dialogs queued by notify / notifyError / confirmAction. Mount once at the root. */
 export function DialogHost() {
@@ -25,20 +24,18 @@ export function DialogHost() {
 
   return (
     <Sheet open={!!current} onClose={close}>
-      <View style={[styles.box, { backgroundColor: bg }]}>
-        <View style={[styles.icon, { backgroundColor: solid }]}>
-          <Feather name={shown.icon} size={22} color="#FFFFFF" />
+      <View style={styles.body}>
+        <View style={[styles.icon, { backgroundColor: bg }]}>
+          <Feather name={shown.icon} size={26} color={fg} />
         </View>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text variant="h3" color={fg}>
-            {shown.title}
+        <Text variant="h2" center>
+          {shown.title}
+        </Text>
+        {shown.message ? (
+          <Text variant="small" tone="muted" center style={{ maxWidth: 340 }}>
+            {shown.message}
           </Text>
-          {shown.message ? (
-            <Text variant="small" color={fg}>
-              {shown.message}
-            </Text>
-          ) : null}
-        </View>
+        ) : null}
       </View>
       {shown.kind === 'confirm' ? (
         <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -61,6 +58,6 @@ export function DialogHost() {
 }
 
 const styles = StyleSheet.create({
-  box: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: radius.md, alignItems: 'flex-start' },
-  icon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  body: { alignItems: 'center', gap: 8, paddingTop: 4, paddingBottom: 8 },
+  icon: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
 });

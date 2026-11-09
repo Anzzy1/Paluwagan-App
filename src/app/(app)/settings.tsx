@@ -6,6 +6,7 @@ import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTimin
 
 import { PasswordSheet } from '@/components/PasswordSheet';
 import { Divider, type IconName, Segmented } from '@/components/ui/bits';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
 import { Screen } from '@/components/ui/Screen';
@@ -21,7 +22,7 @@ const isWeb = Platform.OS === 'web';
 
 /** App settings: how the app behaves on this device. Who you are lives in Profile. */
 export default function SettingsScreen() {
-  const { signOut, isDemo, isGuest, newGuest, enterDemo, userId, isOffline, exitOffline } = useAuth();
+  const { signOut, isDemo, isGuest, newGuest, userId, isOffline, exitOffline } = useAuth();
   const { themePref, setThemePref, toggles, setToggle } = usePrefs();
   const chat = useChat();
   const [pwOpen, setPwOpen] = useState(false);
@@ -38,7 +39,7 @@ export default function SettingsScreen() {
   };
 
   const confirmSignOut = () =>
-    confirmAction(isDemo ? 'Exit sample data?' : 'Sign out?', '', signOut, { confirmText: isDemo ? 'Exit' : 'Sign out', destructive: true });
+    confirmAction('Sign out?', 'You can log back in anytime.', signOut, { confirmText: 'Sign out', destructive: true, icon: 'log-out' });
   const confirmNewGuest = () =>
     confirmAction(
       'Start as a new test user?',
@@ -132,27 +133,17 @@ export default function SettingsScreen() {
         </Card>
       </Section>
 
-      <Section title="Testing">
-        <Card style={styles.list}>
-          {isDemo ? (
-            <Row icon="log-out" title="Exit sample data" subtitle="Go back to your own account" onPress={signOut} />
-          ) : (
-            <Row icon="eye" title="Preview with sample data" subtitle="See the app filled with example paluwagan" onPress={enterDemo} />
-          )}
-          {(isGuest || isDemo) && !isOffline && (
-            <>
-              <Divider />
-              <Row icon="user-plus" title="Start as a new test user" subtitle="Get a fresh guest account" onPress={confirmNewGuest} />
-            </>
-          )}
-        </Card>
-      </Section>
-
-      {!isGuest && !isDemo && !isOffline && (
-        <Card style={styles.list}>
-          <Row icon="log-out" title="Sign out" danger onPress={confirmSignOut} />
-        </Card>
+      {(isDemo || (isGuest && !isOffline)) && (
+        <Section title="Testing">
+          <Card style={styles.list}>
+            {isDemo && <Row icon="log-out" title="Exit sample data" subtitle="Go back to your own account" onPress={signOut} />}
+            {isDemo && !isOffline && <Divider />}
+            {!isOffline && <Row icon="user-plus" title="Start as a new test user" subtitle="Get a fresh guest account" onPress={confirmNewGuest} />}
+          </Card>
+        </Section>
       )}
+
+      {!isGuest && !isDemo && !isOffline && <Button title="Sign out" icon="log-out" variant="danger" size="md" onPress={confirmSignOut} />}
 
       <View style={{ alignItems: 'center', gap: 4, paddingVertical: 8 }}>
         <Text variant="smallBold" tone="muted">
@@ -247,7 +238,7 @@ function Switch({ value, disabled }: { value: boolean; disabled?: boolean }) {
 }
 
 const styles = StyleSheet.create({
-  list: { gap: 0, paddingVertical: 6 },
+  list: { gap: 0, paddingVertical: 4 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
   rowIcon: { width: 36, height: 36, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   track: { width: 44, height: 26, borderRadius: 13, padding: 3 },
