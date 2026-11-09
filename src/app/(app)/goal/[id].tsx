@@ -75,6 +75,29 @@ function GoalDetailScreen() {
 
   const askPlan = () =>
     aiPlan.mutate({ goal: { title: goal.title, target: Number(goal.target), saved: p.saved, deadline: goal.deadline }, context });
+  const completed = p.status === 'completed';
+  const reached = p.status === 'done' || completed;
+  /** Mark the goal completed (or reopen it). */
+  const setCompleted = (done: boolean) =>
+    save.mutate(
+      {
+        id: goal.id,
+        title: goal.title,
+        target: Number(goal.target),
+        emoji: goal.emoji,
+        circle_id: goal.circle_id,
+        completed_at: done ? new Date().toISOString() : null,
+      },
+      {
+        onSuccess: () => {
+          if (done) setParty((n) => n + 1);
+        },
+        onError: (e) => notifyError(e, done ? 'Couldn’t complete goal' : 'Couldn’t reopen goal'),
+      },
+    );
+  const reopen = () =>
+    confirmAction('Reopen this goal?', 'It goes back to your active goals so you can keep saving.', () => setCompleted(false), { confirmText: 'Reopen' });
+
   const applyPlan = () => {
     const plan = aiPlan.data;
     if (!plan) return;
@@ -86,7 +109,7 @@ function GoalDetailScreen() {
 
   const header = (
     <Card style={{ alignItems: 'center', gap: 12, paddingVertical: 24 }}>
-      <ProgressRing size={150} stroke={12} progress={p.progress} color={p.status === 'done' ? c.success : c.brand}>
+      <ProgressRing size={150} stroke={12} progress={p.progress} color={reached ? c.success : c.brand}>
         <View style={[styles.bigIcon, { backgroundColor: c.goldSoft }]}>
           <PurposeIcon icon={goal.emoji} size={26} color={c.gold} />
         </View>
@@ -100,11 +123,34 @@ function GoalDetailScreen() {
       <Text tone="muted" center>
         <Text variant="bodyBold">{peso(p.saved)}</Text> saved of {peso(goal.target)}
       </Text>
-      <Chip label={chip.label} tone={chip.tone} style={{ alignSelf: 'center' }} />
-      <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginTop: 6 }}>
-        <Button title="Add ipon" icon="plus" variant="brand" onPress={() => setSheet('deposit')} style={{ flex: 1 }} />
-        <Button title="Withdraw" icon="minus" variant="secondary" onPress={() => setSheet('withdraw')} style={{ flex: 1 }} disabled={p.ipon <= 0} />
-      </View>
+      <Chip
+        label={completed && goal.completed_at ? `Completed · ${longDate(goal.completed_at.slice(0, 10))}` : chip.label}
+        icon={completed ? 'check-circle' : undefined}
+        tone={chip.tone}
+        style={{ alignSelf: 'center' }}
+      />
+      {p.status === 'done' && (
+        <View style={[styles.reached, { backgroundColor: c.successBg }]}>
+          <Text variant="bodyBold" tone="success" center>
+            You reached your goal!
+          </Text>
+          <Text variant="small" tone="success" center>
+            Mark it as completed so you know it’s done.
+          </Text>
+          <Button title="Mark as completed" icon="check-circle" onPress={() => setCompleted(true)} loading={save.isPending} />
+        </View>
+      )}
+      {completed ? (
+        <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginTop: 6 }}>
+          <Button title="Withdraw" icon="minus" variant="secondary" onPress={() => setSheet('withdraw')} style={{ flex: 1 }} disabled={p.ipon <= 0} />
+          <Button title="Reopen goal" icon="rotate-ccw" variant="secondary" onPress={reopen} loading={save.isPending} style={{ flex: 1 }} />
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginTop: 6 }}>
+          <Button title="Add ipon" icon="plus" variant={reached ? 'secondary' : 'brand'} onPress={() => setSheet('deposit')} style={{ flex: 1 }} />
+          <Button title="Withdraw" icon="minus" variant="secondary" onPress={() => setSheet('withdraw')} style={{ flex: 1 }} disabled={p.ipon <= 0} />
+        </View>
+      )}
     </Card>
   );
 
@@ -234,7 +280,8 @@ function GoalDetailScreen() {
         side={
           <View style={{ gap: 16 }}>
             {facts}
-            {ai}
+            {/* A completed goal doesn't need a savings plan. */}
+            {!completed && ai}
           </View>
         }
       />
@@ -260,6 +307,7 @@ const styles = StyleSheet.create({
   facts: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   fact: { flexBasis: '46%', flexGrow: 1, padding: 12, borderRadius: radius.md, gap: 2 },
   plan: { padding: 14, borderRadius: radius.md, gap: 6 },
+  reached: { alignSelf: 'stretch', padding: 14, borderRadius: radius.md, gap: 8 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 18, paddingVertical: 12, borderTopWidth: 1 },
   rowIcon: { width: 38, height: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
 });

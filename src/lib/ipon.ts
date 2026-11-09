@@ -36,7 +36,8 @@ export type GoalProgress = {
   needed: number | null;
   periodsLeft: number | null;
   daysLeft: number | null;
-  status: 'done' | 'on-track' | 'behind' | 'no-plan' | 'overdue';
+  /** done = target reached but not marked yet; completed = the owner marked it completed. */
+  status: 'completed' | 'done' | 'on-track' | 'behind' | 'no-plan' | 'overdue';
   /** Saved in the current period (week / month / …) for the plan. */
   thisPeriod: number;
 };
@@ -73,7 +74,8 @@ export function goalProgress(goal: Goal, allDeposits: Deposit[], circles: MyCirc
   const thisPeriod = deposits.filter((d) => new Date(d.created_at).getTime() >= start && d.amount > 0).reduce((s, d) => s + Number(d.amount), 0);
 
   let status: GoalProgress['status'] = 'no-plan';
-  if (remaining <= 0) status = 'done';
+  if (goal.completed_at) status = 'completed';
+  else if (remaining <= 0) status = 'done';
   else if (daysLeft !== null && daysLeft < 0) status = 'overdue';
   else if (needed !== null && goal.plan_amount) status = Number(goal.plan_amount) >= needed ? 'on-track' : 'behind';
   else if (goal.plan_amount) status = 'on-track';

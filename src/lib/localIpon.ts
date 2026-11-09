@@ -55,6 +55,7 @@ export type GoalInput = {
   deadline?: string | null;
   plan_amount?: number | null;
   plan_frequency?: PlanFrequency | null;
+  completed_at?: string | null;
 };
 
 export function saveLocalGoal(g: GoalInput) {
@@ -72,6 +73,7 @@ export function saveLocalGoal(g: GoalInput) {
     deadline: g.deadline ?? null,
     plan_amount: g.plan_amount ?? null,
     plan_frequency: g.plan_frequency ?? null,
+    completed_at: g.completed_at ?? null,
     created_at: new Date().toISOString(),
   };
   commit({ ...store, goals: [goal, ...store.goals] });

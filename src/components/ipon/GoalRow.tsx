@@ -10,6 +10,7 @@ import { isLocalId } from '@/lib/localIpon';
 import { useColors } from '@/lib/prefs';
 
 export const statusChip: Record<GoalProgress['status'], { label: string; tone: ChipTone }> = {
+  completed: { label: 'Completed', tone: 'success' },
   done: { label: 'Goal reached!', tone: 'success' },
   'on-track': { label: 'On track', tone: 'brand' },
   behind: { label: 'Behind plan', tone: 'warning' },
@@ -29,11 +30,12 @@ export function GoalRow({ p }: { p: GoalProgress }) {
     .filter(Boolean)
     .join(' · ');
   const chip = statusChip[p.status];
+  const reached = p.status === 'done' || p.status === 'completed';
   return (
     <PressableScale onPress={() => router.push(`/goal/${g.id}` as Href)} hapticOnPress={false} scaleTo={0.99} style={{ gap: 8 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={[styles.icon, { backgroundColor: p.status === 'done' ? c.successBg : c.goldSoft }]}>
-          <PurposeIcon icon={g.emoji} size={17} color={p.status === 'done' ? c.success : c.gold} />
+        <View style={[styles.icon, { backgroundColor: reached ? c.successBg : c.goldSoft }]}>
+          <PurposeIcon icon={g.emoji} size={17} color={reached ? c.success : c.gold} />
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="bodyBold" numberOfLines={1}>
@@ -47,7 +49,7 @@ export function GoalRow({ p }: { p: GoalProgress }) {
           {Math.round(p.progress * 100)}%
         </Text>
       </View>
-      <ProgressBar progress={p.progress} height={8} color={p.status === 'done' ? c.success : undefined} />
+      <ProgressBar progress={p.progress} height={8} color={reached ? c.success : undefined} />
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text variant="caption" tone="muted">
           {peso(p.saved)} of {peso(g.target)}

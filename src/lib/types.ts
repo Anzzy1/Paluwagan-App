@@ -126,6 +126,8 @@ export type Goal = {
   plan_amount: number | null;
   plan_frequency: PlanFrequency | null;
   created_at: string;
+  /** When the owner marked it completed (migration 0013); null while still saving. */
+  completed_at?: string | null;
 };
 
 export type PlanFrequency = 'daily' | 'weekly' | 'kinsenas' | 'monthly';

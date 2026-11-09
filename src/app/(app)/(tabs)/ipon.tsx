@@ -45,6 +45,9 @@ function IponScreen() {
 
   const deps = deposits.data ?? [];
   const list = (goals.data ?? []).map((g) => goalProgress(g, deps, circles.data ?? []));
+  // Completed goals get their own section below the active ones.
+  const active = list.filter((p) => p.status !== 'completed');
+  const done = list.filter((p) => p.status === 'completed');
   const total = list.reduce((s, p) => s + p.saved, 0);
   const targetSum = list.reduce((s, p) => s + Number(p.goal.target), 0);
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
@@ -84,7 +87,26 @@ function IponScreen() {
           </Text>
         </PressableScale>
       </View>
-      {list.map((p) => (
+      {active.map((p) => (
+        <GoalRow key={p.goal.id} p={p} />
+      ))}
+      {!active.length && (
+        <Text variant="small" tone="muted">
+          All your goals are completed. Start a new one anytime.
+        </Text>
+      )}
+    </Card>
+  );
+
+  const completedCard = done.length > 0 && (
+    <Card style={{ gap: 18 }}>
+      <View style={styles.titleRow}>
+        <Text variant="h3">Completed</Text>
+        <Text variant="small" tone="muted">
+          {done.length} {done.length === 1 ? 'goal' : 'goals'}
+        </Text>
+      </View>
+      {done.map((p) => (
         <GoalRow key={p.goal.id} p={p} />
       ))}
     </Card>
@@ -151,6 +173,7 @@ function IponScreen() {
           <View style={{ flex: 1.4, gap: 16 }}>
             {hero}
             {list.length ? goalsCard : empty}
+            {completedCard}
           </View>
           <View style={{ flex: 1, gap: 16 }}>
             {aiAvailable && <InsightBand />}
@@ -162,6 +185,7 @@ function IponScreen() {
           {hero}
           {aiAvailable && <InsightBand />}
           {list.length ? goalsCard : empty}
+          {completedCard}
           {history}
         </>
       )}

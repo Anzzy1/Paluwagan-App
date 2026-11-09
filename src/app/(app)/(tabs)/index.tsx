@@ -324,7 +324,8 @@ export default function Home() {
     </Card>
   );
 
-  const goalList = (goals.data ?? []).map((g) => goalProgress(g, deposits.data ?? [], list));
+  // Home shows goals still in progress; completed ones live in the Ipon tab.
+  const goalList = (goals.data ?? []).map((g) => goalProgress(g, deposits.data ?? [], list)).filter((p) => p.status !== 'completed');
   const goalsBlock = (
     <Card style={{ gap: 16 }}>
       <View style={styles.cardTitle}>
