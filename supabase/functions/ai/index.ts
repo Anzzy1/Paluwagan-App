@@ -12,7 +12,8 @@
 // `context` is a plain-text snapshot of the user's own paluwagan, dues, goals and ipon,
 // built on the device (src/lib/ai.ts).
 //
-// Deploy:  supabase functions deploy ai
+// Deployed as "hyper-service" (dashboard name; the app calls that, see AI_FUNCTION in src/lib/ai.ts).
+// CLI:     supabase functions deploy hyper-service  (from this folder's code)
 // Secrets: supabase secrets set GROQ_API_KEY=gsk_...
 //          (optional) supabase secrets set GROQ_MODEL=openai/gpt-oss-120b
 

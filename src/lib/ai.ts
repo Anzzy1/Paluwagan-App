@@ -98,9 +98,15 @@ const LOCAL_SYSTEM = `You are Ipon, the friendly squirrel money buddy inside Pal
 
 const snapshot = (context: string) => `User data snapshot (as of ${new Date().toISOString().slice(0, 10)}):\n${context || '(no data yet)'}`;
 
-/** Online AI: the `ai` Edge Function (Groq, key kept on the server). */
+/**
+ * Name of the deployed AI Edge Function (code in supabase/functions/ai). It was deployed
+ * from the dashboard, which named it "hyper-service"; override with EXPO_PUBLIC_AI_FUNCTION.
+ */
+const AI_FUNCTION = process.env.EXPO_PUBLIC_AI_FUNCTION || 'hyper-service';
+
+/** Online AI: the Edge Function (Groq, key kept on the server). */
 async function callCloud<T>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke('ai', { body });
+  const { data, error } = await supabase.functions.invoke(AI_FUNCTION, { body });
   if (error) {
     // FunctionsHttpError keeps the response so we can show the server's message.
     const ctx = (error as { context?: Response }).context;
@@ -111,7 +117,7 @@ async function callCloud<T>(body: Record<string, unknown>): Promise<T> {
     } catch {
       /* keep default */
     }
-    if (/not found/i.test(msg) && !/model/i.test(msg)) msg = 'Ipon AI isn’t deployed yet. Deploy the `ai` Edge Function first.';
+    if (/not found/i.test(msg) && !/model/i.test(msg)) msg = `Ipon AI isn’t deployed yet. Deploy the “${AI_FUNCTION}” Edge Function first.`;
     throw new Error(msg);
   }
   return data as T;
@@ -131,7 +137,7 @@ async function route<T>(useLocal: boolean, cloud: () => Promise<T>, local: () =>
     // Only fall back when the internet is really gone. A missing or broken `ai` function
     // also looks like a network error in the browser (failed CORS preflight).
     if (await checkConnection()) {
-      throw new Error('Couldn’t reach Ipon AI online. If it was just set up, the `ai` Edge Function may not be deployed yet. Please try again later.');
+      throw new Error(`Couldn’t reach Ipon AI online. If it was just set up, the “${AI_FUNCTION}” Edge Function may not be deployed yet. Please try again later.`);
     }
     return { result: await local(), source: 'local' };
   }
