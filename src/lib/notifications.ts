@@ -144,7 +144,7 @@ export type AppUpdate = { id: string; at: string; tone: NoticeTone | 'neutral' |
 
 /** Activity types worth telling a member about. Admin-only ones need the admin role. */
 const MEMBER_TYPES = new Set([
-  'payment_confirmed', 'payment_rejected', 'nudge_sent', 'member_approved', 'draw_completed', 'draw_revealed', 'order_set', 'circle_locked',
+  'payment_confirmed', 'payment_rejected', 'nudge_sent', 'member_approved', 'draw_completed', 'draw_redone', 'draw_revealed', 'order_set', 'circle_locked',
   'circle_paused', 'circle_resumed', 'round_completed', 'round_released', 'payment_covered', 'member_replaced', 'circle_completed', 'circle_deleted', 'circle_restored',
   'swap_requested', 'swap_accepted', 'swap_declined', 'swap_approved', 'swap_rejected',
 ]);

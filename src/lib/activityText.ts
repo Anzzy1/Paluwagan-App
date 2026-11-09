@@ -54,6 +54,8 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
       return { icon: 'unlock', tone: 'neutral', text: `${who} unlocked the paluwagan` };
     case 'draw_completed':
       return { icon: 'shuffle', tone: 'brand', text: 'The draw was completed and the payout order is set' };
+    case 'draw_redone':
+      return { icon: 'rotate-ccw', tone: 'warning', text: `${who} redid the draw before anyone paid. A new secret seed was locked in.` };
     case 'draw_revealed':
       return { icon: 'eye', tone: 'brand', text: 'The payout order is out. Payments are now open.' };
     case 'order_set':

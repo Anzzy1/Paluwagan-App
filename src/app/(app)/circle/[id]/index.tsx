@@ -125,6 +125,8 @@ function CircleScreenScreen() {
     ? q.data
     : { ...q.data, rounds: [], contributions: [], members: q.data.members.map((m) => ({ ...m, slot_no: null })) };
   const { circle, members, rounds, contributions } = data;
+  // Bunot ulit: allowed until someone has paid (checked on the full data, not the hidden view).
+  const anyonePaid = q.data.contributions.some((k) => !k.auto && (k.status === 'submitted' || k.status === 'confirmed'));
   const me = members.find((m) => m.user_id === userId);
   const isAdmin = me?.role === 'admin';
   const current = rounds.find((r) => r.status === 'active');
@@ -440,6 +442,26 @@ function CircleScreenScreen() {
       )}
       {activeRound}
       {isAdmin && circle.status === 'active' && circle.replacing_member && <ReplacementAdmin data={data} />}
+      {isAdmin && circle.status === 'active' && !anyonePaid && (
+        <Button
+          title="Redo the draw"
+          icon="rotate-ccw"
+          variant="secondary"
+          loading={action.isPending}
+          onPress={() =>
+            confirmAction(
+              'Redo the draw?',
+              'Nobody has paid yet, so the draw can be done again. The current payout order is cleared and a new secret seed is locked in, so the new draw is just as fair. Every member will see in Activity that the draw was redone.',
+              () =>
+                action.mutate(
+                  { fn: 'redo_draw', args: { p_circle: id } },
+                  { onSuccess: () => router.push(`/circle/${id}/draw`), onError: (e) => notifyError(e, 'Couldn’t redo the draw') },
+                ),
+              { confirmText: 'Redo the draw', icon: 'rotate-ccw' },
+            )
+          }
+        />
+      )}
       {isAdmin && circle.status === 'active' && !circle.paused_at && <PauseCircleButton circle={circle} />}
       {completed}
       {tabBody}
