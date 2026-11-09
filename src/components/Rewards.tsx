@@ -1,11 +1,13 @@
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Defs, Ellipse, Path, Polygon, Stop, LinearGradient as SvgGradient } from 'react-native-svg';
 
-import type { IconName } from '@/components/ui/bits';
+import { Chip, ProgressBar, type IconName } from '@/components/ui/bits';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
 import { useColors } from '@/lib/prefs';
 import type { Badge } from '@/lib/rewards';
@@ -208,36 +210,69 @@ export function Medal({ icon, color, earned, size = 64 }: { icon: IconName; colo
   );
 }
 
-/** Grid of medals; locked ones show how close you are. */
+/** Grid of medals (medal + name only, so every cell lines up). Tap one for its details. */
 export function BadgeGrid({ badges }: { badges: Badge[] }) {
-  const c = useColors();
+  const [openId, setOpenId] = useState<string | null>(null);
+  // Keep the last badge while the sheet animates closed.
+  const [shown, setShown] = useState<Badge | null>(null);
+  const current = badges.find((b) => b.id === openId) ?? null;
+  if (current && current !== shown) setShown(current);
   return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 18 }}>
-      {badges.map((b) => (
-        <View key={b.id} style={{ width: '25%', alignItems: 'center', gap: 4, paddingHorizontal: 3 }}>
-          <Medal icon={b.icon} color={b.color} earned={b.earned} />
-          <Text variant="caption" center numberOfLines={2} tone={b.earned ? 'default' : 'muted'}>
-            {b.title}
-          </Text>
-          {b.earned ? null : !b.goal ? (
-            <Text variant="caption" center tone="faint" style={{ fontSize: 10, lineHeight: 13 }} numberOfLines={2}>
-              {b.body}
+    <>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 16 }}>
+        {badges.map((b) => (
+          <PressableScale
+            key={b.id}
+            onPress={() => setOpenId(b.id)}
+            scaleTo={0.94}
+            accessibilityRole="button"
+            accessibilityLabel={`${b.title}, ${b.earned ? 'unlocked' : 'locked'}`}
+            style={{ width: '25%', alignItems: 'center', gap: 4, paddingHorizontal: 3 }}>
+            <Medal icon={b.icon} color={b.color} earned={b.earned} />
+            <Text variant="caption" center numberOfLines={2} tone={b.earned ? 'default' : 'muted'}>
+              {b.title}
             </Text>
-          ) : (
-            <View style={{ width: '80%', gap: 3, alignItems: 'center' }}>
-              <View style={[styles.miniTrack, { backgroundColor: c.border }]}>
-                <View style={[styles.miniFill, { width: `${Math.round(Math.min(1, b.count / b.goal) * 100)}%`, backgroundColor: b.color }]} />
-              </View>
-              <Text variant="caption" tone="faint" style={{ fontSize: 10, lineHeight: 13 }}>
-                {Math.min(b.count, b.goal)}/{b.goal}
-              </Text>
-            </View>
-          )}
+          </PressableScale>
+        ))}
+      </View>
+      <Sheet open={!!current} onClose={() => setOpenId(null)}>
+        {shown && <BadgeInfo badge={shown} />}
+      </Sheet>
+    </>
+  );
+}
+
+function BadgeInfo({ badge: b }: { badge: Badge }) {
+  const c = useColors();
+  const showProgress = !b.earned && b.goal > 0;
+  return (
+    <View style={{ alignItems: 'center', gap: 10, paddingBottom: 8 }}>
+      <Medal icon={b.icon} color={b.color} earned={b.earned} size={104} />
+      <Text variant="h2" center>
+        {b.title}
+      </Text>
+      <Chip label={b.earned ? 'Unlocked' : 'Locked'} tone={b.earned ? 'brand' : 'neutral'} icon={b.earned ? 'check' : 'lock'} style={{ alignSelf: 'center' }} />
+      <Text variant="body" tone="muted" center style={{ maxWidth: 320 }}>
+        {b.earned ? `You earned this: ${lowerFirst(b.body)}.` : `How to unlock: ${lowerFirst(b.body)}.`}
+      </Text>
+      {showProgress && (
+        <View style={{ alignSelf: 'stretch', gap: 6, marginTop: 4 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text variant="smallBold" tone="muted">
+              Your progress
+            </Text>
+            <Text variant="smallBold">
+              {Math.min(b.count, b.goal)} of {b.goal}
+            </Text>
+          </View>
+          <ProgressBar progress={Math.min(1, b.count / b.goal)} color={b.color} height={10} track={c.border} />
         </View>
-      ))}
+      )}
     </View>
   );
 }
+
+const lowerFirst = (t: string) => t.charAt(0).toLowerCase() + t.slice(1);
 
 const styles = StyleSheet.create({
   streak: { borderRadius: radius.lg, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16, overflow: 'hidden' },
@@ -247,6 +282,4 @@ const styles = StyleSheet.create({
   fill: { height: 10, borderRadius: 5, backgroundColor: '#FFFFFF' },
   goal: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FFFFFF', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: radius.md },
-  miniTrack: { width: '100%', height: 5, borderRadius: 3, overflow: 'hidden' },
-  miniFill: { height: 5, borderRadius: 3 },
 });
