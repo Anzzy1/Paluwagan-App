@@ -25,7 +25,7 @@ function sendError(e: { message: string }): Error {
 /** Plain-language version of sign-up / log-in errors. */
 function authError(e: { message: string }): Error {
   const m = e.message;
-  if (/invalid login credentials/i.test(m)) return new Error('Wrong email or password. If you used to log in with a code, tap “Email me a code instead”, then set a password in Settings.');
+  if (/invalid login credentials/i.test(m)) return new Error('Wrong email or password. If you used to log in with a code, tap “Forgot password?”, then set a password in Settings.');
   if (/email not confirmed/i.test(m)) return new Error('Please confirm your email first. Check your inbox for the code we sent when you signed up.');
   if (/already registered|already exists/i.test(m)) return new Error('This email already has an account. Log in instead.');
   if (/password/i.test(m) && /(short|weak|characters)/i.test(m)) return new Error(`Please use a stronger password (at least ${MIN_PASSWORD} characters).`);
@@ -128,7 +128,7 @@ export default function Login() {
       {!signup && (
         <PressableScale onPress={emailCode} disabled={sendingCode} hapticOnPress={false} style={{ alignSelf: 'center', paddingVertical: 4 }}>
           <Text variant="smallBold" tone="brand">
-            {sendingCode ? 'Sending code…' : 'Forgot password? Email me a code instead'}
+            {sendingCode ? 'Sending code…' : 'Forgot password?'}
           </Text>
         </PressableScale>
       )}
