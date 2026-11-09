@@ -123,6 +123,8 @@ function schedule(
         id: uid(),
         round_id: r.id,
         due_date: null,
+        late_fee: 0,
+        covered_by: null,
         circle_id: c.id,
         member_id: m.id,
         user_id: m.user_id,

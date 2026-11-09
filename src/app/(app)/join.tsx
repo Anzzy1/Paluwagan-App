@@ -255,7 +255,7 @@ function JoinScreen() {
 
   const submit = () =>
     join.mutate(
-      { code, hati, password },
+      { code, hati: hati && !p?.replacing, password },
       {
         onSuccess: () => {
           haptic('success');
@@ -267,8 +267,10 @@ function JoinScreen() {
     );
 
   const slotsLeft = p ? p.slots - Number(p.filled) : 0;
-  const canRequest = !!p && p.status === 'forming' && !p.my_status;
-  const ready = canRequest && agree && (!p.has_password || password.length > 0) && slotsLeft >= (hati ? 0.5 : 1);
+  // Open while forming, or while a running paluwagan looks for a replacement (who takes over a full slot).
+  const open = !!p && (p.status === 'forming' || (p.status === 'active' && !!p.replacing));
+  const canRequest = open && !p.my_status;
+  const ready = canRequest && agree && (!p.has_password || password.length > 0) && (p.replacing || slotsLeft >= (hati ? 0.5 : 1));
 
   // -------- step 1: find the circle
   const finder = (
@@ -377,10 +379,13 @@ function JoinScreen() {
         <Notice tone="info" icon="clock" title="Request pending" body="The admin hasn’t reviewed your request yet." />
       ) : p.my_status === 'approved' ? (
         <Button title="Open paluwagan" onPress={() => router.replace(`/circle/${p.id}`)} />
-      ) : p.status !== 'forming' ? (
+      ) : !open ? (
         <Notice tone="info" icon="lock" title="This paluwagan has already started" body="It’s no longer accepting new members." />
       ) : (
         <>
+          {p.replacing && (
+            <Notice tone="info" icon="user-plus" title="Joining as a replacement" body="This paluwagan is already running. If approved, you take over an existing member’s slot: their payout and the hulog they haven’t paid yet." />
+          )}
           {p.has_password && (
             <Card style={{ gap: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -403,6 +408,8 @@ function JoinScreen() {
             </Card>
           )}
 
+          {/* A replacement takes over a whole existing slot, so no split-slot option. */}
+          {!p.replacing && (
           <PressableScale onPress={() => setHati(!hati)} hapticOnPress={false} style={[styles.toggle, { backgroundColor: c.surface, borderColor: hati ? c.brand : 'transparent' }]}>
             <View style={[styles.stepIcon, { backgroundColor: hati ? c.brand : c.surfaceAlt }]}>
               <Feather name="users" size={16} color={hati ? c.onBrand : c.textMuted} />
@@ -415,6 +422,7 @@ function JoinScreen() {
             </View>
             <Feather name={hati ? 'check-circle' : 'circle'} size={20} color={hati ? c.brand : c.borderStrong} />
           </PressableScale>
+          )}
 
           <Card style={{ gap: 10 }}>
             <Text variant="h3">Paluwagan agreement</Text>

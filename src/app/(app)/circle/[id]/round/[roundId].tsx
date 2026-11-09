@@ -12,7 +12,7 @@ import { haptic, PressableScale } from '@/components/ui/PressableScale';
 import { Columns, Screen } from '@/components/ui/Screen';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
-import { notifyError } from '@/lib/alert';
+import { confirmAction, notifyError } from '@/lib/alert';
 import { useCircle, useCircleAction, useReceiptUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { dueOf, hulogInRound, myNextContribution, recipientsOf } from '@/lib/derive';
@@ -48,7 +48,8 @@ function RoundScreenScreen() {
   }
   const me = members.find((m) => m.user_id === userId);
   const recipients = recipientsOf(round, members);
-  const canReview = me?.role === 'admin' || me?.slot_group === round.slot_group;
+  const isAdmin = me?.role === 'admin';
+  const canReview = isAdmin || me?.slot_group === round.slot_group;
   const ks = contributions
     .filter((k) => k.round_id === round.id)
     .sort((a, b) => Number(b.status === 'submitted') - Number(a.status === 'submitted') || dueOf(a, round).localeCompare(dueOf(b, round)));
@@ -95,8 +96,8 @@ function RoundScreenScreen() {
           </View>
         ))}
       </Card>
-      {myK && !myK.auto && (myK.status === 'pending' || myK.status === 'rejected') && round.status !== 'completed' && (
-        <Button title={`Pay ${peso(myK.amount)}`} icon="send" onPress={() => setPayOpen(true)} />
+      {myK && !myK.auto && (myK.status === 'pending' || myK.status === 'rejected') && (
+        <Button title={round.status === 'completed' ? `Pay overdue ${peso(myK.amount)}` : `Pay ${peso(myK.amount)}`} icon="send" onPress={() => setPayOpen(true)} />
       )}
     </>
   );
@@ -109,11 +110,14 @@ function RoundScreenScreen() {
       </View>
       {ks.map((k) => {
         const m = memberById.get(k.member_id);
-        const reviewable = canReview && k.status === 'submitted';
+        const mine = k.user_id === userId;
+        // Nobody confirms their own payment; the admin can open someone's unpaid hulog to cover it.
+        const reviewable = canReview && k.status === 'submitted' && !mine;
+        const coverable = isAdmin && !mine && !k.auto && (k.status === 'pending' || k.status === 'rejected');
         return (
           <PressableScale
             key={k.id}
-            disabled={!reviewable && !k.proof_path}
+            disabled={!reviewable && !coverable && !k.proof_path}
             dimWhenDisabled={false}
             onPress={() => setReview(k)}
             hapticOnPress={false}
@@ -129,12 +133,14 @@ function RoundScreenScreen() {
                 {perSahod > 1 ? `${shortDate(dueOf(k, round))} · ` : ''}
                 {k.auto
                   ? 'Recipient’s own share'
-                  : k.submitted_at
-                    ? `${peso(k.amount)} · submitted ${timeAgo(k.submitted_at)}${k.on_time === false ? ' · late' : ''}`
-                    : peso(k.amount)}
+                  : k.covered_by
+                    ? `${peso(k.amount)} · covered by the organizer`
+                    : k.submitted_at
+                      ? `${peso(k.amount)} · submitted ${timeAgo(k.submitted_at)}${k.on_time === false ? ' · late' : ''}${Number(k.late_fee) > 0 ? ` · ${peso(k.late_fee)} late fee` : ''}`
+                      : peso(k.amount)}
               </Text>
             </View>
-            {k.auto ? <Chip label="Recipient" tone="brand" /> : <StatusChip status={displayStatus(k, round, circle)} />}
+            {k.auto ? <Chip label="Recipient" tone="brand" /> : k.covered_by ? <Chip label="Covered" tone="warning" /> : <StatusChip status={displayStatus(k, round, circle)} />}
             {reviewable && <Feather name="chevron-right" size={16} color={c.info} />}
           </PressableScale>
         );
@@ -147,7 +153,7 @@ function RoundScreenScreen() {
       <Screen back title={`Payout ${round.round_no}`} subtitle={`${circle.name} · sahod ${longDate(round.due_date)} · ${relativeDue(round.due_date)}${perSahod > 1 ? ` · ${perSahod} hulog` : ''}`} refreshing={q.isRefetching} onRefresh={q.refetch}>
         <Columns main={list} side={summary} />
       </Screen>
-      <ReviewSheet k={review} member={review ? memberById.get(review.member_id) : undefined} canReview={!!canReview} circleId={id} onClose={() => setReview(null)} />
+      <ReviewSheet k={review} member={review ? memberById.get(review.member_id) : undefined} canReview={!!canReview && review?.user_id !== userId} canCover={!!isAdmin && review?.user_id !== userId} circleId={id} onClose={() => setReview(null)} />
       {myK && <PaySheet open={payOpen} onClose={() => setPayOpen(false)} circle={circle} round={round} contribution={myK} recipients={recipients} />}
     </View>
   );
@@ -157,12 +163,14 @@ function ReviewSheet({
   k,
   member,
   canReview,
+  canCover,
   circleId,
   onClose,
 }: {
   k: Contribution | null;
   member?: Member;
   canReview: boolean;
+  canCover: boolean;
   circleId: string;
   onClose: () => void;
 }) {
@@ -189,8 +197,28 @@ function ReviewSheet({
       },
     );
 
+  const unpaidK = !!k && !k.auto && (k.status === 'pending' || k.status === 'rejected');
+  const cover = () =>
+    k &&
+    confirmAction(
+      'Cover this hulog?',
+      `You’re confirming that you paid ${peso(k.amount)} for ${member?.profiles?.full_name ?? 'this member'}. It counts as paid for the round, and as a missed payment on their Trust Score.`,
+      () =>
+        action.mutate(
+          { fn: 'cover_contribution', args: { p_contribution: k.id, p_note: null } },
+          {
+            onSuccess: () => {
+              haptic('success');
+              close();
+            },
+            onError: (e) => notifyError(e),
+          },
+        ),
+      { confirmText: 'Cover hulog' },
+    );
+
   return (
-    <Sheet open={!!k} onClose={close} title="Proof of payment" subtitle={member?.profiles?.full_name}>
+    <Sheet open={!!k} onClose={close} title={unpaidK ? 'Unpaid hulog' : 'Proof of payment'} subtitle={member?.profiles?.full_name}>
       {k && (
         <>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -208,9 +236,26 @@ function ReviewSheet({
               Reference: {k.note}
             </Text>
           ) : null}
-          <View style={styles.receipt}>
-            {url.data ? <Image source={{ uri: url.data }} style={{ flex: 1 }} contentFit="contain" /> : <ActivityIndicator style={{ flex: 1 }} />}
-          </View>
+          {Number(k.late_fee) > 0 && (
+            <Text variant="small" tone="warning">
+              Paid late · {peso(k.late_fee)} late fee recorded
+            </Text>
+          )}
+          {k.proof_path ? (
+            <View style={styles.receipt}>
+              {url.data ? <Image source={{ uri: url.data }} style={{ flex: 1 }} contentFit="contain" /> : <ActivityIndicator style={{ flex: 1 }} />}
+            </View>
+          ) : unpaidK ? (
+            <Text tone="muted">No payment yet{k.status === 'rejected' && k.reject_reason ? ` (last receipt rejected: ${k.reject_reason})` : ''}.</Text>
+          ) : null}
+          {canCover && unpaidK && (
+            <>
+              <Button title="Cover this hulog" icon="shield" variant="secondary" onPress={cover} loading={action.isPending} />
+              <Text variant="small" tone="faint" center>
+                Use this when you paid for a member who can’t or won’t pay, so the recipient still gets the full sahod.
+              </Text>
+            </>
+          )}
           {canReview && k.status === 'submitted' && (
             <>
               {rejecting ? (

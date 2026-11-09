@@ -268,6 +268,11 @@ export default function CreateCircle() {
   const sahodValid = !payout || payout.first_date >= firstHulog;
   // With a separate sahod schedule, the first sahod should collect as many hulog as the others.
   const firstShort = !!payout && plan.length > 1 && plan[0].dates.length < plan[1].dates.length;
+  // Later sahod can differ too, e.g. daily hulog with a monthly sahod (28–31 days per month).
+  const laterCounts = plan.slice(1).map((x) => x.dates.length);
+  const laterVaries = !!payout && new Set(laterCounts).size > 1;
+  const minPot = amt * slotCount * Math.min(...laterCounts);
+  const maxPot = amt * slotCount * Math.max(...laterCounts);
   const suggestedSahod = payout ? suggestFirstPayout(startDate, payout.frequency, sahodInterval) : null;
   const canNext = [true, name.trim().length > 0, amt > 0 && slotCount >= 2, !!startDate, sahodValid, managed || password.length >= 4][step];
   const last = step === STEPS.length - 1;
@@ -667,6 +672,14 @@ export default function CreateCircle() {
               </Text>
             </View>
           </View>
+          {laterVaries && (
+            <Notice
+              tone="warning"
+              icon="alert-triangle"
+              title="Sahod amounts won’t be equal"
+              body={`Some periods have more hulog days than others (months have 28 to 31 days), so each sahod is between ${peso(minPot)} and ${peso(maxPot)}. To give everyone the same pot, pick a sahod every set number of days (Custom), or a weekly sahod.`}
+            />
+          )}
         </>
       )}
 
@@ -692,7 +705,7 @@ export default function CreateCircle() {
           />
           )}
           {managed && (
-            <Notice tone="success" icon="shuffle" title="You’ll pick a fun draw next" body="Spin the wheel, a horse race, lucky envelopes or lottery balls. The payout order is decided fairly the moment the draw starts." />
+            <Notice tone="success" icon="shuffle" title="You’ll pick a fun draw next" body="Spin the wheel, open lucky envelopes, pull a slot machine, drop a Plinko coin or play the claw machine. The payout order is decided fairly the moment the draw starts." />
           )}
           {!managed && (
             <Card style={{ gap: 12 }}>

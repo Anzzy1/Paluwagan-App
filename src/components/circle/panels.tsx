@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
 import { Sheet } from '@/components/ui/Sheet';
 import { Text } from '@/components/ui/Text';
-import { notifyError } from '@/lib/alert';
+import { confirmAction, notifyError } from '@/lib/alert';
 import { useCircleAction, useSetCirclePassword, type CircleDetail } from '@/lib/api';
 import { plannedHulogPerSahod, recipientsOf } from '@/lib/derive';
 import { dateTime, displayStatus, longDate, payoutOf, peso, scheduleLabel, shortDate, slotName, slotsOf } from '@/lib/format';
@@ -242,10 +242,20 @@ export function Timeline({ data, myGroup }: { data: CircleDetail; myGroup?: stri
 }
 
 // ---------------------------------------------------------------- Members
-export function MembersList({ data, userId }: { data: CircleDetail; userId: string | null }) {
+export function MembersList({ data, userId, isAdmin = false }: { data: CircleDetail; userId: string | null; isAdmin?: boolean }) {
   const c = useColors();
+  const action = useCircleAction(data.circle.id);
   const current = data.rounds.find((r) => r.status === 'active');
   const slots = slotsOf(data.members);
+  // While running, the admin can open a member's slot for a replacement (one at a time).
+  const canReplace = isAdmin && data.circle.status === 'active' && !data.circle.replacing_member;
+  const replace = (m: CircleDetail['members'][number]) =>
+    confirmAction(
+      `Replace ${m.profiles?.full_name ?? 'this member'}?`,
+      'Your invite code will accept join requests again. Once the new person asks to join, approve them to take over this slot: its payout and every hulog not yet paid. Overdue hulog from released rounds stay with the current member.',
+      () => action.mutate({ fn: 'open_replacement', args: { p_member: m.id } }, { onError: onErr }),
+      { confirmText: 'Find a replacement' },
+    );
   return (
     <Card padded={false}>
       <View style={styles.cardHead}>
@@ -276,7 +286,18 @@ export function MembersList({ data, userId }: { data: CircleDetail; userId: stri
                       {Number(m.share) === 0.5 ? ' · Split' : ''}
                     </Text>
                   </View>
-                  {k && !k.auto ? <StatusChip status={displayStatus(k, current!, data.circle)} /> : k?.auto ? <Chip label="Recipient" tone="brand" /> : null}
+                  {k && !k.auto ? (
+                    k.covered_by ? <Chip label="Covered" tone="warning" /> : <StatusChip status={displayStatus(k, current!, data.circle)} />
+                  ) : k?.auto ? (
+                    <Chip label="Recipient" tone="brand" />
+                  ) : null}
+                  {canReplace && m.role !== 'admin' && (
+                    <PressableScale onPress={() => replace(m)} hapticOnPress={false} hitSlop={8} accessibilityLabel={`Replace ${m.profiles?.full_name ?? 'member'}`}>
+                      <Text variant="smallBold" tone="brand">
+                        Replace
+                      </Text>
+                    </PressableScale>
+                  )}
                 </View>
               );
             })}
@@ -290,6 +311,72 @@ export function MembersList({ data, userId }: { data: CircleDetail; userId: stri
           </Text>
         </View>
       )}
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------- Replacing a member (running paluwagan)
+export function ReplacementAdmin({ data }: { data: CircleDetail }) {
+  const c = useColors();
+  const action = useCircleAction(data.circle.id);
+  const leaving = data.members.find((m) => m.id === data.circle.replacing_member);
+  const pending = data.members.filter((m) => m.status === 'pending');
+  const name = leaving?.profiles?.full_name ?? 'this member';
+  const myRoundDone = data.rounds.some((r) => r.slot_group === leaving?.slot_group && r.status === 'completed');
+
+  const take = (m: CircleDetail['members'][number]) =>
+    confirmAction(
+      `${m.profiles?.full_name ?? 'This person'} replaces ${name}?`,
+      myRoundDone
+        ? `${name} already received their sahod, so the new member will only pay the remaining hulog without a payout. Make sure they agreed to this.`
+        : `They take over ${name}’s slot, including the payout and every hulog not yet paid.`,
+      () => action.mutate({ fn: 'replace_member', args: { p_new: m.id } }, { onError: onErr }),
+      { confirmText: 'Replace' },
+    );
+
+  return (
+    <Card style={{ gap: 12, borderWidth: 1, borderColor: c.warning }}>
+      <Text variant="h3">Replacing {name}</Text>
+      <Text variant="small" tone="muted">
+        Share the invite code ({data.circle.invite_code}) with the new member. Their request appears here.
+      </Text>
+      {myRoundDone && (
+        <Text variant="small" tone="warning">
+          {name} already received their sahod. Covering their remaining hulog may be fairer than bringing in someone new.
+        </Text>
+      )}
+      {pending.map((m) => (
+        <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Avatar name={m.profiles?.full_name} seed={m.user_id} uri={m.profiles?.avatar_url} size={34} />
+          <View style={{ flex: 1 }}>
+            <Text variant="bodyBold" numberOfLines={1}>
+              {m.profiles?.full_name ?? 'Member'}
+            </Text>
+            <Text variant="small" tone="muted">
+              Trust Score {m.profiles?.tiwala_score ?? '—'}
+            </Text>
+          </View>
+          <Button
+            title="Decline"
+            size="sm"
+            variant="secondary"
+            full={false}
+            onPress={() => action.mutate({ fn: 'review_member', args: { p_member: m.id, p_approve: false } }, { onError: onErr })}
+          />
+          <Button title="Replace" size="sm" full={false} onPress={() => take(m)} />
+        </View>
+      ))}
+      {!pending.length && (
+        <Text variant="small" tone="faint">
+          No requests yet.
+        </Text>
+      )}
+      <Button
+        title="Stop looking for a replacement"
+        variant="ghost"
+        size="sm"
+        onPress={() => action.mutate({ fn: 'cancel_replacement', args: { p_circle: data.circle.id } }, { onError: onErr })}
+      />
     </Card>
   );
 }

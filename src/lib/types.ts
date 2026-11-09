@@ -48,6 +48,8 @@ export type Circle = {
   invite_code: string;
   /** Joining requires the circle password. */
   has_password: boolean;
+  /** Member whose slot is open for a replacement (join requests accepted while set). */
+  replacing_member?: string | null;
   seed_hash: string | null;
   seed: string | null;
   draw_order: string[] | null;
@@ -98,6 +100,10 @@ export type Contribution = {
   confirmed_at: string | null;
   confirmed_by: string | null;
   on_time: boolean | null;
+  /** Late fee recorded when it was confirmed late (0 if on time). */
+  late_fee: number;
+  /** Set when the organizer paid this hulog on the member's behalf. */
+  covered_by: string | null;
 };
 
 export type Swap = {
@@ -167,4 +173,6 @@ export type CirclePreview = {
   payout_frequency: Frequency | null;
   payout_interval_days: number | null;
   first_payout_date: string | null;
+  /** A running paluwagan is accepting a replacement member. */
+  replacing?: boolean;
 };

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ActivityList } from '@/components/ActivityList';
-import { FormingAdmin, InvitePanel, MembersList, RulesPanel, SlotsProgress, Timeline } from '@/components/circle/panels';
+import { FormingAdmin, InvitePanel, MembersList, ReplacementAdmin, RulesPanel, SlotsProgress, Timeline } from '@/components/circle/panels';
 import { DeleteCircleButton, DeletedPanel, PauseCircleButton, PausedPanel } from '@/components/circle/Lifecycle';
 import { PaySheet } from '@/components/circle/PaySheet';
 import { AvatarStack, Notice, ProgressBar, PurposeIcon, Segmented, StatusChip } from '@/components/ui/bits';
@@ -15,8 +15,8 @@ import { Text } from '@/components/ui/Text';
 import { confirmAction, notify, notifyError } from '@/lib/alert';
 import { useActivity, useCircle, useCircleAction, useNudge } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { dueOf, hulogInRound, myNextContribution, plannedHulogPerSahod, recipientsOf } from '@/lib/derive';
-import { displayStatus, longDate, payoutShort, peso, potOf, relativeDue, shortDate, slotName } from '@/lib/format';
+import { dueOf, hulogInRound, myNextContribution, plannedHulogPerSahod, recipientsOf, unpaid } from '@/lib/derive';
+import { daysUntil, displayStatus, longDate, payoutShort, peso, potOf, relativeDue, shortDate, slotName } from '@/lib/format';
 import { useColors, useIsDesktop, useT } from '@/lib/prefs';
 import { radius } from '@/theme/tokens';
 import { withAccount } from '@/components/AccountGate';
@@ -81,6 +81,21 @@ function CircleScreenScreen() {
   const openSwaps = data.swaps.filter((s) => s.status === 'pending' || s.status === 'accepted').length;
   const filled = members.filter((m) => m.status === 'approved').reduce((s, m) => s + Number(m.share), 0);
   const completedRounds = rounds.filter((r) => r.status === 'completed').length;
+  const unpaidKs = roundKs.filter((k) => k.status !== 'confirmed');
+  // Once the sahod date arrives the admin can release it even if someone hasn't paid.
+  const canRelease = isAdmin && !!current && !circle.paused_at && daysUntil(current.due_date) <= 0 && unpaidKs.length > 0;
+  // My hulog left unpaid in rounds that were already released.
+  const myOverdue = me ? unpaid(contributions.filter((k) => k.member_id === me.id), rounds).filter((x) => x.round.status === 'completed') : [];
+  const overdueTotal = myOverdue.reduce((s, x) => s + Number(x.k.amount), 0);
+
+  const release = () =>
+    current &&
+    confirmAction(
+      'Release the sahod now?',
+      `${unpaidKs.length} hulog (${peso(unpaidKs.reduce((s, k) => s + Number(k.amount), 0))}) are still unpaid. They stay on record as overdue, can still be paid later, and count against those members’ Trust Score. The paluwagan then moves to round ${current.round_no + 1}.`,
+      () => action.mutate({ fn: 'release_round', args: { p_circle: id } }, { onError: (e) => notifyError(e) }),
+      { confirmText: 'Release sahod' },
+    );
 
   const run = (title: string, msg: string, fn: string, confirmText: string) =>
     confirmAction(title, msg, () => action.mutate({ fn, args: { p_circle: id } }, { onError: (e) => notifyError(e) }), { confirmText });
@@ -284,6 +299,7 @@ function CircleScreenScreen() {
             }
           />
         )}
+        {canRelease && <Button title="Release sahod" icon="gift" variant="secondary" size="sm" full={false} loading={action.isPending} onPress={release} />}
         {isAdmin && !iAmRecipient && (
           <Button title="Open round" icon="external-link" variant="secondary" size="sm" full={false} onPress={() => router.push(`/circle/${id}/round/${current.id}`)} />
         )}
@@ -316,7 +332,7 @@ function CircleScreenScreen() {
         <Segmented<Tab> value={shownTab} onChange={setTab} options={tabs} />
       </View>
       {shownTab === 'timeline' && <Timeline data={data} myGroup={me?.slot_group} />}
-      {shownTab === 'members' && <MembersList data={data} userId={userId} />}
+      {shownTab === 'members' && <MembersList data={data} userId={userId} isAdmin={isAdmin} />}
       {shownTab === 'rules' && <RulesPanel data={data} />}
       {shownTab === 'activity' && (
         <Card>
@@ -337,7 +353,19 @@ function CircleScreenScreen() {
       {lifecycle}
       {!circle.deleted_at && forming}
       {!circle.deleted_at && locked}
+      {myOverdue.length > 0 && (
+        <Card style={{ gap: 10, backgroundColor: c.dangerBg }}>
+          <Text variant="bodyBold" tone="danger">
+            You have {myOverdue.length} overdue hulog ({peso(overdueTotal)})
+          </Text>
+          <Text variant="small" tone="danger">
+            The sahod for {myOverdue.length === 1 ? 'that round was' : 'those rounds were'} released without your payment. Pay as soon as you can to restore your Trust Score.
+          </Text>
+          <Button title="Pay overdue hulog" icon="send" size="md" variant="danger" onPress={() => router.push(`/circle/${id}/round/${myOverdue[0].round.id}`)} />
+        </Card>
+      )}
       {activeRound}
+      {isAdmin && circle.status === 'active' && circle.replacing_member && <ReplacementAdmin data={data} />}
       {isAdmin && circle.status === 'active' && !circle.paused_at && <PauseCircleButton circle={circle} />}
       {completed}
       {tabBody}
@@ -353,7 +381,7 @@ function CircleScreenScreen() {
           side={
             <>
               {circle.status === 'forming' && <InvitePanel circle={circle} isAdmin={isAdmin} />}
-              <MembersList data={data} userId={userId} />
+              <MembersList data={data} userId={userId} isAdmin={isAdmin} />
             </>
           }
         />

@@ -14,13 +14,13 @@ export function myRoundOf(rounds: Round[], slotGroup: string): Round | undefined
 /** A contribution's own hulog date (older circles: the round's date). */
 export const dueOf = (k: Pick<Contribution, 'due_date'>, round: Pick<Round, 'due_date'>) => k.due_date ?? round.due_date;
 
-/** My unpaid (non-auto) contributions, soonest first. */
+/** My unpaid (non-auto) contributions, soonest first. Includes overdue ones from released rounds. */
 export function unpaid(contributions: Contribution[], rounds: Round[]) {
   const byId = new Map(rounds.map((r) => [r.id, r]));
   return contributions
     .filter((k) => !k.auto && (k.status === 'pending' || k.status === 'rejected'))
     .map((k) => ({ k, round: byId.get(k.round_id)! }))
-    .filter((x) => x.round && x.round.status !== 'completed')
+    .filter((x) => x.round)
     .map((x) => ({ ...x, due: dueOf(x.k, x.round) }))
     .sort((a, b) => a.due.localeCompare(b.due));
 }

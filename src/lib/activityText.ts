@@ -62,6 +62,18 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
       return { icon: 'check-circle', tone: 'success', text: `${who} confirmed a payment for round ${p.round_no}` };
     case 'payment_rejected':
       return { icon: 'x-circle', tone: 'danger', text: `${who} rejected a receipt for round ${p.round_no}` };
+    case 'round_released':
+      return {
+        icon: 'gift',
+        tone: Number(p.unpaid) > 0 ? 'warning' : 'success',
+        text: `${who} released the sahod for round ${p.round_no}${Number(p.unpaid) > 0 ? ` with ${p.unpaid} unpaid hulog (${peso(Number(p.unpaid_amount ?? 0))}) still owed` : ''}`,
+      };
+    case 'payment_covered':
+      return { icon: 'shield', tone: 'warning', text: `${who} covered a missed hulog for round ${p.round_no} (${peso(Number(p.amount ?? 0))})` };
+    case 'replacement_opened':
+      return { icon: 'user-minus', tone: 'warning', text: `${who} opened a slot to replace a member` };
+    case 'member_replaced':
+      return { icon: 'user-check', tone: 'info', text: `${who} replaced a member. The new member takes over their remaining hulog and payout` };
     case 'round_completed':
       return { icon: 'award', tone: 'success', text: `Round ${p.round_no} is fully paid` };
     case 'circle_completed':

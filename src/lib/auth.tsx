@@ -93,6 +93,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     enabled: !!userId,
     queryFn: async ({ queryKey }) => {
       if (demoState.on) return (await demoQuery(queryKey)) as Profile;
+      // Recount the Trust Score first so missed hulog show up even before a round is released.
+      // Best effort: ignored if it fails (e.g. before migration 0008 is run).
+      await supabase.rpc('refresh_my_tiwala').then(
+        () => undefined,
+        () => undefined,
+      );
       const { data, error } = await supabase.from('profiles').select('*').eq('id', userId!).maybeSingle();
       if (error) throw error;
       return data as Profile | null;
