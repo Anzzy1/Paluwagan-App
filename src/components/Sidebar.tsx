@@ -14,6 +14,7 @@ import { useMyCircles } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useColors } from '@/lib/prefs';
 import { onTimeStreak } from '@/lib/rewards';
+import { StreakPill } from '@/components/Rewards';
 import { useManagedCircles } from '@/lib/local';
 import { radius, SIDEBAR_WIDTH } from '@/theme/tokens';
 
@@ -110,17 +111,10 @@ export function Sidebar() {
 
       <View style={{ flex: 1 }} />
 
-      <View style={[styles.streak, { backgroundColor: c.warningBg }]}>
-        <Feather name="zap" size={18} color={c.warning} />
-        <View style={{ flex: 1 }}>
-          <Text variant="smallBold" tone="warning">
-            {streak > 0 ? `${streak} on-time streak` : 'No streak yet'}
-          </Text>
-          <Text variant="caption" tone="warning" style={{ opacity: 0.8 }}>
-            {isDemo ? 'Sample data' : isOffline ? 'Offline mode · no account' : isGuest ? 'Testing mode · guest account' : 'Pay on time to keep it going'}
-          </Text>
-        </View>
-      </View>
+      <StreakPill
+        streak={streak}
+        caption={isDemo ? 'Sample data' : isOffline ? 'Offline mode · no account' : isGuest ? 'Testing mode · guest account' : 'Pay on time to keep it going'}
+      />
 
       <PressableScale hapticOnPress={false} onPress={() => router.navigate('/profile')} style={[styles.user, { borderTopColor: c.border }]}>
         <Avatar name={profile?.full_name} seed={profile?.id} uri={profile?.avatar_url} size={36} />
@@ -142,6 +136,5 @@ export function Sidebar() {
 const styles = StyleSheet.create({
   wrap: { width: SIDEBAR_WIDTH, borderRightWidth: 1, padding: 20, gap: 22 },
   item: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, borderRadius: radius.md },
-  streak: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: radius.md },
   user: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 14, borderTopWidth: 1, paddingHorizontal: 4 },
 });

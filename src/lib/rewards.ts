@@ -19,7 +19,8 @@ export function onTimeStreak(circles: MyCircle[]): number {
   return n;
 }
 
-export type Badge = { id: string; title: string; body: string; icon: IconName; color: string; earned: boolean };
+/** `count`/`goal` show progress on locked badges (e.g. 1/3); goal 0 means all-or-nothing. */
+export type Badge = { id: string; title: string; body: string; icon: IconName; color: string; earned: boolean; count: number; goal: number };
 
 export function badgesFor(circles: MyCircle[], profile: Profile | null): Badge[] {
   const paid = circles.flatMap((mc) => mc.contributions.filter((k) => k.status === 'confirmed' && !k.auto));
@@ -29,14 +30,14 @@ export function badgesFor(circles: MyCircle[], profile: Profile | null): Badge[]
   const payout = circles.some((mc) => mc.rounds.some((r) => r.slot_group === mc.membership.slot_group && r.status === 'completed'));
   const finished = circles.some((mc) => mc.circle.status === 'completed');
   return [
-    { id: 'first', title: 'First Hulog', body: 'Make your first contribution', icon: 'check', color: '#16A34A', earned: paid.length >= 1 },
-    { id: 'streak3', title: 'On a Roll', body: '3 on-time payments in a row', icon: 'zap', color: '#F2711C', earned: streak >= 3 },
-    { id: 'ontime10', title: 'Always On Time', body: '10 on-time payments', icon: 'clock', color: '#2F6FEB', earned: onTime >= 10 },
-    { id: 'starter', title: 'Paluwagan Starter', body: 'Create your own paluwagan', icon: 'plus-circle', color: '#7350E8', earned: admin },
-    { id: 'payout', title: 'Payday!', body: 'Receive your first payout', icon: 'gift', color: '#E5365F', earned: payout },
-    { id: 'trusted', title: 'Trusted', body: 'Reach a Trust Score of 90', icon: 'shield', color: '#D9961A', earned: (profile?.tiwala_score ?? 0) >= 90 },
-    { id: 'social', title: 'Barkada Builder', body: 'Join 3 paluwagan', icon: 'users', color: '#16A34A', earned: circles.length >= 3 },
-    { id: 'finisher', title: 'Finisher', body: 'Complete a whole paluwagan', icon: 'flag', color: '#13201B', earned: finished },
+    { id: 'first', title: 'First Hulog', body: 'Make your first contribution', icon: 'check', color: '#16A34A', earned: paid.length >= 1, count: paid.length, goal: 1 },
+    { id: 'streak3', title: 'On a Roll', body: '3 on-time payments in a row', icon: 'zap', color: '#F2711C', earned: streak >= 3, count: streak, goal: 3 },
+    { id: 'ontime10', title: 'Always On Time', body: '10 on-time payments', icon: 'clock', color: '#2F6FEB', earned: onTime >= 10, count: onTime, goal: 10 },
+    { id: 'starter', title: 'Paluwagan Starter', body: 'Create your own paluwagan', icon: 'plus-circle', color: '#7350E8', earned: admin, count: 0, goal: 0 },
+    { id: 'payout', title: 'Payday!', body: 'Receive your first payout', icon: 'gift', color: '#E5365F', earned: payout, count: 0, goal: 0 },
+    { id: 'trusted', title: 'Trusted', body: 'Reach a Trust Score of 90', icon: 'shield', color: '#D9961A', earned: (profile?.tiwala_score ?? 0) >= 90, count: profile?.tiwala_score ?? 0, goal: 90 },
+    { id: 'social', title: 'Barkada Builder', body: 'Join 3 paluwagan', icon: 'users', color: '#16A34A', earned: circles.length >= 3, count: circles.length, goal: 3 },
+    { id: 'finisher', title: 'Finisher', body: 'Complete a whole paluwagan', icon: 'flag', color: '#13201B', earned: finished, count: 0, goal: 0 },
   ];
 }
 

@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import { SocialButtons } from '@/components/auth/SocialButtons';
 import { AuthShell } from '@/components/AuthShell';
 import { Input } from '@/components/ui/bits';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Button } from '@/components/ui/Button';
 import { Text } from '@/components/ui/Text';
@@ -96,13 +97,11 @@ export default function Login() {
         returnKeyType="next"
         autoFocus
       />
-      <Input
+      <PasswordInput
         label="Password"
         placeholder={signup ? `At least ${MIN_PASSWORD} characters` : 'Your password'}
         value={password}
         onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
         autoComplete={signup ? 'new-password' : 'current-password'}
         textContentType={signup ? 'newPassword' : 'password'}
         returnKeyType={signup ? 'next' : 'go'}
@@ -110,13 +109,11 @@ export default function Login() {
         hint={signup && password.length > 0 && password.length < MIN_PASSWORD ? `${MIN_PASSWORD - password.length} more characters` : undefined}
       />
       {signup && (
-        <Input
+        <PasswordInput
           label="Confirm password"
           placeholder="Type it again"
           value={confirm}
           onChangeText={setConfirm}
-          secureTextEntry
-          autoCapitalize="none"
           autoComplete="new-password"
           textContentType="newPassword"
           returnKeyType="go"

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { Input } from '@/components/ui/bits';
+import { PasswordInput } from '@/components/ui/PasswordInput';
 import { Button } from '@/components/ui/Button';
 import { Sheet } from '@/components/ui/Sheet';
 import { notify, notifyError } from '@/lib/alert';
@@ -32,24 +32,20 @@ export function PasswordSheet({ open, onClose }: { open: boolean; onClose: () =>
 
   return (
     <Sheet open={open} onClose={close} title="Set password" subtitle="Log in with your email and this password from now on.">
-      <Input
+      <PasswordInput
         label="New password"
         placeholder={`At least ${MIN_PASSWORD} characters`}
         value={password}
         onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
         autoComplete="new-password"
         textContentType="newPassword"
         hint={password.length > 0 && password.length < MIN_PASSWORD ? `${MIN_PASSWORD - password.length} more characters` : undefined}
       />
-      <Input
+      <PasswordInput
         label="Confirm password"
         placeholder="Type it again"
         value={confirm}
         onChangeText={setConfirm}
-        secureTextEntry
-        autoCapitalize="none"
         autoComplete="new-password"
         textContentType="newPassword"
         onSubmitEditing={save}

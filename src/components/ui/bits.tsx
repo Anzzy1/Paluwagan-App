@@ -238,9 +238,10 @@ export function Input({
   label,
   hint,
   prefix,
+  right,
   style,
   ...rest
-}: TextInputProps & { label?: string; hint?: string; prefix?: string }) {
+}: TextInputProps & { label?: string; hint?: string; prefix?: string; /** Shown inside the field, after the text (e.g. a show-password button). */ right?: ReactNode }) {
   const c = useColors();
   return (
     <View style={{ gap: 6 }}>
@@ -278,6 +279,7 @@ export function Input({
             style,
           ]}
         />
+        {right}
       </View>
       {hint && (
         <Text variant="small" tone="faint">

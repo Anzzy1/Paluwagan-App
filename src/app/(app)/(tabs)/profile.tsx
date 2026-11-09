@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { Mascot } from '@/components/Mascot';
-import { Avatar, Chip, Divider, IconButton, Input, ProgressRing, Stat } from '@/components/ui/bits';
+import { Avatar, Chip, Divider, IconButton, Input, ProgressBar, ProgressRing, Stat } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -17,6 +17,7 @@ import { useManagedCircles } from '@/lib/local';
 import { peso, trustLabel } from '@/lib/format';
 import { useColors } from '@/lib/prefs';
 import { badgesFor, onTimeStreak } from '@/lib/rewards';
+import { BadgeGrid, StreakCard } from '@/components/Rewards';
 import { notifyError } from '@/lib/alert';
 import { pickPhoto, type Photo } from '@/lib/photo';
 
@@ -117,49 +118,14 @@ export default function ProfileTab() {
 
   const rewards = (
     <>
-      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: c.warningBg, borderColor: c.warningBg }}>
-        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.warning, alignItems: 'center', justifyContent: 'center' }}>
-          <Feather name="zap" size={24} color="#fff" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text variant="h1" tone="warning">
-            {streak} on-time streak
-          </Text>
-          <Text variant="small" tone="warning">
-            {streak > 0 ? 'Every on-time payment adds to your streak. Don’t break it!' : 'Pay your next contribution on time to start a streak.'}
-          </Text>
-        </View>
-      </Card>
+      <StreakCard streak={streak} />
       <Card style={{ gap: 16 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text variant="h3">Badges</Text>
           <Chip label={`${earned} of ${badges.length} unlocked`} tone="brand" />
         </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 18 }}>
-          {badges.map((b) => (
-            <View key={b.id} style={{ width: '25%', alignItems: 'center', gap: 6, paddingHorizontal: 4 }}>
-              <View
-                style={{
-                  width: 58,
-                  height: 58,
-                  borderRadius: 29,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: b.earned ? b.color : c.surfaceAlt,
-                  borderWidth: 3,
-                  borderColor: b.earned ? c.goldSoft : c.border,
-                }}>
-                <Feather name={b.earned ? b.icon : 'lock'} size={22} color={b.earned ? '#fff' : c.textFaint} />
-              </View>
-              <Text variant="caption" center numberOfLines={1} tone={b.earned ? 'default' : 'faint'}>
-                {b.title}
-              </Text>
-              <Text variant="caption" center tone="faint" style={{ fontSize: 10, lineHeight: 13 }} numberOfLines={2}>
-                {b.body}
-              </Text>
-            </View>
-          ))}
-        </View>
+        <ProgressBar progress={earned / badges.length} color={c.gold} />
+        <BadgeGrid badges={badges} />
       </Card>
     </>
   );
