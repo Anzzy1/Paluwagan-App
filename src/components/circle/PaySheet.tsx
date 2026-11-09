@@ -77,7 +77,7 @@ export function PaySheet({
     );
 
   return (
-    <Sheet open={open} onClose={onClose} title="Submit payment" subtitle={`Payout ${round.round_no} · hulog due ${longDate(due)}`}>
+    <Sheet open={open} onClose={onClose} title="Pay hulog" subtitle={`Hulog for ${longDate(due)} · ${circle.name}`}>
       <View style={[styles.amount, { backgroundColor: c.surfaceAlt }]}>
         <Text variant="caption" tone="muted">
           Amount due
@@ -145,7 +145,7 @@ export function PaySheet({
       )}
       <Input placeholder="Reference number (optional)" value={note} onChangeText={setNote} />
       <Button title="Submit payment" onPress={send} disabled={!image} loading={submit.isPending} />
-      <Notice tone="info" icon="info" title="The recipient confirms receipt" body="Your payment is marked as paid once the recipient confirms the transfer." />
+      <Notice tone="info" icon="info" title="The admin confirms your payment" body="Your hulog is marked as paid once the admin sees the money. If you paid in cash, the admin can mark it paid for you." />
     </Sheet>
   );
 }

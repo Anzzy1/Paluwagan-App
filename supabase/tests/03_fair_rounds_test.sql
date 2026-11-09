@@ -41,19 +41,19 @@ begin
   -- ---- 1. The admin can't confirm their own payment
   select id into kid from contributions where round_id = r1.id and user_id = a;
   perform submit_proof(kid, cid || '/' || a || '/r.jpg');
-  begin
-    perform review_contribution(kid, true);
-    assert false, 'admin must not confirm own payment';
-  exception when raise_exception then null; end;
-  perform pg_temp.login(c);
+  -- 0019: the admin holds the money, so they record their own hulog
   perform review_contribution(kid, true);
   assert (select late_fee from contributions where id = kid) = 50, 'late payment records the late fee';
   assert (select on_time from contributions where id = kid) = false, 'paid long after due → late';
 
-  -- D pays; B never does
+  -- D pays but members can't confirm their own payment
   perform pg_temp.login(d);
   select id into kid from contributions where round_id = r1.id and user_id = d;
   perform submit_proof(kid, cid || '/' || d || '/r.jpg');
+  begin
+    perform review_contribution(kid, true);
+    assert false, 'members must not confirm their own payment';
+  exception when raise_exception then null; end;
   perform pg_temp.login(c);
   perform review_contribution(kid, true);
   assert (select status from rounds where id = r1.id) = 'active', 'round 1 still open while B is unpaid';
@@ -116,9 +116,8 @@ begin
   assert (select slot_group from circle_members where id = me_) = gb, 'E took B’s slot (and payout)';
   select count(*) into n from contributions k join rounds r on r.id = k.round_id
    where k.circle_id = cid and k.user_id = e and k.status = 'pending';
-  assert n = 1, 'E owes the unpaid round-3 hulog (' || n || ')';
-  assert (select user_id from contributions where round_id = (select id from rounds where circle_id = cid and round_no = 4) and auto) = e,
-    'E gets B’s own share of the round-4 payout';
+  assert n = 2, 'E owes the unpaid hulog of rounds 3 and 4 (' || n || ')';
+  assert (select slot_group from rounds where circle_id = cid and round_no = 4) = gb, 'E gets B’s round-4 payout (same slot)';
   assert (select user_id from contributions where round_id = r1.id and member_id = mb) = b, 'B’s history stays with B';
   assert (select replacing_member from circles where id = cid) is null, 'replacement closed';
 

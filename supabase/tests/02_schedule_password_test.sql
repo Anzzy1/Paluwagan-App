@@ -91,10 +91,10 @@ begin
   assert (select min(due_date) from contributions where round_id = r1.id) = '2026-11-09';
   assert (select max(due_date) from contributions where round_id = r1.id) = '2026-11-15';
   assert (select min(due_date) from contributions where round_id = r2.id) = '2026-11-16';
-  assert (select count(*) from contributions where round_id = r1.id and auto) = 7, 'recipient own hulog auto-confirmed';
+  assert (select count(*) from contributions where round_id = r1.id and auto) = 0, 'everyone pays every hulog, the recipient included (0019)';
 
-  -- the recipient confirms one daily hulog; it is judged on time against its own date
-  perform pg_temp.login((select user_id from circle_members where circle_id = cid and slot_group = r1.slot_group));
+  -- the admin confirms one daily hulog; it is judged on time against its own date
+  perform pg_temp.login(g);
   perform review_contribution((select id from contributions where round_id = r1.id and not auto order by due_date limit 1), true);
   assert (select status from rounds where id = r1.id) = 'active', 'round stays active until every hulog is confirmed';
 

@@ -5,10 +5,11 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ActivityList } from '@/components/ActivityList';
+import { HulogChecklist } from '@/components/circle/HulogChecklist';
 import { FormingAdmin, InvitePanel, MembersList, ReplacementAdmin, RulesPanel, SlotsProgress, Timeline } from '@/components/circle/panels';
 import { DeleteCircleButton, DeletedPanel, PauseCircleButton, PausedPanel } from '@/components/circle/Lifecycle';
 import { PaySheet } from '@/components/circle/PaySheet';
-import { Notice, ProgressBar, PurposeIcon, Segmented, StatusChip } from '@/components/ui/bits';
+import { Notice, ProgressBar, PurposeIcon, Segmented } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card, useTint } from '@/components/ui/Card';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -19,8 +20,8 @@ import { useActivity, useCircle, useCircleAction, useNudge } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { unreadCount, useChatRead, useCircleChat } from '@/lib/chat';
 import { dueOf, hulogInRound, isRevealed, myNextContribution, plannedHulogPerSahod, recipientsOf, unpaid } from '@/lib/derive';
-import type { Member } from '@/lib/types';
-import { daysUntil, displayStatus, firstName, longDate, payoutShort, peso, potOf, relativeDue, shortDate, slotName, timeAgo, todayISO } from '@/lib/format';
+import type { Contribution, Member } from '@/lib/types';
+import { daysUntil, firstName, longDate, payoutShort, peso, potOf, relativeDue, slotName, timeAgo, todayISO } from '@/lib/format';
 import { useColors, useIsDesktop, useT } from '@/lib/prefs';
 import { radius } from '@/theme/tokens';
 import { withAccount } from '@/components/AccountGate';
@@ -102,6 +103,8 @@ function CircleScreenScreen() {
   const nudge = useNudge();
   const [tab, setTab] = useState<Tab>('timeline');
   const [payOpen, setPayOpen] = useState(false);
+  /** A hulog picked from the checklist to pay (defaults to my next one). */
+  const [payK, setPayK] = useState<Contribution | null>(null);
   const tint = useTint(q.data?.circle.color);
 
   if (q.isPending) {
@@ -135,7 +138,6 @@ function CircleScreenScreen() {
   const admins = members.filter((m) => m.role === 'admin' && m.status === 'approved');
   const iAmRecipient = !!current && me?.slot_group === current.slot_group;
   const myK = myNextContribution(contributions, current, me?.id);
-  const myHulog = current ? hulogInRound(contributions, current, me?.id) : 1;
   const roundKs = current ? contributions.filter((k) => k.round_id === current.id) : [];
   const confirmed = roundKs.filter((k) => k.status === 'confirmed');
   const collected = confirmed.reduce((s, k) => s + Number(k.amount), 0);
@@ -329,27 +331,6 @@ function CircleScreenScreen() {
         </View>
       )}
 
-      {myK && !myK.auto ? (
-        <View style={[styles.myPay, { borderColor: c.border }]}>
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text variant="small" tone="muted">
-              {myHulog > 1 && current ? `Your hulog · due ${shortDate(dueOf(myK, current))}` : 'Your contribution'}
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text variant="money">{peso(myK.amount)}</Text>
-              <StatusChip status={displayStatus(myK, current, circle)} />
-            </View>
-            {myK.status === 'rejected' && myK.reject_reason ? (
-              <Text variant="small" tone="danger">
-                Rejected: {myK.reject_reason}
-              </Text>
-            ) : null}
-          </View>
-          {(myK.status === 'pending' || myK.status === 'rejected') && (
-            <Button title="Pay now" full={false} size="md" onPress={() => setPayOpen(true)} />
-          )}
-        </View>
-      ) : null}
 
       {isAdmin && (
         <View style={{ gap: 10 }}>
@@ -467,6 +448,18 @@ function CircleScreenScreen() {
         </Card>
       )}
       {activeRound}
+      {circle.status === 'active' && current && (
+        <HulogChecklist
+          data={data}
+          round={current}
+          isAdmin={!!isAdmin}
+          userId={userId}
+          onPay={(k) => {
+            setPayK(k);
+            setPayOpen(true);
+          }}
+        />
+      )}
       {isAdmin && circle.status === 'active' && circle.replacing_member && <ReplacementAdmin data={data} />}
       {isAdmin && circle.status === 'active' && !anyonePaid && (
         <Button
@@ -510,7 +503,19 @@ function CircleScreenScreen() {
       ) : (
         main
       )}
-      {current && myK && <PaySheet open={payOpen} onClose={() => setPayOpen(false)} circle={circle} round={current} contribution={myK} recipients={admins} />}
+      {current && (payK ?? myK) && (
+        <PaySheet
+          open={payOpen}
+          onClose={() => {
+            setPayOpen(false);
+            setPayK(null);
+          }}
+          circle={circle}
+          round={current}
+          contribution={(payK ?? myK)!}
+          recipients={admins}
+        />
+      )}
     </Screen>
   );
 }

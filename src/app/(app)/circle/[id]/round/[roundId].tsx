@@ -158,7 +158,7 @@ function RoundScreenScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Screen back title={`Payout ${round.round_no}`} subtitle={`${circle.name} · sahod ${longDate(round.due_date)} · ${relativeDue(round.due_date)}${perSahod > 1 ? ` · ${perSahod} hulog` : ''}`} refreshing={q.isRefetching} onRefresh={q.refetch}>
+      <Screen back title={`Round ${round.round_no}`} subtitle={`${circle.name} · sahod ${longDate(round.due_date)} · ${relativeDue(round.due_date)}${perSahod > 1 ? ` · ${perSahod} hulog` : ''}`} refreshing={q.isRefetching} onRefresh={q.refetch}>
         <Columns main={list} side={summary} />
       </Screen>
       <ReviewSheet k={review} member={review ? memberById.get(review.member_id) : undefined} canReview={!!canReview && review?.user_id !== userId} canCover={!!isAdmin && review?.user_id !== userId} circleId={id} onClose={() => setReview(null)} />

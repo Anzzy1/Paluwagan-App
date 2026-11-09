@@ -84,7 +84,7 @@ begin
                                    where circle_id = cid and status = 'approved')), 'order reproducible';
   assert (select count(*) from rounds where circle_id = cid) = 4, '4 rounds';
   assert (select count(*) from contributions where circle_id = cid) = 20, '5 members x 4 rounds';
-  assert (select count(*) from contributions where circle_id = cid and auto) = 5, 'recipient shares auto-confirmed';
+  assert (select count(*) from contributions where circle_id = cid and auto) = 0, 'everyone pays, the recipient included (0019)';
   assert (select amount from contributions where user_id = d limit 1) = 500, 'hati pays half';
   assert (select due_date from rounds where circle_id = cid and round_no = 3) = '2026-11-23', 'weekly due dates';
   assert (select status from circles where id = cid) = 'active';
@@ -102,7 +102,8 @@ begin
     perform review_contribution((select id from contributions where round_id = r.id and status = 'submitted' limit 1), true);
     assert false, 'outsider confirm must fail';
   exception when raise_exception then null; end;
-  perform pg_temp.login(rec);
+  -- 0019: the admin keeps the checklist and confirms every hulog (the recipient's too)
+  perform pg_temp.login(a);
   for k in select * from contributions where round_id = r.id and status = 'submitted' loop
     perform review_contribution(k.id, true);
   end loop;
@@ -131,10 +132,7 @@ begin
   perform respond_swap(sid, 'approve');
   assert (select slot_group from rounds where id = r3.id) = r4.slot_group, 'round 3 now belongs to old round-4 slot';
   assert (select slot_group from rounds where id = r4.id) = r3.slot_group, 'round 4 now belongs to old round-3 slot';
-  assert not exists (
-    select 1 from contributions kk join rounds rr on rr.id = kk.round_id join circle_members m on m.id = kk.member_id
-    where rr.circle_id = cid and (kk.auto <> (m.slot_group = rr.slot_group))
-  ), 'auto-confirmed shares follow the recipient after swap';
+  assert not exists (select 1 from contributions where circle_id = cid and auto), 'no auto-confirmed shares after a swap';
 
   -- ---- Outsider sees nothing
   perform pg_temp.login(f);

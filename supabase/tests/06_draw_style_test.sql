@@ -57,5 +57,10 @@ begin
   perform submit_proof((select id from contributions where circle_id = cid and user_id = b and status = 'pending' limit 1), cid || '/' || b || '/r.jpg');
   assert exists (select 1 from contributions where circle_id = cid and user_id = b and status = 'submitted'), 'paying works after the reveal';
 
+  -- 0019: the admin marks a hulog paid without a receipt (cash handed over)
+  perform pg_temp.login(a);
+  perform review_contribution((select id from contributions where circle_id = cid and user_id = c and status = 'pending' order by due_date limit 1), true);
+  assert exists (select 1 from contributions where circle_id = cid and user_id = c and status = 'confirmed' and proof_path is null), 'marked paid without a receipt';
+
   raise notice '✅ draw style assertions passed';
 end $$;
