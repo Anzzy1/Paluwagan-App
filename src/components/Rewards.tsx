@@ -28,8 +28,7 @@ export const STREAK_MILESTONES = [3, 5, 10, 20, 30, 50, 100];
 
 export function nextMilestone(streak: number) {
   const next = STREAK_MILESTONES.find((m) => m > streak) ?? Math.ceil((streak + 1) / 50) * 50;
-  const prev = Math.max(0, ...STREAK_MILESTONES.filter((m) => m <= streak));
-  return { next, prev, progress: next === prev ? 1 : (streak - prev) / (next - prev) };
+  return { next, progress: streak / next };
 }
 
 /** A two-tone flame. `lit` false draws it grey (no streak yet). */
@@ -217,10 +216,10 @@ export function BadgeGrid({ badges }: { badges: Badge[] }) {
       {badges.map((b) => (
         <View key={b.id} style={{ width: '25%', alignItems: 'center', gap: 4, paddingHorizontal: 3 }}>
           <Medal icon={b.icon} color={b.color} earned={b.earned} />
-          <Text variant="caption" center numberOfLines={1} tone={b.earned ? 'default' : 'muted'}>
+          <Text variant="caption" center numberOfLines={2} tone={b.earned ? 'default' : 'muted'}>
             {b.title}
           </Text>
-          {b.earned || !b.goal ? (
+          {b.earned ? null : !b.goal ? (
             <Text variant="caption" center tone="faint" style={{ fontSize: 10, lineHeight: 13 }} numberOfLines={2}>
               {b.body}
             </Text>
