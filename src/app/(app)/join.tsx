@@ -270,7 +270,9 @@ function JoinScreen() {
   const slotsLeft = p ? 50 - Number(p.filled) : 0;
   // Open while forming, or while a running paluwagan looks for a replacement (who takes over a full slot).
   const open = !!p && (p.status === 'forming' || (p.status === 'active' && !!p.replacing));
-  const canRequest = open && !p.my_status;
+  // Someone who left (or was declined) can ask again; the server turns their old row back into a request.
+  const rejoining = p?.my_status === 'left' || p?.my_status === 'rejected';
+  const canRequest = open && (!p.my_status || rejoining);
   const ready = canRequest && agree && (!p.has_password || password.length > 0) && (p.replacing || slotsLeft >= 1);
 
   // -------- step 1: find the circle
@@ -384,6 +386,14 @@ function JoinScreen() {
         <Notice tone="info" icon="lock" title="This paluwagan has already started" body="It’s no longer accepting new members." />
       ) : (
         <>
+          {rejoining && (
+            <Notice
+              tone="info"
+              icon="refresh-cw"
+              title={p.my_status === 'left' ? 'Welcome back' : 'You can ask again'}
+              body={p.my_status === 'left' ? 'You left this paluwagan before. Send a new request and the admin will review it again.' : 'Your last request wasn’t approved. You can send a new one for the admin to review.'}
+            />
+          )}
           {p.replacing && (
             <Notice tone="info" icon="user-plus" title="Joining as a replacement" body="This paluwagan is already running. If approved, you take over an existing member’s slot: their payout and the hulog they haven’t paid yet." />
           )}
