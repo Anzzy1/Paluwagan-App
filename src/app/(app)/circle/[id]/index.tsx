@@ -19,7 +19,8 @@ import { useActivity, useCircle, useCircleAction, useNudge } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { unreadCount, useChatRead, useCircleChat } from '@/lib/chat';
 import { dueOf, hulogInRound, myNextContribution, plannedHulogPerSahod, recipientsOf, unpaid } from '@/lib/derive';
-import { daysUntil, displayStatus, longDate, payoutShort, peso, potOf, relativeDue, shortDate, slotName } from '@/lib/format';
+import type { Member } from '@/lib/types';
+import { daysUntil, displayStatus, firstName, longDate, payoutShort, peso, potOf, relativeDue, shortDate, slotName, timeAgo } from '@/lib/format';
 import { useColors, useIsDesktop, useT } from '@/lib/prefs';
 import { radius } from '@/theme/tokens';
 import { withAccount } from '@/components/AccountGate';
@@ -43,7 +44,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 /** Opens the paluwagan's group chat; shows the latest message and how many are unread. */
-function ChatEntry({ circleId, userId }: { circleId: string; userId: string | null }) {
+function ChatEntry({ circleId, userId, members }: { circleId: string; userId: string | null; members: Member[] }) {
   const c = useColors();
   const chat = useCircleChat(circleId);
   const { lastRead } = useChatRead(circleId);
@@ -57,9 +58,24 @@ function ChatEntry({ circleId, userId }: { circleId: string; userId: string | nu
         </View>
         <View style={{ flex: 1, gap: 1 }}>
           <Text variant="bodyBold">Group chat</Text>
-          <Text variant="small" tone="muted" numberOfLines={1}>
-            {latest ? latest.body : 'Talk with the members of this paluwagan'}
-          </Text>
+          {latest ? (
+            // Messenger-style preview: who sent the last message, what they said, and when.
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              <Text variant="small" tone={unread ? 'default' : 'muted'} numberOfLines={1} style={{ flexShrink: 1 }}>
+                <Text variant={unread ? 'smallBold' : 'small'} tone={unread ? 'default' : 'muted'}>
+                  {latest.user_id === userId ? 'You' : firstName(members.find((m) => m.user_id === latest.user_id)?.profiles?.full_name ?? 'Former member')}:{' '}
+                </Text>
+                {latest.body}
+              </Text>
+              <Text variant="small" tone="faint">
+                · {timeAgo(latest.created_at)}
+              </Text>
+            </View>
+          ) : (
+            <Text variant="small" tone="muted" numberOfLines={1}>
+              Talk with the members of this paluwagan
+            </Text>
+          )}
         </View>
         {unread > 0 && (
           <View style={[styles.unread, { backgroundColor: c.danger }]}>
@@ -393,7 +409,7 @@ function CircleScreenScreen() {
   const main = (
     <>
       {lifecycle}
-      {me?.status === 'approved' && !circle.deleted_at && <ChatEntry circleId={id} userId={userId} />}
+      {me?.status === 'approved' && !circle.deleted_at && <ChatEntry circleId={id} userId={userId} members={members} />}
       {!circle.deleted_at && forming}
       {!circle.deleted_at && locked}
       {myOverdue.length > 0 && (
