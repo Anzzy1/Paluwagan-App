@@ -1,3 +1,4 @@
+import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
@@ -10,11 +11,13 @@ import { PaySheet } from '@/components/circle/PaySheet';
 import { AvatarStack, Notice, ProgressBar, PurposeIcon, Segmented, StatusChip } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card, useTint } from '@/components/ui/Card';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { Columns, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { confirmAction, notify, notifyError } from '@/lib/alert';
 import { useActivity, useCircle, useCircleAction, useNudge } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { unreadCount, useChatRead, useCircleChat } from '@/lib/chat';
 import { dueOf, hulogInRound, myNextContribution, plannedHulogPerSahod, recipientsOf, unpaid } from '@/lib/derive';
 import { daysUntil, displayStatus, longDate, payoutShort, peso, potOf, relativeDue, shortDate, slotName } from '@/lib/format';
 import { useColors, useIsDesktop, useT } from '@/lib/prefs';
@@ -33,6 +36,38 @@ function Metric({ label, value }: { label: string; value: string }) {
         {value}
       </Text>
     </View>
+  );
+}
+
+/** Opens the paluwagan's group chat; shows the latest message and how many are unread. */
+function ChatEntry({ circleId, userId }: { circleId: string; userId: string | null }) {
+  const c = useColors();
+  const chat = useCircleChat(circleId);
+  const { lastRead } = useChatRead(circleId);
+  const unread = unreadCount(chat.data, lastRead, userId);
+  const latest = chat.data?.[chat.data.length - 1];
+  return (
+    <PressableScale onPress={() => router.push(`/circle/${circleId}/chat`)} hapticOnPress={false} scaleTo={0.99} accessibilityLabel={unread ? `Group chat, ${unread} unread` : 'Group chat'}>
+      <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={[styles.chatIcon, { backgroundColor: c.brandSoft }]}>
+          <Feather name="message-circle" size={20} color={c.brand} />
+        </View>
+        <View style={{ flex: 1, gap: 1 }}>
+          <Text variant="bodyBold">Group chat</Text>
+          <Text variant="small" tone="muted" numberOfLines={1}>
+            {latest ? latest.body : 'Talk with the members of this paluwagan'}
+          </Text>
+        </View>
+        {unread > 0 && (
+          <View style={[styles.unread, { backgroundColor: c.danger }]}>
+            <Text variant="caption" color="#fff" style={{ fontWeight: '800' }}>
+              {unread > 99 ? '99+' : unread}
+            </Text>
+          </View>
+        )}
+        <Feather name="chevron-right" size={18} color={c.textFaint} />
+      </Card>
+    </PressableScale>
   );
 }
 
@@ -351,6 +386,7 @@ function CircleScreenScreen() {
   const main = (
     <>
       {lifecycle}
+      {me?.status === 'approved' && !circle.deleted_at && <ChatEntry circleId={id} userId={userId} />}
       {!circle.deleted_at && forming}
       {!circle.deleted_at && locked}
       {myOverdue.length > 0 && (
@@ -394,6 +430,8 @@ function CircleScreenScreen() {
 }
 
 const styles = StyleSheet.create({
+  chatIcon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  unread: { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
   hero: { borderRadius: radius.xl, padding: 22, gap: 22, overflow: 'hidden' },
   heroDeco: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(255,255,255,0.1)' },
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: 14 },
