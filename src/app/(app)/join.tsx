@@ -220,7 +220,6 @@ function JoinScreen() {
   const [link, setLink] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [hati, setHati] = useState(false);
   const [agree, setAgree] = useState(false);
   // A new invite link opened while this screen is showing replaces the code.
   const [seen, setSeen] = useState(params.code);
@@ -238,7 +237,6 @@ function JoinScreen() {
     setLink('');
     setPassword('');
     setAgree(false);
-    setHati(false);
   };
 
   const onLink = (v: string) => {
@@ -256,7 +254,8 @@ function JoinScreen() {
 
   const submit = () =>
     join.mutate(
-      { code, hati: hati && !p?.replacing, password },
+      // Split slots were removed: everyone joins with a full slot.
+      { code, hati: false, password },
       {
         onSuccess: () => {
           haptic('success');
@@ -272,7 +271,7 @@ function JoinScreen() {
   // Open while forming, or while a running paluwagan looks for a replacement (who takes over a full slot).
   const open = !!p && (p.status === 'forming' || (p.status === 'active' && !!p.replacing));
   const canRequest = open && !p.my_status;
-  const ready = canRequest && agree && (!p.has_password || password.length > 0) && (p.replacing || slotsLeft >= (hati ? 0.5 : 1));
+  const ready = canRequest && agree && (!p.has_password || password.length > 0) && (p.replacing || slotsLeft >= 1);
 
   // -------- step 1: find the circle
   const finder = (
@@ -408,22 +407,6 @@ function JoinScreen() {
                 <IconButton icon={showPw ? 'eye-off' : 'eye'} size={48} onPress={() => setShowPw(!showPw)} label={showPw ? 'Hide password' : 'Show password'} />
               </View>
             </Card>
-          )}
-
-          {/* A replacement takes over a whole existing slot, so no split-slot option. */}
-          {!p.replacing && (
-          <PressableScale onPress={() => setHati(!hati)} hapticOnPress={false} style={[styles.toggle, { backgroundColor: c.surface, borderColor: hati ? c.brand : 'transparent' }]}>
-            <View style={[styles.stepIcon, { backgroundColor: hati ? c.brand : c.surfaceAlt }]}>
-              <Feather name="users" size={16} color={hati ? c.onBrand : c.textMuted} />
-            </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text variant="bodyBold">Split slot</Text>
-              <Text variant="small" tone="muted">
-                Share a slot: pay {peso(Number(p.amount) / 2)}, receive {peso((potOf(p) * plannedHulogPerSahod(p)) / 2)}. The admin pairs you.
-              </Text>
-            </View>
-            <Feather name={hati ? 'check-circle' : 'circle'} size={20} color={hati ? c.brand : c.borderStrong} />
-          </PressableScale>
           )}
 
           <Card style={{ gap: 10 }}>

@@ -501,7 +501,7 @@ export default function CreateCircle() {
                 ? memberNames.length < MIN_MEMBERS
                   ? `Add at least ${MIN_MEMBERS} members. You can still add or remove members until you run the draw.`
                   : 'You can still add or remove members until you run the draw.'
-                : `With 5 members, each sahod is ${peso(perMember * 5)}. Two members can share one slot (split slot): each contributes half and receives half of the payout.`
+                : `With 5 members, each sahod is ${peso(perMember * 5)}.`
             }
           />
         </>
