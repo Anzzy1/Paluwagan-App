@@ -57,7 +57,8 @@ function useMyCirclesQuery(select: (list: MyCircle[]) => MyCircle[]) {
       const memberships = must(
         await supabase
           .from('circle_members')
-          .select('*, profiles(*), circles(*)')
+          // Name the link: circles.replacing_member (0008) is a second one between these tables.
+          .select('*, profiles(*), circles!circle_members_circle_id_fkey(*)')
           .eq('user_id', userId!)
           .eq('status', 'approved')
           .order('joined_at', { ascending: false }),
