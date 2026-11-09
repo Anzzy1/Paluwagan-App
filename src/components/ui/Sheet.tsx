@@ -32,7 +32,8 @@ export function Sheet({
 
   useEffect(() => {
     if (open) {
-      p.set(withSpring(1, { damping: 24, stiffness: 260 }));
+      // One soft settle (~5px overshoot) instead of a visible bounce.
+      p.set(withSpring(1, { damping: 27, stiffness: 260 }));
     } else {
       p.set(
         withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }, (done) => {

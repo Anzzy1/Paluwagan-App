@@ -32,7 +32,7 @@ export function PressableScale({
         scale.set(withSpring(scaleTo, { damping: 18, stiffness: 420 }));
       }}
       onPressOut={() => {
-        scale.set(withSpring(1, { damping: 14, stiffness: 320 }));
+        scale.set(withSpring(1, { damping: 24, stiffness: 320 }));
       }}
       onPress={(e) => {
         if (hapticOnPress) haptic('light');

@@ -30,7 +30,7 @@ function Toast({ r }: { r: Reaction }) {
   useEffect(() => {
     haptic('success');
     y.set(-220);
-    y.set(withSpring(0, { damping: 16, stiffness: 180 }));
+    y.set(withSpring(0, { damping: 22, stiffness: 180 }));
     timer.set(1);
     timer.set(withTiming(0, { duration: SHOW_MS, easing: Easing.linear }));
     const t = setTimeout(close, SHOW_MS);
