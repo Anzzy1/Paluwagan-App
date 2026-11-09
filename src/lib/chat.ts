@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 
 import { assertLive, demoState } from '@/lib/demo';
 import { kv } from '@/lib/storage';
@@ -19,6 +19,10 @@ const key = (circleId: string) => ['chat', circleId] as const;
 export function useCircleChat(circleId: string | undefined, enabled = true) {
   const qc = useQueryClient();
   const on = !!circleId && enabled && !demoState.on;
+  // Each hook gets its own channel. supabase.channel() reuses an existing channel with the same
+  // topic, and adding listeners to one that's already subscribed throws, which blanked the screen
+  // when the chat card and the chat screen were both mounted.
+  const instance = useId().replace(/[^a-zA-Z0-9]/g, '');
 
   const q = useQuery({
     queryKey: key(circleId ?? ''),
@@ -38,7 +42,7 @@ export function useCircleChat(circleId: string | undefined, enabled = true) {
   useEffect(() => {
     if (!on) return;
     const channel = supabase
-      .channel(`chat-${circleId}`)
+      .channel(`chat-${circleId}-${instance}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'circle_messages', filter: `circle_id=eq.${circleId}` }, (payload) => {
         const m = payload.new as ChatMessage;
         qc.setQueryData<ChatMessage[]>(key(circleId!), (old = []) => (old.some((x) => x.id === m.id) ? old : [...old, m]));
@@ -51,7 +55,7 @@ export function useCircleChat(circleId: string | undefined, enabled = true) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [on, circleId, qc]);
+  }, [on, circleId, qc, instance]);
 
   return q;
 }

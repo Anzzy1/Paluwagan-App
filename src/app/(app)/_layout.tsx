@@ -1,7 +1,8 @@
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { View } from 'react-native';
 
 import { MascotToastHost } from '@/components/MascotToast';
+import { RouteError } from '@/components/RouteError';
 import { Sidebar } from '@/components/Sidebar';
 import { useRealtimeSync } from '@/lib/api';
 import { useHulogReminders } from '@/lib/hulogReminder';
@@ -9,6 +10,11 @@ import { useColors, useIsDesktop } from '@/lib/prefs';
 import { usePushRegistration } from '@/lib/push';
 
 export const unstable_settings = { anchor: '(tabs)' };
+
+/** A crashing screen shows a retry card instead of going blank. */
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  return <RouteError {...props} />;
+}
 
 export default function AppLayout() {
   const c = useColors();
