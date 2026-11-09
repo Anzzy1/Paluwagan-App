@@ -27,9 +27,11 @@ export function InsightBand() {
       busy={insight.isPending}
       title={`${MASCOT_NAME}’s take`}
       tag="AI"
+      compact
       actions={
         <>
           <BubbleButton
+            compact
             primary
             label={insight.data ? 'Refresh' : 'Analyze'}
             icon={insight.data ? 'refresh-cw' : 'zap'}
@@ -37,7 +39,7 @@ export function InsightBand() {
             disabled={insight.isPending}
             onPress={() => insight.mutate(context)}
           />
-          <BubbleButton label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => router.push('/assistant' as Href)} />
+          <BubbleButton compact label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => router.push('/assistant' as Href)} />
         </>
       }>
       <Text variant="body" tone={insight.error ? 'danger' : 'default'} style={{ lineHeight: 22 }}>

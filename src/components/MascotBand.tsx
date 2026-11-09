@@ -27,7 +27,10 @@ export function MascotBand({
   busy,
   action = 'wave',
   repeatEvery,
+  compact = false,
 }: {
+  /** Phones: slightly smaller Ipon so two bubble buttons fit on one line. */
+  compact?: boolean;
   action?: MascotAction;
   repeatEvery?: number;
   /** Changes when Ipon has something new to say: plays the hop. */
@@ -78,7 +81,7 @@ export function MascotBand({
           style={styles.mascot}>
           <View style={styles.shadow} />
           <AnimatedMascot
-            size={desktop ? 136 : 112}
+            size={desktop ? 136 : compact ? 88 : 112}
             mood={poke ? 'excited' : mood}
             pose={pose}
             trigger={poke ? `poke-${poke}` : trigger}
@@ -106,7 +109,7 @@ export function MascotBand({
           ) : (
             <Animated.View entering={reduce ? undefined : FadeIn.duration(260)} style={{ gap: 5 }}>
               {children}
-              {actions && <View style={styles.actions}>{actions}</View>}
+              {actions && <View style={[styles.actions, compact && !desktop && styles.actionsInline]}>{actions}</View>}
             </Animated.View>
           )}
         </View>
@@ -139,7 +142,7 @@ function Dot({ delay, color }: { delay: number; color: string }) {
 }
 
 /** Small pill button for inside the speech bubble. */
-export function BubbleButton({ label, icon, iconRight, onPress, primary, disabled, left }: { label: string; icon?: IconName; iconRight?: IconName; onPress?: () => void; primary?: boolean; disabled?: boolean; left?: ReactNode }) {
+export function BubbleButton({ label, icon, iconRight, onPress, primary, disabled, left, compact }: { label: string; icon?: IconName; iconRight?: IconName; onPress?: () => void; primary?: boolean; disabled?: boolean; left?: ReactNode; compact?: boolean }) {
   const c = useColors();
   const fg = primary ? c.onBrand : c.text;
   return (
@@ -149,9 +152,9 @@ export function BubbleButton({ label, icon, iconRight, onPress, primary, disable
       hapticOnPress={false}
       accessibilityLabel={label}
       hitSlop={6}
-      style={[styles.btn, { backgroundColor: primary ? c.brand : c.surfaceAlt }]}>
+      style={[styles.btn, compact && styles.btnCompact, { backgroundColor: primary ? c.brand : c.surfaceAlt }]}>
       {left ?? (icon && <Feather name={icon} size={14} color={primary ? c.onBrand : c.brandText} />)}
-      <Text variant="smallBold" color={fg} style={{ fontSize: 13.5 }}>
+      <Text variant="smallBold" color={fg} numberOfLines={1} style={{ fontSize: compact ? 13 : 13.5, flexShrink: 1 }}>
         {label}
       </Text>
       {iconRight && <Feather name={iconRight} size={14} color={fg} />}
@@ -167,6 +170,8 @@ const styles = StyleSheet.create({
   tail: { position: 'absolute', left: -6, bottom: 22, width: 14, height: 14, transform: [{ rotate: '45deg' }], borderRadius: 3 },
   tag: { paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  actionsInline: { flexWrap: 'nowrap', gap: 6 },
   // Compact pill; hitSlop extends the touch area to ~48px so it stays easy to tap.
   btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingHorizontal: 14, height: 36, borderRadius: 18 },
+  btnCompact: { paddingHorizontal: 11, gap: 4, flexShrink: 1 },
 });
