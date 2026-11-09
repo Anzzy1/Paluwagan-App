@@ -19,7 +19,7 @@ import { goalProgress, iponStreak, planPer } from '@/lib/ipon';
 import { managedSummary, potOfManaged, useManagedCircles } from '@/lib/local';
 import { onTimeStreak } from '@/lib/rewards';
 import { ollamaChat } from '@/lib/localAi';
-import { isNetworkError, isOnline, useOnline } from '@/lib/network';
+import { checkConnection, isNetworkError, isOnline, useOnline } from '@/lib/network';
 import { kv } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import type { PlanFrequency } from '@/lib/types';
@@ -128,6 +128,11 @@ async function route<T>(useLocal: boolean, cloud: () => Promise<T>, local: () =>
     return { result: await cloud(), source: 'cloud' };
   } catch (e) {
     if (!isNetworkError(e)) throw e;
+    // Only fall back when the internet is really gone. A missing or broken `ai` function
+    // also looks like a network error in the browser (failed CORS preflight).
+    if (await checkConnection()) {
+      throw new Error('Couldn’t reach Ipon AI online. If it was just set up, the `ai` Edge Function may not be deployed yet. Please try again later.');
+    }
     return { result: await local(), source: 'local' };
   }
 }
