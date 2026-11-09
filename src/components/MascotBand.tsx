@@ -65,8 +65,9 @@ export function MascotBand({
 
   return (
     <Animated.View entering={FadeInDown.duration(300)}>
-      <LinearGradient colors={band} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.band}>
+      <LinearGradient colors={band} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.band, !desktop && styles.bandPhone]}>
         <BandScene />
+        <View style={styles.row}>
         <PressableScale
           onPress={() => {
             haptic('light');
@@ -75,10 +76,10 @@ export function MascotBand({
           hapticOnPress={false}
           scaleTo={0.96}
           accessibilityLabel={`Say hi to ${MASCOT_NAME}`}
-          style={styles.mascot}>
+          style={[styles.mascot, !desktop && actions ? { marginBottom: 0 } : null]}>
           <View style={styles.shadow} />
           <AnimatedMascot
-            size={desktop ? 136 : 112}
+            size={desktop ? 136 : 88}
             mood={poke ? 'excited' : mood}
             pose={pose}
             trigger={poke ? `poke-${poke}` : trigger}
@@ -87,7 +88,7 @@ export function MascotBand({
             repeatEvery={repeatEvery}
           />
         </PressableScale>
-        <View style={[styles.bubble, { backgroundColor: c.surface }]}>
+        <View style={[styles.bubble, !desktop && styles.bubblePhone, !desktop && actions ? { marginBottom: 10 } : null, { backgroundColor: c.surface }]}>
           <View style={[styles.tail, { backgroundColor: c.surface }]} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text variant="bodyBold" tone="brand" style={{ fontSize: 14 }}>
@@ -106,10 +107,13 @@ export function MascotBand({
           ) : (
             <Animated.View entering={reduce ? undefined : FadeIn.duration(260)} style={{ gap: 5 }}>
               {children}
-              {actions && <View style={styles.actions}>{actions}</View>}
+              {/* Desktop has room for the buttons inside the bubble; on phones they'd squeeze it tall. */}
+              {desktop && actions && <View style={styles.actions}>{actions}</View>}
             </Animated.View>
           )}
         </View>
+        </View>
+        {!desktop && actions && <View style={styles.actionsPhone}>{actions}</View>}
       </LinearGradient>
     </Animated.View>
   );
@@ -160,7 +164,11 @@ export function BubbleButton({ label, icon, iconRight, onPress, primary, disable
 }
 
 const styles = StyleSheet.create({
-  band: { borderRadius: radius.xl, flexDirection: 'row', alignItems: 'flex-end', paddingRight: 14, paddingTop: 16, overflow: 'hidden', minHeight: 140 },
+  band: { borderRadius: radius.xl, paddingRight: 14, paddingTop: 16, overflow: 'hidden', minHeight: 140 },
+  bandPhone: { paddingTop: 12, minHeight: 0 },
+  row: { flexDirection: 'row', alignItems: 'flex-end' },
+  bubblePhone: { padding: 12, gap: 4, marginBottom: 12 },
+  actionsPhone: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingLeft: 14, paddingBottom: 14 },
   shadow: { position: 'absolute', left: '22%', right: '22%', bottom: 6, height: 12, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.16)' },
   mascot: { marginLeft: 2, marginBottom: -8 },
   bubble: { flex: 1, borderRadius: radius.lg, padding: 16, gap: 6, marginBottom: 16, marginLeft: 4 },

@@ -1,4 +1,3 @@
-import { Feather } from '@expo/vector-icons';
 import { TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
@@ -6,8 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { NavIcon, type NavIconName } from '@/components/NavIcons';
-import { NewCircleSheet } from '@/components/NewCircleSheet';
-import { haptic, PressableScale } from '@/components/ui/PressableScale';
+import { haptic } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { useColors, useIsDark } from '@/lib/prefs';
 
@@ -69,12 +67,11 @@ function TabButton({ icon, label, index, featured, onFocused, isFocused, onPress
   );
 }
 
-/** Mobile bottom navigation: floating bar with a sliding brand-green pill, plus a round quick-add button. */
+/** Mobile bottom navigation: floating bar with a sliding brand-green pill. Create/join live on Home and the Paluwagan tab. */
 export function TabBar() {
   const c = useColors();
   const dark = useIsDark();
   const insets = useSafeAreaInsets();
-  const [open, setOpen] = useState(false);
   const [barW, setBarW] = useState(0);
   const [active, setActive] = useState(0);
   const x = useSharedValue(0);
@@ -111,20 +108,15 @@ export function TabBar() {
             </TabTrigger>
           ))}
         </View>
-        <PressableScale onPress={() => setOpen(true)} scaleTo={0.9} accessibilityLabel="New paluwagan" style={[styles.plus, { backgroundColor: c.brand }, shadow]}>
-          <Feather name="plus" size={28} color={c.onBrand} />
-        </PressableScale>
       </View>
-      <NewCircleSheet open={open} onClose={() => setOpen(false)} />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  wrap: { position: 'absolute', left: 12, right: 12, flexDirection: 'row', alignItems: 'center' },
   bar: { flex: 1, flexDirection: 'row', borderRadius: 28, borderWidth: 1, paddingVertical: PAD_Y, paddingHorizontal: PAD_X },
   pill: { position: 'absolute', top: PAD_Y, bottom: PAD_Y, left: 0, borderRadius: 22 },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 1, paddingVertical: 6 },
   iconWrap: { height: ICON_H, alignItems: 'center', justifyContent: 'center' },
-  plus: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' },
 });
