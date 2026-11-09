@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2BD067"/><stop offset="1" stop-color="#139A44"/></linearGradient>
+<radialGradient id="coin" cx="0.38" cy="0.32" r="0.8"><stop offset="0" stop-color="#FFE08A"/><stop offset="0.55" stop-color="#F6BE3B"/><stop offset="1" stop-color="#E3A42A"/></radialGradient>
+</defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<circle cx="512" cy="540" r="380" fill="#fff" opacity="0.10"/><g transform="translate(512 548) scale(0.84) translate(-512 -450)">
+<!-- ears -->
+<path d="M330 330 L 352 118 L 478 236 Z" fill="#C9733A" stroke="#94501F" stroke-width="14" stroke-linejoin="round"/>
+<path d="M362 300 L 374 170 L 448 240 Z" fill="#F3B38E"/>
+<path d="M694 330 L 672 118 L 546 236 Z" fill="#C9733A" stroke="#94501F" stroke-width="14" stroke-linejoin="round"/>
+<path d="M662 300 L 650 170 L 576 240 Z" fill="#F3B38E"/>
+<path d="M352 124 C 340 92, 356 70, 382 62" fill="none" stroke="#94501F" stroke-width="14" stroke-linecap="round"/>
+<path d="M672 124 C 684 92, 668 70, 642 62" fill="none" stroke="#94501F" stroke-width="14" stroke-linecap="round"/>
+<!-- head -->
+<ellipse cx="512" cy="390" rx="200" ry="178" fill="#C9733A" stroke="#94501F" stroke-width="14"/>
+<ellipse cx="512" cy="450" rx="122" ry="92" fill="#FBE6C8"/>
+<ellipse cx="408" cy="440" rx="34" ry="22" fill="#F49A86" opacity="0.7"/>
+<ellipse cx="616" cy="440" rx="34" ry="22" fill="#F49A86" opacity="0.7"/>
+<ellipse cx="438" cy="372" rx="27" ry="31" fill="#2A1A10"/><circle cx="447" cy="361" r="10" fill="#fff"/>
+<ellipse cx="586" cy="372" rx="27" ry="31" fill="#2A1A10"/><circle cx="595" cy="361" r="10" fill="#fff"/>
+<ellipse cx="512" cy="424" rx="24" ry="17" fill="#5B2E16"/>
+<path d="M474 456 Q 512 488 550 456" fill="none" stroke="#5B2E16" stroke-width="11" stroke-linecap="round"/>
+<!-- coin -->
+<circle cx="512" cy="742" r="206" fill="#C98A14"/>
+<circle cx="512" cy="730" r="206" fill="url(#coin)" stroke="#D9961A" stroke-width="12"/>
+<circle cx="512" cy="730" r="160" fill="none" stroke="#D9961A" stroke-width="10" opacity="0.6"/>
+<g stroke="#A96A0A" stroke-width="38" stroke-linecap="round" fill="none">
+<path d="M466 830 V 640 H 536 A 56 56 0 0 1 536 752 H 466"/>
+<path d="M418 676 H 612" stroke-width="22"/><path d="M418 714 H 612" stroke-width="22"/>
+</g>
+<!-- paws -->
+<ellipse cx="402" cy="548" rx="52" ry="36" fill="#C9733A" stroke="#94501F" stroke-width="12"/>
+<ellipse cx="622" cy="548" rx="52" ry="36" fill="#C9733A" stroke="#94501F" stroke-width="12"/>
+</g></svg>
