@@ -52,3 +52,38 @@ begin
 
   raise notice '✅ open slots assertions passed';
 end $$;
+
+-- 0012: 3 people is enough even if two of them share a split slot (2 payout slots).
+reset role;
+do $$
+declare
+  a uuid := '00000000-0000-0000-0000-0000000000a4';
+  b uuid := '00000000-0000-0000-0000-0000000000b4';
+  c uuid := '00000000-0000-0000-0000-0000000000c4';
+  cid uuid; code text; mb uuid; mc uuid;
+begin
+  insert into auth.users (id, email) values (a,'a4@x'),(b,'b4@x'),(c,'c4@x');
+  perform pg_temp.login(a);
+  cid := create_circle('Trio', '💰', 'mango', 500, 50, 'weekly', '2026-11-16', 0, 0, '', 'draw');
+  select invite_code into code from circles where id = cid;
+  perform pg_temp.login(b); perform request_join(code, true);
+  perform pg_temp.login(a);
+  perform review_member(id, true) from circle_members where circle_id = cid and user_id = b;
+  begin
+    perform lock_circle(cid);
+    assert false, '2 people can’t lock';
+  exception when raise_exception then null; end;
+  perform pg_temp.login(c); perform request_join(code, true);
+  perform pg_temp.login(a);
+  perform review_member(id, true) from circle_members where circle_id = cid and user_id = c;
+  begin
+    perform lock_circle(cid);
+    assert false, 'split slots must be paired first';
+  exception when raise_exception then null; end;
+  select id into mb from circle_members where circle_id = cid and user_id = b;
+  select id into mc from circle_members where circle_id = cid and user_id = c;
+  perform pair_hati(mb, mc);
+  perform lock_circle(cid);
+  assert (select slots from circles where id = cid) = 2, '3 people, 2 payout slots';
+  raise notice '✅ three-people minimum assertions passed';
+end $$;

@@ -444,9 +444,9 @@ function Row({ label, value }: { label: string; value: string }) {
 // ---------------------------------------------------------------- Forming progress
 export function SlotsProgress({ data }: { data: CircleDetail }) {
   const approved = data.members.filter((m) => m.status === 'approved');
-  // Head count for display; slots (split-slot members are half each) decide when it can start.
+  // Head count decides the minimum (3 people); split slots still need a partner to start.
   const filled = approved.reduce((s, m) => s + Number(m.share), 0);
-  const fullSlots = Math.floor(filled);
+  const people = approved.length;
   const waitingPartner = !Number.isInteger(filled);
   return (
     <Card style={{ gap: 12 }}>
@@ -455,11 +455,11 @@ export function SlotsProgress({ data }: { data: CircleDetail }) {
         <Text variant="money">{approved.length}</Text>
       </View>
       {/* No fixed size: progress only toward the minimum needed to lock. */}
-      {fullSlots < 3 ? (
+      {people < 3 ? (
         <>
-          <ProgressBar progress={fullSlots / 3} height={8} />
+          <ProgressBar progress={people / 3} height={8} />
           <Text variant="small" tone="muted">
-            {3 - fullSlots} more {3 - fullSlots === 1 ? 'member' : 'members'} needed before the paluwagan can start
+            {3 - people} more {3 - people === 1 ? 'member' : 'members'} needed before the paluwagan can start
             {waitingPartner ? '. A split-slot member is still waiting for a partner.' : '.'}
           </Text>
         </>

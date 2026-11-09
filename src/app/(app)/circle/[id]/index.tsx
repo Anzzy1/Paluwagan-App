@@ -26,7 +26,7 @@ import { withAccount } from '@/components/AccountGate';
 
 type Tab = 'timeline' | 'members' | 'rules' | 'activity';
 
-/** Smallest paluwagan that can be locked (matches lock_circle, migration 0010). */
+/** Fewest people a paluwagan can lock with (matches lock_circle, migration 0012). */
 const MIN_TO_LOCK = 3;
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -123,8 +123,8 @@ function CircleScreenScreen() {
   /** Payout slots they fill: split-slot members are half a slot each, so this can be x.5. */
   const filled = approvedMembers.reduce((s, m) => s + Number(m.share), 0);
   const completedRounds = rounds.filter((r) => r.status === 'completed').length;
-  // No fixed size: the admin locks once enough members have joined and split slots are paired.
-  const lockable = filled >= MIN_TO_LOCK && Number.isInteger(filled);
+  // No fixed size: the admin locks once 3 people have joined and every split slot has a partner.
+  const lockable = joined >= MIN_TO_LOCK && Number.isInteger(filled) && filled >= 2;
   const unpaidKs = roundKs.filter((k) => k.status !== 'confirmed');
   // Once the sahod date arrives the admin can release it even if someone hasn't paid.
   const canRelease = isAdmin && !!current && !circle.paused_at && daysUntil(current.due_date) <= 0 && unpaidKs.length > 0;
@@ -206,10 +206,10 @@ function CircleScreenScreen() {
             }
           />
           <Text variant="small" tone="faint" center>
-            {!Number.isInteger(filled)
-              ? 'A split-slot member is waiting for a partner. Pair two split-slot members before locking.'
-              : filled < MIN_TO_LOCK
-                ? `At least ${MIN_TO_LOCK} payout slots are needed before you can lock the paluwagan.`
+            {joined < MIN_TO_LOCK
+              ? `${MIN_TO_LOCK - joined} more ${MIN_TO_LOCK - joined === 1 ? 'member' : 'members'} needed before you can lock the paluwagan.`
+              : !Number.isInteger(filled)
+                ? 'A split-slot member is waiting for a partner. Pair two split-slot members before locking.'
                 : 'Lock it once everyone who’s joining is in.'}
           </Text>
         </View>
