@@ -7,6 +7,7 @@ import { StyleSheet, View } from 'react-native';
 import { GoalSheet } from '@/components/GoalSheet';
 import { GoalRow } from '@/components/ipon/GoalRow';
 import { InsightBand } from '@/components/InsightBand';
+import { useAiAvailable } from '@/lib/ai';
 import { EmptyState, PurposeIcon } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -33,6 +34,8 @@ function HeroStat({ label, value }: { label: string; value: string }) {
 }
 
 function IponScreen() {
+  // Ipon's AI take needs an account and internet; the goals work offline.
+  const aiAvailable = useAiAvailable();
   const c = useColors();
   const desktop = useIsDesktop();
   const goals = useGoals();
@@ -150,14 +153,14 @@ function IponScreen() {
             {list.length ? goalsCard : empty}
           </View>
           <View style={{ flex: 1, gap: 16 }}>
-            <InsightBand />
+            {aiAvailable && <InsightBand />}
             {history}
           </View>
         </View>
       ) : (
         <>
           {hero}
-          <InsightBand />
+          {aiAvailable && <InsightBand />}
           {list.length ? goalsCard : empty}
           {history}
         </>

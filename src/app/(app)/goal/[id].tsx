@@ -14,7 +14,7 @@ import { Confetti } from '@/components/ui/Confetti';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Columns, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
-import { useAiContext, useAiPlan } from '@/lib/ai';
+import { useAiAvailable, useAiContext, useAiPlan } from '@/lib/ai';
 import { confirmAction, notifyError } from '@/lib/alert';
 import { useDeleteDeposit, useDeposits, useGoals, useMyCircles, useSaveGoal } from '@/lib/api';
 import { dateTime, longDate, peso } from '@/lib/format';
@@ -46,6 +46,8 @@ function GoalDetailScreen() {
   const save = useSaveGoal();
   const delDeposit = useDeleteDeposit();
   const aiPlan = useAiPlan();
+  // Ipon AI needs an account and internet; goals themselves work offline.
+  const aiAvailable = useAiAvailable();
   const context = useAiContext();
   const [edit, setEdit] = useState(false);
   const [sheet, setSheet] = useState<'deposit' | 'withdraw' | null>(null);
@@ -165,7 +167,14 @@ function GoalDetailScreen() {
           </View>
         </View>
       ) : (
-        <Button title={aiPlan.isPending ? 'Ipon is thinking…' : 'Ask Ipon for a plan'} icon="zap" variant="secondary" onPress={askPlan} loading={aiPlan.isPending} />
+        <>
+          <Button title={aiPlan.isPending ? 'Ipon is thinking…' : 'Ask Ipon for a plan'} icon="zap" variant="secondary" onPress={askPlan} loading={aiPlan.isPending} disabled={!aiAvailable} />
+          {!aiAvailable && (
+            <Text variant="small" tone="faint" center>
+              Smart plans need an account and internet.
+            </Text>
+          )}
+        </>
       )}
     </Card>
   );

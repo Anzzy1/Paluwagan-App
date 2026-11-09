@@ -24,7 +24,7 @@ export function OfflineBanner() {
         <View style={[styles.pill, { backgroundColor: c.ink }]}>
           <Feather name="wifi-off" size={14} color={c.onInk} />
           <Text variant="caption" color={c.onInk} numberOfLines={1}>
-            Offline · offline paluwagan, ipon and local AI still work
+            Offline · offline paluwagan and ipon still work
           </Text>
         </View>
       </PressableScale>

@@ -2,7 +2,6 @@
 //
 // Online AI for the app, through Groq. The Groq API key stays here on the server and
 // never ships in the app. The caller must be signed in.
-// (Without internet the app uses a local model through Ollama instead: src/lib/localAi.ts.)
 //
 // Modes (POST JSON):
 //   {"mode":"chat",    "messages":[{role,content}...], "context":"..."}  -> {"reply": "..."}

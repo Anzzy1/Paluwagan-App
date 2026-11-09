@@ -13,9 +13,9 @@ import { useAuth } from '@/lib/auth';
 import { checkConnection, useOnline } from '@/lib/network';
 import { useColors } from '@/lib/prefs';
 
-const WHY = 'Online paluwagan and joining with an invite need an account so your data is saved and shared with your members.';
+const WHY = 'Online paluwagan, joining with an invite and Ask Ipon need an account so your data is saved and shared with your members.';
 const KEEP = 'Your offline paluwagan and ipon goals stay on this device.';
-const OFFLINE_OK = 'Offline paluwagan, ipon goals on this device and the local Ipon AI still work.';
+const OFFLINE_OK = 'Offline paluwagan and ipon goals on this device still work.';
 
 /**
  * Run `go` only when an online feature can be used: the user has an account and is

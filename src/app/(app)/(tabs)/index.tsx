@@ -124,7 +124,7 @@ export default function Home() {
         <>
           {/* No "New paluwagan" button here: it made the band tall on phones, and Create lives in quick actions. */}
           {tip.cta && <BubbleButton primary label={tip.cta.label} iconRight="arrow-right" onPress={() => router.push(tip.cta!.href as never)} />}
-          <BubbleButton label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => router.push('/assistant' as Href)} />
+          <BubbleButton label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => requireAccount(() => router.push('/assistant' as Href), `Ask ${MASCOT_NAME}`)} />
         </>
       }>
       <Text variant="body" style={{ lineHeight: 22 }}>
@@ -143,7 +143,7 @@ export default function Home() {
       onPress: () => (dues[0] ? router.push(`/circle/${dues[0].mc.circle.id}/round/${dues[0].round.id}`) : router.push('/circles')),
     },
     { icon: 'ipon', label: 'Ipon', onPress: () => router.push('/ipon' as Href) },
-    { icon: 'assistant', label: `${MASCOT_NAME} AI`, onPress: () => router.push('/assistant' as Href) },
+    { icon: 'assistant', label: `${MASCOT_NAME} AI`, onPress: () => requireAccount(() => router.push('/assistant' as Href), `Ask ${MASCOT_NAME}`) },
   ];
   const quick = (
     <Card style={{ gap: 14 }}>
