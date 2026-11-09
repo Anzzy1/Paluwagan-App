@@ -120,17 +120,17 @@ export default function Home() {
       trigger={tip.text}
       action="wave"
       repeatEvery={9000}
-      // ONE button only: two never fit on one line on phones, and a second row made the band tall.
-      // Ipon's action (Pay now / View payments) wins; otherwise Ask Ipon (also in Ipon's take and the sidebar).
-      actions={
-        tip.cta ? (
-          <BubbleButton primary label={tip.cta.label} iconRight="arrow-right" onPress={() => router.push(tip.cta!.href as never)} />
-        ) : (
-          <BubbleButton label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => requireAccount(() => router.push('/assistant' as Href), `Ask ${MASCOT_NAME}`)} />
-        )
-      }>
+      // Ask Ipon is the band's one button. Ipon's optional action (Pay now / View payments) is an inline
+      // link at the end of the message: a second button never fit on one line and made the band tall.
+      actions={<BubbleButton primary label={`Ask ${MASCOT_NAME}`} icon="message-circle" onPress={() => requireAccount(() => router.push('/assistant' as Href), `Ask ${MASCOT_NAME}`)} />}>
       <Text variant="body" style={{ lineHeight: 22 }}>
         {tip.text}
+        {tip.cta && (
+          <Text variant="bodyBold" tone="brand" onPress={() => router.push(tip.cta!.href as never)} accessibilityRole="link" suppressHighlighting>
+            {'  '}
+            {tip.cta.label} →
+          </Text>
+        )}
       </Text>
     </MascotBand>
   );
