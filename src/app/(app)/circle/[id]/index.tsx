@@ -120,11 +120,9 @@ function CircleScreenScreen() {
   const approvedMembers = members.filter((m) => m.status === 'approved');
   /** People who joined (a head count). */
   const joined = approvedMembers.length;
-  /** Payout slots they fill: split-slot members are half a slot each, so this can be x.5. */
-  const filled = approvedMembers.reduce((s, m) => s + Number(m.share), 0);
   const completedRounds = rounds.filter((r) => r.status === 'completed').length;
-  // No fixed size: the admin locks once 3 people have joined and every split slot has a partner.
-  const lockable = joined >= MIN_TO_LOCK && Number.isInteger(filled) && filled >= 2;
+  // No fixed size: the admin locks once 3 people have joined.
+  const lockable = joined >= MIN_TO_LOCK;
   const unpaidKs = roundKs.filter((k) => k.status !== 'confirmed');
   // Once the sahod date arrives the admin can release it even if someone hasn't paid.
   const canRelease = isAdmin && !!current && !circle.paused_at && daysUntil(current.due_date) <= 0 && unpaidKs.length > 0;
@@ -199,7 +197,7 @@ function CircleScreenScreen() {
             onPress={() =>
               run(
                 `Lock with ${joined} members?`,
-                `The paluwagan starts with ${filled} payout ${filled === 1 ? 'slot' : 'slots'}${joined !== filled ? ' (split-slot partners share one)' : ''} and no one else can join. A secret seed is generated now and its fingerprint (hash) is shown to every member before the draw, proving the result can’t be changed.`,
+                `The paluwagan starts with ${joined} payout rounds, one per member, and no one else can join. A secret seed is generated now and its fingerprint (hash) is shown to every member before the draw, proving the result can’t be changed.`,
                 'lock_circle',
                 'Lock paluwagan',
               )
@@ -208,9 +206,7 @@ function CircleScreenScreen() {
           <Text variant="small" tone="faint" center>
             {joined < MIN_TO_LOCK
               ? `${MIN_TO_LOCK - joined} more ${MIN_TO_LOCK - joined === 1 ? 'member' : 'members'} needed before you can lock the paluwagan.`
-              : !Number.isInteger(filled)
-                ? 'A split-slot member is waiting for a partner. Pair two split-slot members before locking.'
-                : 'Lock it once everyone who’s joining is in.'}
+              : 'Lock it once everyone who’s joining is in.'}
           </Text>
         </View>
       ) : (

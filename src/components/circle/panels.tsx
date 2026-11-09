@@ -119,9 +119,6 @@ export function FormingAdmin({ data }: { data: CircleDetail }) {
   const c = useColors();
   const action = useCircleAction(data.circle.id);
   const pending = data.members.filter((m) => m.status === 'pending');
-  const slots = slotsOf(data.members);
-  const unpaired = slots.filter((s) => s.members.length === 1 && Number(s.members[0].share) === 0.5).map((s) => s.members[0]);
-  const [pick, setPick] = useState<string | null>(null);
 
   return (
     <>
@@ -138,7 +135,6 @@ export function FormingAdmin({ data }: { data: CircleDetail }) {
                 <Text variant="bodyBold">{m.profiles?.full_name ?? 'Member'}</Text>
                 <Text variant="small" tone="muted">
                   Trust Score {m.profiles?.tiwala_score ?? '—'}
-                  {Number(m.share) === 0.5 ? ' · Split slot' : ''}
                 </Text>
               </View>
               <Button
@@ -159,28 +155,6 @@ export function FormingAdmin({ data }: { data: CircleDetail }) {
         </Card>
       )}
 
-      {unpaired.length > 0 && (
-        <Card style={{ gap: 10 }}>
-          <Text variant="h3">Pair split slots</Text>
-          <Text variant="small" tone="muted">
-            Select two split-slot members to combine them into one slot.
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {unpaired.map((m) => (
-              <PressableScale
-                key={m.id}
-                hapticOnPress={false}
-                onPress={() => {
-                  if (!pick) return setPick(m.id);
-                  if (pick === m.id) return setPick(null);
-                  action.mutate({ fn: 'pair_hati', args: { p_a: pick, p_b: m.id } }, { onError: onErr, onSettled: () => setPick(null) });
-                }}>
-                <Chip label={m.profiles?.full_name ?? 'Member'} tone={pick === m.id ? 'ink' : 'neutral'} />
-              </PressableScale>
-            ))}
-          </View>
-        </Card>
-      )}
     </>
   );
 }
@@ -283,7 +257,6 @@ export function MembersList({ data, userId, isAdmin = false }: { data: CircleDet
                     <Text variant="small" tone="muted">
                       Trust {m.profiles?.tiwala_score ?? '—'}
                       {m.role === 'admin' ? ' · Admin' : ''}
-                      {Number(m.share) === 0.5 ? ' · Split' : ''}
                     </Text>
                   </View>
                   {k && !k.auto ? (
@@ -444,10 +417,8 @@ function Row({ label, value }: { label: string; value: string }) {
 // ---------------------------------------------------------------- Forming progress
 export function SlotsProgress({ data }: { data: CircleDetail }) {
   const approved = data.members.filter((m) => m.status === 'approved');
-  // Head count decides the minimum (3 people); split slots still need a partner to start.
-  const filled = approved.reduce((s, m) => s + Number(m.share), 0);
+  // The minimum to start is 3 people.
   const people = approved.length;
-  const waitingPartner = !Number.isInteger(filled);
   return (
     <Card style={{ gap: 12 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -459,14 +430,9 @@ export function SlotsProgress({ data }: { data: CircleDetail }) {
         <>
           <ProgressBar progress={people / 3} height={8} />
           <Text variant="small" tone="muted">
-            {3 - people} more {3 - people === 1 ? 'member' : 'members'} needed before the paluwagan can start
-            {waitingPartner ? '. A split-slot member is still waiting for a partner.' : '.'}
+            {3 - people} more {3 - people === 1 ? 'member' : 'members'} needed before the paluwagan can start.
           </Text>
         </>
-      ) : waitingPartner ? (
-        <Text variant="small" tone="muted">
-          A split-slot member is waiting for a partner. Pair two split-slot members to start.
-        </Text>
       ) : (
         <Text variant="small" tone="muted">
           Enough members to start. More can still join until the admin locks the paluwagan.

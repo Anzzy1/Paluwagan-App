@@ -24,6 +24,7 @@ run < supabase/migrations/0010_open_slots.sql
 run < supabase/migrations/0011_preview_joined.sql
 run < supabase/migrations/0012_min_three_people.sql
 run < supabase/migrations/0013_goal_completed.sql
+run < supabase/migrations/0014_no_split_slots.sql
 run < supabase/tests/01_flow_test.sql
 run < supabase/tests/02_schedule_password_test.sql
 run < supabase/tests/03_fair_rounds_test.sql
