@@ -151,6 +151,8 @@ function Scanner({ onCode }: { onCode: (code: string) => void }) {
 function CircleHero({ p, onChange }: { p: CirclePreview; onChange: () => void }) {
   const t = useTint(p.color);
   const filled = Number(p.filled);
+  // Head count (from 0011); older databases only send slots, so round those up.
+  const people = p.joined ?? Math.ceil(filled);
   return (
     <LinearGradient colors={t.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
       <View style={styles.heroDeco} />
@@ -200,7 +202,7 @@ function CircleHero({ p, onChange }: { p: CirclePreview; onChange: () => void })
       </View>
       <View style={{ gap: 6 }}>
         <Text variant="caption" color="rgba(255,255,255,0.9)">
-          {p.status === 'forming' ? `${filled} ${filled === 1 ? 'member has' : 'members have'} joined so far` : `${p.slots} slots`}
+          {p.status === 'forming' ? `${people} ${people === 1 ? 'member has' : 'members have'} joined so far` : `${p.slots} slots`}
         </Text>
       </View>
     </LinearGradient>

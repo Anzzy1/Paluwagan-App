@@ -117,7 +117,11 @@ function CircleScreenScreen() {
   const collected = confirmed.reduce((s, k) => s + Number(k.amount), 0);
   const toReview = roundKs.filter((k) => k.status === 'submitted').length;
   const openSwaps = data.swaps.filter((s) => s.status === 'pending' || s.status === 'accepted').length;
-  const filled = members.filter((m) => m.status === 'approved').reduce((s, m) => s + Number(m.share), 0);
+  const approvedMembers = members.filter((m) => m.status === 'approved');
+  /** People who joined (a head count). */
+  const joined = approvedMembers.length;
+  /** Payout slots they fill: split-slot members are half a slot each, so this can be x.5. */
+  const filled = approvedMembers.reduce((s, m) => s + Number(m.share), 0);
   const completedRounds = rounds.filter((r) => r.status === 'completed').length;
   // No fixed size: the admin locks once enough members have joined and split slots are paired.
   const lockable = filled >= MIN_TO_LOCK && Number.isInteger(filled);
@@ -154,7 +158,7 @@ function CircleScreenScreen() {
             {circle.name}
           </Text>
           <Text variant="small" color="rgba(255,255,255,0.8)">
-            {circle.status === 'forming' ? `${filled} joined` : `${circle.slots} slots`} · {payoutShort(circle)} · Starts {longDate(circle.start_date)}
+            {circle.status === 'forming' ? `${joined} joined` : `${circle.slots} slots`} · {payoutShort(circle)} · Starts {longDate(circle.start_date)}
           </Text>
         </View>
         <View style={styles.heroPill}>
@@ -167,7 +171,7 @@ function CircleScreenScreen() {
         <Metric label={t('circle.pot')} value={peso(potOf(circle) * (rounds.length ? hulogInRound(contributions, current ?? rounds[0]) : plannedHulogPerSahod(circle)))} />
         <Metric label="Contribution" value={peso(circle.amount)} />
         <Metric label="Your slot" value={me?.slot_no ? `#${me.slot_no}` : '—'} />
-        <Metric label="Progress" value={rounds.length ? `${completedRounds}/${rounds.length} rounds` : `${filled} joined`} />
+        <Metric label="Progress" value={rounds.length ? `${completedRounds}/${rounds.length} rounds` : `${joined} joined`} />
       </View>
       {circle.status === 'active' && (
         <View style={styles.heroTrack}>
@@ -194,18 +198,18 @@ function CircleScreenScreen() {
             loading={action.isPending}
             onPress={() =>
               run(
-                `Lock with ${filled} members?`,
-                `The paluwagan starts with ${filled} slots and no one else can join. A secret seed is generated now and its fingerprint (hash) is shown to every member before the draw, proving the result can’t be changed.`,
+                `Lock with ${joined} members?`,
+                `The paluwagan starts with ${filled} payout ${filled === 1 ? 'slot' : 'slots'}${joined !== filled ? ' (split-slot partners share one)' : ''} and no one else can join. A secret seed is generated now and its fingerprint (hash) is shown to every member before the draw, proving the result can’t be changed.`,
                 'lock_circle',
                 'Lock paluwagan',
               )
             }
           />
           <Text variant="small" tone="faint" center>
-            {filled < MIN_TO_LOCK
-              ? `At least ${MIN_TO_LOCK} members must join before you can lock the paluwagan.`
-              : !Number.isInteger(filled)
-                ? 'Pair the split-slot members first.'
+            {!Number.isInteger(filled)
+              ? 'A split-slot member is waiting for a partner. Pair two split-slot members before locking.'
+              : filled < MIN_TO_LOCK
+                ? `At least ${MIN_TO_LOCK} payout slots are needed before you can lock the paluwagan.`
                 : 'Lock it once everyone who’s joining is in.'}
           </Text>
         </View>

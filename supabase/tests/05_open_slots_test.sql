@@ -26,6 +26,7 @@ begin
   assert (select slots from circles where id = cid) = 1, 'pending requests don’t count';
   perform review_member(id, true) from circle_members where circle_id = cid and user_id = b;
   assert (select slots from circles where id = cid) = 2, 'approved member counts';
+  assert (select joined from preview_circle(code)) = 2, 'preview counts people';
 
   begin
     perform lock_circle(cid);

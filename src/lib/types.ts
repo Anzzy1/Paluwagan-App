@@ -175,4 +175,6 @@ export type CirclePreview = {
   first_payout_date: string | null;
   /** A running paluwagan is accepting a replacement member. */
   replacing?: boolean;
+  /** People who joined (head count; `filled` counts slots). */
+  joined?: number;
 };

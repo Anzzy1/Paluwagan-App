@@ -444,21 +444,29 @@ function Row({ label, value }: { label: string; value: string }) {
 // ---------------------------------------------------------------- Forming progress
 export function SlotsProgress({ data }: { data: CircleDetail }) {
   const approved = data.members.filter((m) => m.status === 'approved');
+  // Head count for display; slots (split-slot members are half each) decide when it can start.
   const filled = approved.reduce((s, m) => s + Number(m.share), 0);
+  const fullSlots = Math.floor(filled);
+  const waitingPartner = !Number.isInteger(filled);
   return (
     <Card style={{ gap: 12 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text variant="h3">Members joined</Text>
-        <Text variant="money">{filled}</Text>
+        <Text variant="money">{approved.length}</Text>
       </View>
       {/* No fixed size: progress only toward the minimum needed to lock. */}
-      {filled < 3 ? (
+      {fullSlots < 3 ? (
         <>
-          <ProgressBar progress={filled / 3} height={8} />
+          <ProgressBar progress={fullSlots / 3} height={8} />
           <Text variant="small" tone="muted">
-            {3 - filled} more {3 - filled === 1 ? 'member' : 'members'} needed before the paluwagan can start.
+            {3 - fullSlots} more {3 - fullSlots === 1 ? 'member' : 'members'} needed before the paluwagan can start
+            {waitingPartner ? '. A split-slot member is still waiting for a partner.' : '.'}
           </Text>
         </>
+      ) : waitingPartner ? (
+        <Text variant="small" tone="muted">
+          A split-slot member is waiting for a partner. Pair two split-slot members to start.
+        </Text>
       ) : (
         <Text variant="small" tone="muted">
           Enough members to start. More can still join until the admin locks the paluwagan.
