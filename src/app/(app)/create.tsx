@@ -228,7 +228,7 @@ export default function CreateCircle() {
   const [icon, setIcon] = useState<string>(circleIcons[0]);
   const [color, setColor] = useState<CircleTint>('leaf');
   const [amount, setAmount] = useState('1000');
-  const [slots, setSlots] = useState(10);
+  const [slots, setSlots] = useState(5);
   const [frequency, setFrequency] = useState<Frequency>('kinsenas');
   const [startDate, setStartDate] = useState(nextSemiMonthly());
   const [lateFee, setLateFee] = useState('0');
@@ -473,14 +473,24 @@ export default function CreateCircle() {
               </View>
             </Card>
           ) : (
-            <Card style={styles.stepper}>
-              <View style={{ flex: 1 }}>
-                <Text variant="bodyBold">Number of slots</Text>
-                <Text variant="small" tone="muted">
-                  One slot per payout round
-                </Text>
+            <Card style={{ gap: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="bodyBold">Number of slots</Text>
+                  <Text variant="small" tone="muted">
+                    One slot per payout round · 2 to 50
+                  </Text>
+                </View>
+                <Stepper value={slots} onChange={setSlots} min={2} max={50} />
               </View>
-              <Stepper value={slots} onChange={setSlots} min={2} max={50} />
+              {/* Quick picks: small groups are common, so 3 is one tap away. */}
+              <View style={styles.wrap}>
+                {[3, 5, 10, 12, 15, 20].map((n) => (
+                  <PressableScale key={n} hapticOnPress={false} onPress={() => setSlots(n)} accessibilityLabel={`${n} slots`}>
+                    <Chip label={String(n)} tone={slots === n ? 'ink' : 'neutral'} />
+                  </PressableScale>
+                ))}
+              </View>
             </Card>
           )}
           <Notice
