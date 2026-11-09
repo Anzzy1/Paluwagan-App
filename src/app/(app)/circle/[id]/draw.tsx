@@ -36,7 +36,8 @@ function DrawScreenScreen() {
   const q = useCircle(id);
   const action = useCircleAction(id);
   const [playing, setPlaying] = useState(false);
-  const [style, setStyle] = useState<DrawStyle>('wheel');
+  /** A game picked on this screen (admin's pick, or a replay); otherwise the one saved on the paluwagan. */
+  const [style, setStyle] = useState<DrawStyle | null>(null);
   const wasLocked = useRef<boolean | null>(null);
 
   const data = q.data;
@@ -58,6 +59,8 @@ function DrawScreenScreen() {
   }
 
   const { circle, members, rounds } = data;
+  // Everyone watches the game the admin picked (saved with the draw), unless they chose a replay.
+  const shownStyle: DrawStyle = style ?? circle.draw_style ?? 'wheel';
   const me = members.find((m) => m.user_id === userId);
   const isAdmin = me?.role === 'admin';
   const slots = slotsOf(members);
@@ -70,14 +73,23 @@ function DrawScreenScreen() {
   /** Admin picked a game and confirmed: run the draw and play it with that game. */
   const runDraw = (picked: DrawStyle) => {
     setStyle(picked);
+    const done = {
+      onSuccess: () => {
+        wasLocked.current = false;
+        setPlaying(true);
+      },
+    };
+    // Save the game with the draw so members watch the same one (0015). Older databases
+    // without that function fall back to the plain draw.
     action.mutate(
-      { fn: 'run_draw', args: { p_circle: id } },
+      { fn: 'run_draw_with_style', args: { p_circle: id, p_style: picked } },
       {
-        onSuccess: () => {
-          wasLocked.current = false;
-          setPlaying(true);
+        ...done,
+        onError: (e) => {
+          if (/run_draw_with_style|PGRST202|could not find the function/i.test(String((e as Error)?.message ?? e))) {
+            action.mutate({ fn: 'run_draw', args: { p_circle: id } }, { ...done, onError: (e2) => notifyError(e2) });
+          } else notifyError(e);
         },
-        onError: (e) => notifyError(e),
       },
     );
   };
@@ -144,7 +156,7 @@ function DrawScreenScreen() {
   return (
     <Screen
       back
-      title={playing ? DRAW_STYLES.find((d) => d.id === style)?.title ?? 'Drawing…' : 'Draw results'}
+      title={playing ? DRAW_STYLES.find((d) => d.id === shownStyle)?.title ?? 'Drawing…' : 'Draw results'}
       subtitle={circle.drawn_at ? `${circle.name} · ${dateTime(circle.drawn_at)}` : circle.name}
       // Always-visible next step once the results are showing.
       footer={!playing && !desktop && goButton}
@@ -154,7 +166,7 @@ function DrawScreenScreen() {
           playing ? (
             <Card style={{ paddingVertical: 24 }}>
               <DrawStage
-                style={style}
+                style={shownStyle}
                 participants={slots.map((s) => ({ id: s.group, name: slotName(s.members) }))}
                 order={order}
                 onDone={() => setTimeout(() => setPlaying(false), 2500)}

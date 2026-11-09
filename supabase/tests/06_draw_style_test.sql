@@ -1,0 +1,46 @@
+-- 0015: the admin's draw game is saved with the draw so members watch the same one.
+\set ON_ERROR_STOP on
+
+create or replace function pg_temp.login(u uuid) returns void language plpgsql as $$
+begin
+  perform set_config('request.jwt.claim.sub', u::text, false);
+  execute 'set role authenticated';
+end $$;
+
+do $$
+declare
+  a uuid := '00000000-0000-0000-0000-0000000000a6';
+  b uuid := '00000000-0000-0000-0000-0000000000b6';
+  c uuid := '00000000-0000-0000-0000-0000000000c6';
+  cid uuid; code text; ord uuid[];
+begin
+  insert into auth.users (id, email) values (a,'a6@x'),(b,'b6@x'),(c,'c6@x');
+  perform pg_temp.login(a);
+  cid := create_circle('Watch', '💰', 'mango', 500, 50, 'weekly', '2026-11-16', 0, 0, '', 'draw');
+  select invite_code into code from circles where id = cid;
+  perform pg_temp.login(b); perform request_join(code, false);
+  perform pg_temp.login(c); perform request_join(code, false);
+  perform pg_temp.login(a);
+  perform review_member(id, true) from circle_members where circle_id = cid and status = 'pending';
+  perform lock_circle(cid);
+
+  perform pg_temp.login(b);
+  begin
+    perform run_draw_with_style(cid, 'claw');
+    assert false, 'only the admin runs the draw';
+  exception when raise_exception then null; end;
+
+  perform pg_temp.login(a);
+  begin
+    perform run_draw_with_style(cid, 'horse');
+    assert false, 'unknown games are refused';
+  exception when raise_exception then null; end;
+
+  ord := run_draw_with_style(cid, 'claw');
+  assert array_length(ord, 1) = 3, 'draw ran';
+  perform pg_temp.login(b);
+  assert (select draw_style from circles where id = cid) = 'claw', 'members see the admin’s game';
+  assert (select status from circles where id = cid) = 'active', 'paluwagan started';
+
+  raise notice '✅ draw style assertions passed';
+end $$;

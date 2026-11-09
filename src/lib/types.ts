@@ -50,6 +50,8 @@ export type Circle = {
   has_password: boolean;
   /** Member whose slot is open for a replacement (join requests accepted while set). */
   replacing_member?: string | null;
+  /** Game the admin picked for the draw (migration 0015); members watch the same one. */
+  draw_style?: 'wheel' | 'envelopes' | 'slots' | 'plinko' | 'claw' | null;
   seed_hash: string | null;
   seed: string | null;
   draw_order: string[] | null;
