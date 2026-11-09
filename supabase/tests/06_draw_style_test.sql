@@ -42,5 +42,20 @@ begin
   assert (select draw_style from circles where id = cid) = 'claw', 'members see the admin’s game';
   assert (select status from circles where id = cid) = 'active', 'paluwagan started';
 
+  -- 0016: nobody pays before the order is revealed
+  begin
+    perform submit_proof((select id from contributions where circle_id = cid and user_id = b and status = 'pending' limit 1), 'x/y.jpg');
+    assert false, 'no paying before the reveal';
+  exception when raise_exception then null; end;
+  begin
+    perform reveal_draw(cid);
+    assert false, 'only the admin reveals';
+  exception when raise_exception then null; end;
+  perform pg_temp.login(a);
+  perform reveal_draw(cid);
+  perform pg_temp.login(b);
+  perform submit_proof((select id from contributions where circle_id = cid and user_id = b and status = 'pending' limit 1), cid || '/' || b || '/r.jpg');
+  assert exists (select 1 from contributions where circle_id = cid and user_id = b and status = 'submitted'), 'paying works after the reveal';
+
   raise notice '✅ draw style assertions passed';
 end $$;

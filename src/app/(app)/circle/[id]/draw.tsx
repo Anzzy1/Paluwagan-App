@@ -17,6 +17,7 @@ import { Text } from '@/components/ui/Text';
 import { notifyError } from '@/lib/alert';
 import { useCircle, useCircleAction } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { isRevealed } from '@/lib/derive';
 import { verifyDraw, type VerifyResult } from '@/lib/draw';
 import { dateTime, shortDate, slotName, slotsOf } from '@/lib/format';
 import { useColors, useIsDesktop } from '@/lib/prefs';
@@ -153,6 +154,35 @@ function DrawScreenScreen() {
 
   const order = circle.draw_order ?? [];
   const goButton = <Button title="Go to paluwagan" icon="arrow-right" variant="brand" full={!desktop} onPress={() => router.replace(`/circle/${id}`)} />;
+  // The order is fixed, but it only counts as declared once the admin finishes the draw.
+  const revealed = isRevealed(circle);
+  const reveal = () => action.mutate({ fn: 'reveal_draw', args: { p_circle: id } }, { onError: (e) => notifyError(e, 'Couldn’t show the results') });
+
+  // Draw stopped before the end: the admin can play it again or show the results; members wait.
+  if (!revealed && !playing) {
+    return (
+      <Screen back title="Draw not finished" subtitle={circle.name}>
+        <Card style={{ gap: 12, alignItems: 'center', paddingVertical: 24 }}>
+          <Feather name={isAdmin ? 'play-circle' : 'clock'} size={36} color={c.brand} />
+          <Text variant="h2" center>
+            {isAdmin ? 'Finish the draw' : 'Waiting for the draw'}
+          </Text>
+          <Text tone="muted" center style={{ maxWidth: 420 }}>
+            {isAdmin
+              ? 'The payout order is already locked in and can’t change. Play the draw for everyone, or show the results now. Payments open after that.'
+              : 'The admin hasn’t finished the draw yet. Keep this page open to watch it. Payments open once the payout order is shown.'}
+          </Text>
+          {isAdmin && (
+            <View style={{ alignSelf: 'stretch', gap: 10, marginTop: 4 }}>
+              <Button title={`Play the draw · ${DRAW_STYLES.find((d) => d.id === shownStyle)?.title ?? ''}`} icon="play" variant="brand" onPress={() => setPlaying(true)} />
+              <Button title="Show results now" icon="eye" variant="secondary" loading={action.isPending} onPress={reveal} />
+            </View>
+          )}
+        </Card>
+      </Screen>
+    );
+  }
+
   return (
     <Screen
       back
@@ -169,7 +199,11 @@ function DrawScreenScreen() {
                 style={shownStyle}
                 participants={slots.map((s) => ({ id: s.group, name: slotName(s.members) }))}
                 order={order}
-                onDone={() => setTimeout(() => setPlaying(false), 2500)}
+                onDone={() => {
+                  // The admin watched it to the end: declare the order so payments open.
+                  if (isAdmin && !revealed) reveal();
+                  setTimeout(() => setPlaying(false), 2500);
+                }}
               />
             </Card>
           ) : (

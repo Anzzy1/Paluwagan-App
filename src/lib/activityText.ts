@@ -54,6 +54,8 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
       return { icon: 'unlock', tone: 'neutral', text: `${who} unlocked the paluwagan` };
     case 'draw_completed':
       return { icon: 'shuffle', tone: 'brand', text: 'The draw was completed and the payout order is set' };
+    case 'draw_revealed':
+      return { icon: 'eye', tone: 'brand', text: 'The payout order is out. Payments are now open.' };
     case 'order_set':
       return { icon: 'list', tone: 'brand', text: `${who} set the payout order` };
     case 'proof_submitted':

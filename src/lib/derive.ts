@@ -3,6 +3,15 @@ import { payoutPlan } from '@/lib/local';
 import { daysUntil, potOf } from '@/lib/format';
 import type { Circle, CirclePreview, Contribution, Member, Round } from '@/lib/types';
 
+/**
+ * Has the payout order been declared? A running paluwagan whose draw wasn't finished has
+ * revealed_at = null; until then nobody pays or sees their turn. (Undefined = the database
+ * predates migration 0016, so treat it as revealed.)
+ */
+export function isRevealed(c: Pick<Circle, 'status' | 'revealed_at'>): boolean {
+  return c.status !== 'active' || c.revealed_at !== null;
+}
+
 export function currentRound(rounds: Round[]): Round | undefined {
   return rounds.find((r) => r.status === 'active');
 }

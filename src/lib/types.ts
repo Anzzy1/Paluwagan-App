@@ -52,6 +52,8 @@ export type Circle = {
   replacing_member?: string | null;
   /** Game the admin picked for the draw (migration 0015); members watch the same one. */
   draw_style?: 'wheel' | 'envelopes' | 'slots' | 'plinko' | 'claw' | null;
+  /** When the payout order was declared (migration 0016). Null on a running paluwagan = draw not finished yet. */
+  revealed_at?: string | null;
   seed_hash: string | null;
   seed: string | null;
   draw_order: string[] | null;

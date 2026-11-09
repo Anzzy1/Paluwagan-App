@@ -77,6 +77,7 @@ begin
   -- ---- REVEAL
   perform pg_temp.login(a);
   ord := run_draw(cid);
+  perform reveal_draw(cid); -- 0016: payments open once the order is revealed
   select seed into s from circles where id = cid;
   assert encode(extensions.digest(s, 'sha256'), 'hex') = h, 'seed matches commitment';
   assert ord = seeded_shuffle(s, (select array_agg(distinct slot_group) from circle_members

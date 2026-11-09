@@ -81,6 +81,7 @@ begin
   perform review_member((select id from circle_members where circle_id = cid and user_id = j), true);
   perform lock_circle(cid);
   perform run_draw(cid);
+  perform reveal_draw(cid); -- 0016
 
   select * into r1 from rounds where circle_id = cid and round_no = 1;
   select * into r2 from rounds where circle_id = cid and round_no = 2;

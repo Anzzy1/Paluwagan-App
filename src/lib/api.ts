@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { assertLive, demoQuery, demoState } from '@/lib/demo';
 import { addLocalDeposit, deleteLocalDeposit, deleteLocalGoal, isLocalId, saveLocalGoal, useLocalIpon, type GoalInput } from '@/lib/localIpon';
 import { useOnline } from '@/lib/network';
+import { isRevealed } from '@/lib/derive';
 import { supabase } from '@/lib/supabase';
 import type {
   Activity,
@@ -72,12 +73,16 @@ function useMyCirclesQuery(select: (list: MyCircle[]) => MyCircle[]) {
       ]);
       const rs = must(rounds) as Round[];
       const ks = must(contributions) as Contribution[];
-      return memberships.map(({ circles, ...membership }) => ({
-        membership: membership as Member,
-        circle: circles,
-        rounds: rs.filter((r) => r.circle_id === circles.id),
-        contributions: ks.filter((k) => k.circle_id === circles.id),
-      }));
+      return memberships.map(({ circles, ...membership }) => {
+        // Until the draw is revealed, hide turns and dues so nobody pays early.
+        const shown = isRevealed(circles);
+        return {
+          membership: (shown ? membership : { ...membership, slot_no: null }) as Member,
+          circle: circles,
+          rounds: shown ? rs.filter((r) => r.circle_id === circles.id) : [],
+          contributions: shown ? ks.filter((k) => k.circle_id === circles.id) : [],
+        };
+      });
     },
   });
 }

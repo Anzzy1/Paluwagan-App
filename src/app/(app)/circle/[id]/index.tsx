@@ -18,7 +18,7 @@ import { confirmAction, notify, notifyError } from '@/lib/alert';
 import { useActivity, useCircle, useCircleAction, useNudge } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { unreadCount, useChatRead, useCircleChat } from '@/lib/chat';
-import { dueOf, hulogInRound, myNextContribution, plannedHulogPerSahod, recipientsOf, unpaid } from '@/lib/derive';
+import { dueOf, hulogInRound, isRevealed, myNextContribution, plannedHulogPerSahod, recipientsOf, unpaid } from '@/lib/derive';
 import type { Member } from '@/lib/types';
 import { daysUntil, displayStatus, firstName, longDate, payoutShort, peso, potOf, relativeDue, shortDate, slotName, timeAgo } from '@/lib/format';
 import { useColors, useIsDesktop, useT } from '@/lib/prefs';
@@ -119,7 +119,11 @@ function CircleScreenScreen() {
     );
   }
 
-  const data = q.data;
+  // Until the draw is revealed, hide turns, rounds and dues (nobody pays before the order is declared).
+  const revealed = isRevealed(q.data.circle);
+  const data = revealed
+    ? q.data
+    : { ...q.data, rounds: [], contributions: [], members: q.data.members.map((m) => ({ ...m, slot_no: null })) };
   const { circle, members, rounds, contributions } = data;
   const me = members.find((m) => m.user_id === userId);
   const isAdmin = me?.role === 'admin';
@@ -412,6 +416,17 @@ function CircleScreenScreen() {
       {me?.status === 'approved' && !circle.deleted_at && <ChatEntry circleId={id} userId={userId} members={members} />}
       {!circle.deleted_at && forming}
       {!circle.deleted_at && locked}
+      {circle.status === 'active' && !revealed && (
+        <Card style={{ gap: 12 }}>
+          <Text variant="h2">The draw isn’t finished yet</Text>
+          <Text tone="muted">
+            {isAdmin
+              ? 'The payout order is already locked in, but members haven’t seen it. Finish the draw (or show the results) to open payments.'
+              : 'The admin started the draw but hasn’t finished it. Payments open once everyone can see the payout order.'}
+          </Text>
+          <Button title={isAdmin ? 'Continue the draw' : 'Watch the draw'} icon={isAdmin ? 'play' : 'eye'} variant="brand" onPress={() => router.push(`/circle/${id}/draw`)} />
+        </Card>
+      )}
       {myOverdue.length > 0 && (
         <Card style={{ gap: 10, backgroundColor: c.dangerBg }}>
           <Text variant="bodyBold" tone="danger">
