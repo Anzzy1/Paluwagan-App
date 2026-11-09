@@ -95,8 +95,8 @@ function managed(list: LocalCircle[]): AppNotification[] {
     const n = c.members.length;
     if (c.status === 'forming') {
       out.push(
-        n < 2
-          ? { ...base, id: `m-members-${c.id}`, action: true, tone: 'info', icon: 'user-plus', title: 'Add members', body: 'Add at least 2 members so you can run the draw.', rank: 6 }
+        n < 3
+          ? { ...base, id: `m-members-${c.id}`, action: true, tone: 'info', icon: 'user-plus', title: 'Add members', body: 'Add at least 3 members so you can run the draw.', rank: 6 }
           : { ...base, id: `m-draw-${c.id}`, action: true, tone: 'info', icon: 'shuffle', title: 'Ready for the draw', body: `${n} members are in. Run the draw to set the sahod order.`, rank: 6 },
       );
       continue;

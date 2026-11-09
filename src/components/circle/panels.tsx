@@ -261,7 +261,7 @@ export function MembersList({ data, userId, isAdmin = false }: { data: CircleDet
       <View style={styles.cardHead}>
         <Text variant="h3">Members</Text>
         <Text variant="small" tone="muted">
-          {slots.length}/{data.circle.slots} slots
+          {data.circle.status === 'forming' ? `${slots.length} joined` : `${slots.length}/${data.circle.slots} slots`}
         </Text>
       </View>
       {slots.map((s) => (
@@ -304,7 +304,7 @@ export function MembersList({ data, userId, isAdmin = false }: { data: CircleDet
           </View>
         </View>
       ))}
-      {slots.length < data.circle.slots && (
+      {data.circle.status !== 'forming' && slots.length < data.circle.slots && (
         <View style={[styles.slotRow, { borderTopColor: c.border }]}>
           <Text variant="small" tone="faint">
             {data.circle.slots - slots.length} open {data.circle.slots - slots.length === 1 ? 'slot' : 'slots'}
@@ -448,12 +448,22 @@ export function SlotsProgress({ data }: { data: CircleDetail }) {
   return (
     <Card style={{ gap: 12 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text variant="h3">Slots filled</Text>
-        <Text variant="money">
-          {filled} / {data.circle.slots}
-        </Text>
+        <Text variant="h3">Members joined</Text>
+        <Text variant="money">{filled}</Text>
       </View>
-      <ProgressBar progress={filled / data.circle.slots} height={8} />
+      {/* No fixed size: progress only toward the minimum needed to lock. */}
+      {filled < 3 ? (
+        <>
+          <ProgressBar progress={filled / 3} height={8} />
+          <Text variant="small" tone="muted">
+            {3 - filled} more {3 - filled === 1 ? 'member' : 'members'} needed before the paluwagan can start.
+          </Text>
+        </>
+      ) : (
+        <Text variant="small" tone="muted">
+          Enough members to start. More can still join until the admin locks the paluwagan.
+        </Text>
+      )}
       <AvatarStack people={approved.map((m) => ({ id: m.user_id, name: m.profiles?.full_name, uri: m.profiles?.avatar_url }))} size={30} />
     </Card>
   );

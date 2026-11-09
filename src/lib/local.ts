@@ -316,7 +316,7 @@ export function renameMember(id: string, memberId: string, name: string) {
 export async function prepareDraw(id: string): Promise<{ seed: string; hash: string; order: string[] }> {
   const c = state.find((x) => x.id === id);
   if (!c) throw new Error('Paluwagan not found');
-  if (c.members.length < 2) throw new Error('Add at least 2 members first');
+  if (c.members.length < 3) throw new Error('Add at least 3 members first');
   const bytes = Crypto.getRandomBytes(32);
   const seed = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
   const sha = (s: string) => Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, s);

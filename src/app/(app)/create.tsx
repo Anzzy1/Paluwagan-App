@@ -22,6 +22,9 @@ import { useColors, useIsDesktop } from '@/lib/prefs';
 import type { Frequency } from '@/lib/types';
 import { circleIcons, circleTints, font, iconChoices, radius, tintNames, type CircleTint } from '@/theme/tokens';
 
+/** Smallest paluwagan (online and managed). */
+const MIN_MEMBERS = 3;
+
 const DEFAULT_RULES = [
   '1. Contributions are due on or before each due date. Upload proof of payment in the app.',
   '2. The payout recipient confirms each payment once received.',
@@ -228,7 +231,6 @@ export default function CreateCircle() {
   const [icon, setIcon] = useState<string>(circleIcons[0]);
   const [color, setColor] = useState<CircleTint>('leaf');
   const [amount, setAmount] = useState('1000');
-  const [slots, setSlots] = useState(5);
   const [frequency, setFrequency] = useState<Frequency>('kinsenas');
   const [startDate, setStartDate] = useState(nextSemiMonthly());
   const [lateFee, setLateFee] = useState('0');
@@ -253,7 +255,9 @@ export default function CreateCircle() {
   const managed = kind === 'managed';
 
   const amt = Number(amount) || 0;
-  const slotCount = managed ? memberNames.length : slots;
+  // Online paluwagan have no fixed size: members join with the code and the admin locks at 3+.
+  const memberCount = managed ? memberNames.length : null;
+  const previewCount = memberCount ?? MIN_MEMBERS;
   const scam = looksLikeScam(rules) || looksLikeScam(name);
   const interval = frequency === 'custom' ? intervalDays : null;
   const sched = { frequency, interval_days: interval };
@@ -272,13 +276,15 @@ export default function CreateCircle() {
     if (!d || mode === 'custom') return fallback;
     return d % 7 === 0 && d > 7 ? `Every ${d / 7} weeks` : `Every ${d} days`;
   };
-  const plan = payoutPlan(hulogSched, payout, Math.max(2, slotCount));
+  const plan = payoutPlan(hulogSched, payout, Math.max(MIN_MEMBERS, previewCount));
   const perSahod = plan[0]?.dates.length ?? 1;
   const varies = new Set(plan.map((x) => x.dates.length)).size > 1;
-  const pot = amt * slotCount * perSahod;
+  /** What one member puts into each sahod; the pot is this × the number of members. */
+  const perMember = amt * perSahod;
+  const pot = memberCount != null ? perMember * memberCount : null;
   const firstHulog = roundDueDate(frequency, startDate, 1, interval);
   const sahodValid = !payout || payout.first_date >= firstHulog;
-  const canNext = [true, name.trim().length > 0, amt > 0 && slotCount >= 2, !!startDate, sahodValid, managed || password.length >= 4][step];
+  const canNext = [true, name.trim().length > 0, amt > 0 && (!managed || memberNames.length >= MIN_MEMBERS), !!startDate, sahodValid, managed || password.length >= 4][step];
   const last = step === STEPS.length - 1;
 
   const addName = () => {
@@ -313,7 +319,8 @@ export default function CreateCircle() {
         emoji: icon,
         color,
         amount: amt,
-        slots,
+        // Grows as members join; fixed when the admin locks it (migration 0010).
+        slots: 50,
         frequency,
         start_date: startDate,
         late_fee: Number(lateFee) || 0,
@@ -352,7 +359,7 @@ export default function CreateCircle() {
             {name || 'Untitled paluwagan'}
           </Text>
           <Text variant="small" tone="muted">
-            {slotCount} {managed ? 'members' : 'slots'} · {payoutShort({ ...sched, payout })}
+            {managed ? `${memberNames.length} members` : `Open to members · min ${MIN_MEMBERS}`} · {payoutShort({ ...sched, payout })}
           </Text>
         </View>
       </View>
@@ -364,7 +371,7 @@ export default function CreateCircle() {
         <Text tone="muted">Per sahod</Text>
         <Text variant="money">
           {varies ? '≈ ' : ''}
-          {peso(pot)}
+          {pot != null ? peso(pot) : `${peso(perMember)} × members`}
         </Text>
       </View>
       <View style={styles.sumRow}>
@@ -473,31 +480,29 @@ export default function CreateCircle() {
               </View>
             </Card>
           ) : (
-            <Card style={{ gap: 14 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <Text variant="bodyBold">Number of slots</Text>
-                  <Text variant="small" tone="muted">
-                    One slot per payout round · 2 to 50
-                  </Text>
-                </View>
-                <Stepper value={slots} onChange={setSlots} min={2} max={50} />
+            <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={[styles.iconBubble, { backgroundColor: c.brandSoft }]}>
+                <Feather name="users" size={20} color={c.brand} />
               </View>
-              {/* Quick picks: small groups are common, so 3 is one tap away. */}
-              <View style={styles.wrap}>
-                {[3, 5, 10, 12, 15, 20].map((n) => (
-                  <PressableScale key={n} hapticOnPress={false} onPress={() => setSlots(n)} accessibilityLabel={`${n} slots`}>
-                    <Chip label={String(n)} tone={slots === n ? 'ink' : 'neutral'} />
-                  </PressableScale>
-                ))}
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text variant="bodyBold">No need to set the number of members</Text>
+                <Text variant="small" tone="muted">
+                  Members join with your invite code. Once at least {MIN_MEMBERS} have joined, lock the paluwagan to start. Each member gets one payout round.
+                </Text>
               </View>
             </Card>
           )}
           <Notice
             tone="info"
             icon="info"
-            title={`Each sahod pays out ${varies ? 'about ' : ''}${peso(pot)}`}
-            body={managed ? 'You can still add or remove members until you run the draw.' : 'Two members can share one slot (split slot): each contributes half and receives half of the payout.'}
+            title={pot != null ? `Each sahod pays out ${varies ? 'about ' : ''}${peso(pot)}` : `Each member puts in ${peso(perMember)} per sahod`}
+            body={
+              managed
+                ? memberNames.length < MIN_MEMBERS
+                  ? `Add at least ${MIN_MEMBERS} members. You can still add or remove members until you run the draw.`
+                  : 'You can still add or remove members until you run the draw.'
+                : `With 5 members, each sahod is ${peso(perMember * 5)}. Two members can share one slot (split slot): each contributes half and receives half of the payout.`
+            }
           />
         </>
       )}
@@ -573,8 +578,8 @@ export default function CreateCircle() {
             <Feather name="calendar" size={15} color={c.brand} />
             <Text variant="small" style={{ flex: 1 }}>
               <Text variant="smallBold">Payment dates: </Text>
-              {Array.from({ length: Math.min(4, Math.max(2, slotCount)) }, (_, i) => shortDate(roundDueDate(frequency, startDate, i + 1, interval))).join(', ')}
-              {slotCount > 4 ? ', …' : ''}
+              {Array.from({ length: Math.min(4, Math.max(MIN_MEMBERS, previewCount)) }, (_, i) => shortDate(roundDueDate(frequency, startDate, i + 1, interval))).join(', ')}
+              {previewCount > 4 || !managed ? ', …' : ''}
             </Text>
           </View>
           <View style={{ flexDirection: desktop ? 'row' : 'column', gap: 14 }}>
@@ -665,8 +670,12 @@ export default function CreateCircle() {
               </Text>
               <Text variant="small" tone="muted">
                 {perSahod > 1
-                  ? `Each sahod collects ${varies ? 'about ' : ''}${perSahod} hulog of ${peso(amt)} from ${slotCount} members, so the pot is ${varies ? 'about ' : ''}${peso(pot)}.`
-                  : `Each sahod is ${peso(pot)} (${peso(amt)} × ${slotCount} members).`}
+                  ? pot != null
+                    ? `Each sahod collects ${varies ? 'about ' : ''}${perSahod} hulog of ${peso(amt)} from ${memberCount} members, so the pot is ${varies ? 'about ' : ''}${peso(pot)}.`
+                    : `Each sahod collects ${perSahod} hulog of ${peso(amt)} from every member (${peso(perMember)} each).`
+                  : pot != null
+                    ? `Each sahod is ${peso(pot)} (${peso(amt)} × ${memberCount} members).`
+                    : `Each sahod is ${peso(amt)} × the number of members.`}
               </Text>
             </View>
           </View>

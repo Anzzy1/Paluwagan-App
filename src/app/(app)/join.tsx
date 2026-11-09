@@ -8,7 +8,7 @@ import { useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, TextInput, View, type TextInputInstance } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { Avatar, IconButton, type IconName, Input, Notice, ProgressBar, PurposeIcon } from '@/components/ui/bits';
+import { Avatar, IconButton, type IconName, Input, Notice, PurposeIcon } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card, useTint } from '@/components/ui/Card';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
@@ -199,9 +199,8 @@ function CircleHero({ p, onChange }: { p: CirclePreview; onChange: () => void })
         ))}
       </View>
       <View style={{ gap: 6 }}>
-        <ProgressBar progress={filled / p.slots} color="#fff" track="rgba(255,255,255,0.25)" />
         <Text variant="caption" color="rgba(255,255,255,0.9)">
-          {filled} of {p.slots} slots filled · {Math.max(0, p.slots - filled)} left
+          {p.status === 'forming' ? `${filled} ${filled === 1 ? 'member has' : 'members have'} joined so far` : `${p.slots} slots`}
         </Text>
       </View>
     </LinearGradient>
@@ -266,7 +265,8 @@ function JoinScreen() {
       },
     );
 
-  const slotsLeft = p ? p.slots - Number(p.filled) : 0;
+  // Open size: up to 50 slots while forming.
+  const slotsLeft = p ? 50 - Number(p.filled) : 0;
   // Open while forming, or while a running paluwagan looks for a replacement (who takes over a full slot).
   const open = !!p && (p.status === 'forming' || (p.status === 'active' && !!p.replacing));
   const canRequest = open && !p.my_status;

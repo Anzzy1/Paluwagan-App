@@ -515,10 +515,10 @@ export default function ManagedCircle() {
         body="Members don’t need the app. Add everyone below, then run a fun draw together to decide the payout order."
       />
       <MembersEditor circle={circle} />
-      <Button title="Start the draw" icon="shuffle" variant="brand" disabled={n < 2} onPress={() => router.push(`/managed/${circle.id}/draw` as Href)} />
-      {n < 2 && (
+      <Button title="Start the draw" icon="shuffle" variant="brand" disabled={n < 3} onPress={() => router.push(`/managed/${circle.id}/draw` as Href)} />
+      {n < 3 && (
         <Text variant="small" tone="faint" center>
-          Add at least 2 members to start the draw.
+          Add at least 3 members to start the draw.
         </Text>
       )}
     </>

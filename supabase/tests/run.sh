@@ -20,7 +20,9 @@ run < supabase/migrations/0006_avatars.sql
 run < supabase/migrations/0007_delete_circle.sql
 run < supabase/migrations/0008_fair_rounds.sql
 run < supabase/migrations/0009_circle_chat.sql
+run < supabase/migrations/0010_open_slots.sql
 run < supabase/tests/01_flow_test.sql
 run < supabase/tests/02_schedule_password_test.sql
 run < supabase/tests/03_fair_rounds_test.sql
 run < supabase/tests/04_chat_test.sql
+run < supabase/tests/05_open_slots_test.sql

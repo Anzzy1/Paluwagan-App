@@ -26,6 +26,9 @@ import { withAccount } from '@/components/AccountGate';
 
 type Tab = 'timeline' | 'members' | 'rules' | 'activity';
 
+/** Smallest paluwagan that can be locked (matches lock_circle, migration 0010). */
+const MIN_TO_LOCK = 3;
+
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ flex: 1, minWidth: 120, gap: 2 }}>
@@ -116,6 +119,8 @@ function CircleScreenScreen() {
   const openSwaps = data.swaps.filter((s) => s.status === 'pending' || s.status === 'accepted').length;
   const filled = members.filter((m) => m.status === 'approved').reduce((s, m) => s + Number(m.share), 0);
   const completedRounds = rounds.filter((r) => r.status === 'completed').length;
+  // No fixed size: the admin locks once enough members have joined and split slots are paired.
+  const lockable = filled >= MIN_TO_LOCK && Number.isInteger(filled);
   const unpaidKs = roundKs.filter((k) => k.status !== 'confirmed');
   // Once the sahod date arrives the admin can release it even if someone hasn't paid.
   const canRelease = isAdmin && !!current && !circle.paused_at && daysUntil(current.due_date) <= 0 && unpaidKs.length > 0;
@@ -149,7 +154,7 @@ function CircleScreenScreen() {
             {circle.name}
           </Text>
           <Text variant="small" color="rgba(255,255,255,0.8)">
-            {circle.slots} slots · {payoutShort(circle)} · Starts {longDate(circle.start_date)}
+            {circle.status === 'forming' ? `${filled} joined` : `${circle.slots} slots`} · {payoutShort(circle)} · Starts {longDate(circle.start_date)}
           </Text>
         </View>
         <View style={styles.heroPill}>
@@ -162,7 +167,7 @@ function CircleScreenScreen() {
         <Metric label={t('circle.pot')} value={peso(potOf(circle) * (rounds.length ? hulogInRound(contributions, current ?? rounds[0]) : plannedHulogPerSahod(circle)))} />
         <Metric label="Contribution" value={peso(circle.amount)} />
         <Metric label="Your slot" value={me?.slot_no ? `#${me.slot_no}` : '—'} />
-        <Metric label="Progress" value={rounds.length ? `${completedRounds}/${rounds.length} rounds` : `${filled}/${circle.slots} filled`} />
+        <Metric label="Progress" value={rounds.length ? `${completedRounds}/${rounds.length} rounds` : `${filled} joined`} />
       </View>
       {circle.status === 'active' && (
         <View style={styles.heroTrack}>
@@ -185,22 +190,24 @@ function CircleScreenScreen() {
           <Button
             title={t('circle.lock')}
             icon="lock"
-            disabled={filled < circle.slots}
+            disabled={!lockable}
             loading={action.isPending}
             onPress={() =>
               run(
-                'Lock this paluwagan?',
-                'No one else will be able to join. A secret seed is generated now and its fingerprint (hash) is shown to every member before the draw, proving the result can’t be changed.',
+                `Lock with ${filled} members?`,
+                `The paluwagan starts with ${filled} slots and no one else can join. A secret seed is generated now and its fingerprint (hash) is shown to every member before the draw, proving the result can’t be changed.`,
                 'lock_circle',
                 'Lock paluwagan',
               )
             }
           />
-          {filled < circle.slots && (
-            <Text variant="small" tone="faint" center>
-              All {circle.slots} slots must be filled before you can lock the paluwagan.
-            </Text>
-          )}
+          <Text variant="small" tone="faint" center>
+            {filled < MIN_TO_LOCK
+              ? `At least ${MIN_TO_LOCK} members must join before you can lock the paluwagan.`
+              : !Number.isInteger(filled)
+                ? 'Pair the split-slot members first.'
+                : 'Lock it once everyone who’s joining is in.'}
+          </Text>
         </View>
       ) : (
         <Button title={t('circle.leave')} variant="ghost" onPress={() => run('Leave this paluwagan?', 'You can request to join again while it’s still open.', 'leave_circle', 'Leave')} />

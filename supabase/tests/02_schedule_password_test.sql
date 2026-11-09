@@ -19,6 +19,7 @@ declare
   g uuid := '00000000-0000-0000-0000-000000000101';
   h uuid := '00000000-0000-0000-0000-000000000102';
   i uuid := '00000000-0000-0000-0000-000000000103';
+  j uuid := '00000000-0000-0000-0000-000000000104'; -- third member (a paluwagan needs at least 3)
   cid uuid; code text; res uuid; n int; r1 rounds; r2 rounds;
 begin
   perform pg_temp.logout();
@@ -28,7 +29,7 @@ begin
   assert round_due_date('custom', '2026-11-09', 3, 3) = '2026-11-15', 'every 3 days';
   assert round_due_date('weekly', '2026-11-09', 2, null) = '2026-11-16', '4-arg falls back to 3-arg';
 
-  insert into auth.users (id, email) values (g, 'g@x'), (h, 'h@x'), (i, 'i@x');
+  insert into auth.users (id, email) values (g, 'g@x'), (h, 'h@x'), (i, 'i@x'), (j, 'j@x');
 
   -- ---- daily hulog, weekly sahod, password protected
   perform pg_temp.login(g);
@@ -72,17 +73,20 @@ begin
   begin perform set_circle_password(cid, 'hack'); assert false, 'only admin sets password';
   exception when raise_exception then null; end;
 
-  -- ---- start the circle: 2 payouts, 7 daily hulog each
+  -- ---- start the circle: 3 payouts, 7 daily hulog each
+  perform pg_temp.login(j);
+  perform request_join(code, false, 'newpass');
   perform pg_temp.login(g);
   perform review_member((select id from circle_members where circle_id = cid and user_id = h), true);
+  perform review_member((select id from circle_members where circle_id = cid and user_id = j), true);
   perform lock_circle(cid);
   perform run_draw(cid);
 
   select * into r1 from rounds where circle_id = cid and round_no = 1;
   select * into r2 from rounds where circle_id = cid and round_no = 2;
   assert r1.due_date = '2026-11-15' and r2.due_date = '2026-11-22', 'sahod dates follow the weekly schedule';
-  assert (select count(*) from contributions where round_id = r1.id) = 14, 'round 1: 7 hulog x 2 members';
-  assert (select count(*) from contributions where round_id = r2.id) = 14, 'round 2: 7 hulog x 2 members';
+  assert (select count(*) from contributions where round_id = r1.id) = 21, 'round 1: 7 hulog x 3 members';
+  assert (select count(*) from contributions where round_id = r2.id) = 21, 'round 2: 7 hulog x 3 members';
   assert (select min(due_date) from contributions where round_id = r1.id) = '2026-11-09';
   assert (select max(due_date) from contributions where round_id = r1.id) = '2026-11-15';
   assert (select min(due_date) from contributions where round_id = r2.id) = '2026-11-16';
