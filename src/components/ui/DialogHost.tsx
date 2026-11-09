@@ -39,7 +39,7 @@ export function DialogHost() {
       </View>
       {shown.kind === 'confirm' ? (
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Button title="Cancel" variant="secondary" full={false} style={{ flex: 1 }} onPress={close} />
+          <Button title={shown.cancelText ?? 'Cancel'} variant="secondary" full={false} style={{ flex: 1 }} onPress={close} />
           <Button
             title={shown.confirmText ?? 'Confirm'}
             full={false}

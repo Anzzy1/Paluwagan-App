@@ -16,7 +16,7 @@ import { Columns, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { useAiAvailable, useAiContext, useAiPlan } from '@/lib/ai';
 import { confirmAction, notifyError } from '@/lib/alert';
-import { useDeleteDeposit, useDeposits, useGoals, useMyCircles, useSaveGoal } from '@/lib/api';
+import { useDeleteDeposit, useDeleteGoal, useDeposits, useGoals, useMyCircles, useSaveGoal } from '@/lib/api';
 import { dateTime, longDate, peso } from '@/lib/format';
 import { goalProgress, planLabel, planPer, projectedFinish } from '@/lib/ipon';
 import { useColors } from '@/lib/prefs';
@@ -45,6 +45,7 @@ function GoalDetailScreen() {
   const circles = useMyCircles();
   const save = useSaveGoal();
   const delDeposit = useDeleteDeposit();
+  const delGoal = useDeleteGoal();
   const aiPlan = useAiPlan();
   // Ipon AI needs an account and internet; goals themselves work offline.
   const aiAvailable = useAiAvailable();
@@ -268,6 +269,29 @@ function GoalDetailScreen() {
     </Card>
   );
 
+  // Cancelling = deleting the goal and its history. Spell out what's saved so nobody loses track of real money.
+  const cancelGoal = () =>
+    confirmAction(
+      'Cancel this goal?',
+      p.saved > 0
+        ? `You’ve saved ${peso(p.saved)} for “${goal.title}”. Cancelling deletes this goal and its deposit history. The money itself stays wherever you keep it.`
+        : `“${goal.title}” will be deleted. You can always start a new goal later.`,
+      () => delGoal.mutate(goal.id, { onSuccess: () => router.replace('/ipon'), onError: (e) => notifyError(e, 'Couldn’t cancel the goal') }),
+      { confirmText: 'Cancel goal', cancelText: 'Keep goal', destructive: true, icon: 'x-circle' },
+    );
+
+  const cancelCard = (
+    <Card style={{ gap: 12 }}>
+      <View style={{ gap: 2 }}>
+        <Text variant="h3">Not continuing?</Text>
+        <Text variant="small" tone="muted">
+          Cancel this goal if you’ve decided not to save for it anymore.
+        </Text>
+      </View>
+      <Button title="Cancel goal" icon="x-circle" variant="danger" size="md" onPress={cancelGoal} loading={delGoal.isPending} />
+    </Card>
+  );
+
   return (
     <Screen back refreshing={deposits.isRefetching} onRefresh={() => deposits.refetch()}>
       <Columns
@@ -282,6 +306,7 @@ function GoalDetailScreen() {
             {facts}
             {/* A completed goal doesn't need a savings plan. */}
             {!completed && ai}
+            {cancelCard}
           </View>
         }
       />

@@ -17,6 +17,8 @@ export type Dialog = {
   title: string;
   message?: string;
   confirmText?: string;
+  /** Label for the dismiss button (default "Cancel"), e.g. "Keep goal" when the action itself is a cancel. */
+  cancelText?: string;
   onConfirm?: () => void;
 };
 
@@ -65,7 +67,7 @@ export function confirmAction(
   title: string,
   message: string,
   onConfirm: () => void,
-  opts: { confirmText?: string; destructive?: boolean; icon?: Dialog['icon'] } = {},
+  opts: { confirmText?: string; cancelText?: string; destructive?: boolean; icon?: Dialog['icon'] } = {},
 ) {
   const tone: DialogTone = opts.destructive ? 'danger' : 'brand';
   push({
@@ -75,6 +77,7 @@ export function confirmAction(
     title,
     message: message || undefined,
     confirmText: opts.confirmText ?? 'Confirm',
+    cancelText: opts.cancelText,
     onConfirm,
   });
 }
