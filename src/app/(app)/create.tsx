@@ -16,7 +16,7 @@ import { Text } from '@/components/ui/Text';
 import { notifyError } from '@/lib/alert';
 import { useCreateCircle } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { createManagedCircle, payoutPlan, roundDueDate, suggestFirstPayout, type PayoutSchedule } from '@/lib/local';
+import { createManagedCircle, evenPayout, payoutPlan, roundDueDate, type PayoutSchedule } from '@/lib/local';
 import { longDate, looksLikeScam, payoutShort, peso, scheduleLabel, scheduleShort, shortDate, todayISO, toISODate } from '@/lib/format';
 import { useColors, useIsDesktop } from '@/lib/prefs';
 import type { Frequency } from '@/lib/types';
@@ -241,7 +241,8 @@ export default function CreateCircle() {
   const [intervalDays, setIntervalDays] = useState(3);
   const [sahodMode, setSahodMode] = useState<SahodMode>('same');
   const [sahodEvery, setSahodEvery] = useState(7);
-  const [firstSahod, setFirstSahod] = useState<string | null>(null);
+  // A hand-picked first sahod, remembered with the schedule it was picked for.
+  const [pickedSahod, setPickedSahod] = useState<{ key: string; date: string } | null>(null);
   const [pickSahod, setPickSahod] = useState(false);
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -257,23 +258,26 @@ export default function CreateCircle() {
   const interval = frequency === 'custom' ? intervalDays : null;
   const sched = { frequency, interval_days: interval };
   // Sahod (payout) schedule: null means the pot goes out on every hulog date.
-  const sahodInterval = sahodMode === 'custom' ? sahodEvery : null;
-  const sahodFirst = sahodMode === 'same' ? null : (firstSahod ?? suggestFirstPayout(startDate, sahodMode, sahodInterval));
-  const payout: PayoutSchedule = sahodMode === 'same' || !sahodFirst ? null : { frequency: sahodMode, interval_days: sahodInterval, first_date: sahodFirst };
-  const plan = payoutPlan({ frequency, interval_days: interval, start_date: startDate }, payout, Math.max(2, slotCount));
+  // Lined up so every sahod collects the same number of hulog (monthly ≈ every 30 days, kinsenas ≈ 15).
+  const hulogSched = { frequency, interval_days: interval, start_date: startDate };
+  const even = sahodMode === 'same' ? null : evenPayout(hulogSched, sahodMode, sahodMode === 'custom' ? sahodEvery : null);
+  // Changing the hulog or sahod schedule drops a hand-picked date, so it never goes stale.
+  const schedKey = `${frequency}|${interval}|${startDate}|${sahodMode}|${sahodEvery}`;
+  const firstSahod = pickedSahod?.key === schedKey ? pickedSahod.date : null;
+  const payout: PayoutSchedule = even ? { frequency: even.frequency, interval_days: even.interval_days, first_date: firstSahod ?? even.first_date } : null;
+  /** What a sahod tile means for the chosen hulog schedule, e.g. "Every 30 days". */
+  const sahodSub = (mode: SahodMode, fallback: string) => {
+    if (mode === 'same') return fallback;
+    const d = evenPayout(hulogSched, mode, mode === 'custom' ? sahodEvery : null).days;
+    if (!d || mode === 'custom') return fallback;
+    return d % 7 === 0 && d > 7 ? `Every ${d / 7} weeks` : `Every ${d} days`;
+  };
+  const plan = payoutPlan(hulogSched, payout, Math.max(2, slotCount));
   const perSahod = plan[0]?.dates.length ?? 1;
   const varies = new Set(plan.map((x) => x.dates.length)).size > 1;
   const pot = amt * slotCount * perSahod;
   const firstHulog = roundDueDate(frequency, startDate, 1, interval);
   const sahodValid = !payout || payout.first_date >= firstHulog;
-  // With a separate sahod schedule, the first sahod should collect as many hulog as the others.
-  const firstShort = !!payout && plan.length > 1 && plan[0].dates.length < plan[1].dates.length;
-  // Later sahod can differ too, e.g. daily hulog with a monthly sahod (28–31 days per month).
-  const laterCounts = plan.slice(1).map((x) => x.dates.length);
-  const laterVaries = !!payout && new Set(laterCounts).size > 1;
-  const minPot = amt * slotCount * Math.min(...laterCounts);
-  const maxPot = amt * slotCount * Math.max(...laterCounts);
-  const suggestedSahod = payout ? suggestFirstPayout(startDate, payout.frequency, sahodInterval) : null;
   const canNext = [true, name.trim().length > 0, amt > 0 && slotCount >= 2, !!startDate, sahodValid, managed || password.length >= 4][step];
   const last = step === STEPS.length - 1;
 
@@ -592,7 +596,7 @@ export default function CreateCircle() {
                   hapticOnPress={false}
                   onPress={() => {
                     setSahodMode(o.value);
-                    setFirstSahod(null);
+                    setPickedSahod(null);
                     setPickSahod(false);
                   }}
                   style={[styles.schedTile, { flexBasis: desktop ? '18%' : '31%', backgroundColor: on ? c.goldSoft : c.surface, borderColor: on ? c.gold : 'transparent' }]}>
@@ -601,7 +605,7 @@ export default function CreateCircle() {
                   </View>
                   <Text variant="bodyBold">{o.title}</Text>
                   <Text variant="caption" tone="muted" numberOfLines={1}>
-                    {o.sub}
+                    {sahodSub(o.value, o.sub)}
                   </Text>
                 </PressableScale>
               );
@@ -615,7 +619,7 @@ export default function CreateCircle() {
                   Days between payouts
                 </Text>
               </View>
-              <Stepper value={sahodEvery} onChange={(v) => (setSahodEvery(v), setFirstSahod(null))} min={2} max={60} />
+              <Stepper value={sahodEvery} onChange={setSahodEvery} min={2} max={60} />
               <Text variant="bodyBold">days</Text>
             </Card>
           )}
@@ -633,27 +637,11 @@ export default function CreateCircle() {
                 </View>
                 <Button title={pickSahod ? 'Done' : 'Change'} size="sm" variant="secondary" full={false} onPress={() => setPickSahod(!pickSahod)} />
               </View>
-              {pickSahod && <MonthCalendar value={payout.first_date} onChange={setFirstSahod} />}
+              {pickSahod && <MonthCalendar value={payout.first_date} onChange={(date) => setPickedSahod({ key: schedKey, date })} />}
               {!sahodValid && (
                 <Text variant="small" tone="danger">
                   The first sahod can’t be before the first hulog ({longDate(firstHulog)}).
                 </Text>
-              )}
-              {sahodValid && firstShort && (
-                <View style={{ gap: 8 }}>
-                  <Text variant="small" tone="warning">
-                    The first sahod only collects {plan[0].dates.length} hulog, but the next ones collect {plan[1].dates.length}. Hulog needs to run first so the first member gets a full pot.
-                  </Text>
-                  {suggestedSahod && suggestedSahod !== payout.first_date && suggestedSahod >= firstHulog && (
-                    <Button
-                      title={`Move first sahod to ${longDate(suggestedSahod)}`}
-                      size="sm"
-                      variant="secondary"
-                      full={false}
-                      onPress={() => (setFirstSahod(suggestedSahod), setPickSahod(false))}
-                    />
-                  )}
-                </View>
               )}
             </Card>
           )}
@@ -672,14 +660,7 @@ export default function CreateCircle() {
               </Text>
             </View>
           </View>
-          {laterVaries && (
-            <Notice
-              tone="warning"
-              icon="alert-triangle"
-              title="Sahod amounts won’t be equal"
-              body={`Some periods have more hulog days than others (months have 28 to 31 days), so each sahod is between ${peso(minPot)} and ${peso(maxPot)}. To give everyone the same pot, pick a sahod every set number of days (Custom), or a weekly sahod.`}
-            />
-          )}
+
         </>
       )}
 

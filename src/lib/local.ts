@@ -211,6 +211,49 @@ export function payoutPlan(
   return plan.map((p) => (p.dates.length ? p : { ...p, dates: [p.payout_date] }));
 }
 
+/** Days between hulog for fixed-length schedules; null for calendar ones (kinsenas, monthly). */
+export function hulogPeriod(freq: Frequency, everyDays?: number | null): number | null {
+  if (freq === 'daily') return 1;
+  if (freq === 'weekly') return 7;
+  if (freq === 'custom') return Math.max(1, everyDays ?? 1);
+  return null;
+}
+
+/** Most days a sahod schedule can span (matches the DB check on payout_interval_days). */
+const MAX_SAHOD_DAYS = 60;
+
+/**
+ * A sahod schedule where every sahod collects the same number of hulog.
+ * With a fixed hulog period, sahod is a whole number of hulog periods: "monthly" ≈ every 30 days
+ * and "kinsenas" ≈ every 15 days (calendar months of 28–31 days would make pots uneven).
+ * The first sahod falls on the hulog that completes the first full pot.
+ * Calendar hulog (kinsenas/monthly) keeps a calendar sahod, which already lines up.
+ */
+export function evenPayout(
+  hulog: { frequency: Frequency; interval_days?: number | null; start_date: string },
+  mode: Frequency,
+  everyDays: number | null,
+): { frequency: Frequency; interval_days: number | null; first_date: string; days: number | null } {
+  const p = hulogPeriod(hulog.frequency, hulog.interval_days);
+  if (p) {
+    const target = mode === 'monthly' ? 30 : mode === 'kinsenas' ? 15 : mode === 'weekly' ? 7 : Math.max(1, everyDays ?? 1);
+    const n = Math.max(1, Math.min(Math.round(target / p), Math.floor(MAX_SAHOD_DAYS / p)));
+    const days = n * p;
+    return {
+      frequency: days === 7 ? 'weekly' : 'custom',
+      interval_days: days === 7 ? null : days,
+      first_date: roundDueDate(hulog.frequency, hulog.start_date, n, hulog.interval_days),
+      days,
+    };
+  }
+  return {
+    frequency: mode,
+    interval_days: mode === 'custom' ? everyDays : null,
+    first_date: suggestFirstPayout(roundDueDate(hulog.frequency, hulog.start_date, 1, hulog.interval_days), mode, everyDays),
+    days: null,
+  };
+}
+
 /** Suggested first sahod date for a payout schedule, given when hulog starts. */
 export function suggestFirstPayout(start: string, freq: Frequency, everyDays: number | null): string {
   const s = parseDate(start);
