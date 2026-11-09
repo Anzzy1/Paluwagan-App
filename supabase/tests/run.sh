@@ -30,6 +30,7 @@ run < supabase/migrations/0016_draw_reveal.sql
 run < supabase/migrations/0017_redo_draw.sql
 run < supabase/migrations/0018_admin_releases_sahod.sql
 run < supabase/migrations/0019_admin_marks_paid.sql
+run < supabase/migrations/0020_advance_delay_sahod.sql
 run < supabase/tests/01_flow_test.sql
 run < supabase/tests/02_schedule_password_test.sql
 run < supabase/tests/03_fair_rounds_test.sql
@@ -37,3 +38,4 @@ run < supabase/tests/04_chat_test.sql
 run < supabase/tests/05_open_slots_test.sql
 run < supabase/tests/06_draw_style_test.sql
 run < supabase/tests/07_redo_draw_test.sql
+run < supabase/tests/08_advance_delay_test.sql

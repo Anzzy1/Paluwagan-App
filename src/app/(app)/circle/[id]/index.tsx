@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ActivityList } from '@/components/ActivityList';
+import { DelaySahodSheet } from '@/components/circle/DelaySahodSheet';
 import { HulogChecklist } from '@/components/circle/HulogChecklist';
 import { FormingAdmin, InvitePanel, MembersList, ReplacementAdmin, RulesPanel, SlotsProgress, Timeline } from '@/components/circle/panels';
 import { DeleteCircleButton, DeletedPanel, PauseCircleButton, PausedPanel } from '@/components/circle/Lifecycle';
@@ -15,8 +16,8 @@ import { Card, useTint } from '@/components/ui/Card';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Columns, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
-import { confirmAction, notify, notifyError } from '@/lib/alert';
-import { useActivity, useCircle, useCircleAction, useNudge } from '@/lib/api';
+import { confirmAction, notifyError } from '@/lib/alert';
+import { useActivity, useCircle, useCircleAction } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { unreadCount, useChatRead, useCircleChat } from '@/lib/chat';
 import { dueOf, hulogInRound, isRevealed, myNextContribution, plannedHulogPerSahod, recipientsOf, unpaid } from '@/lib/derive';
@@ -100,9 +101,9 @@ function CircleScreenScreen() {
   const q = useCircle(id);
   const activity = useActivity(id);
   const action = useCircleAction(id);
-  const nudge = useNudge();
   const [tab, setTab] = useState<Tab>('timeline');
   const [payOpen, setPayOpen] = useState(false);
+  const [delayOpen, setDelayOpen] = useState(false);
   /** A hulog picked from the checklist to pay (defaults to my next one). */
   const [payK, setPayK] = useState<Contribution | null>(null);
   const tint = useTint(q.data?.circle.color);
@@ -174,6 +175,20 @@ function CircleScreenScreen() {
       }${current.round_no < rounds.length ? ` The paluwagan then moves to round ${current.round_no + 1}.` : ' This is the last round.'}`,
       () => action.mutate({ fn: 'release_round', args: { p_circle: id } }, { onError: (e) => notifyError(e) }),
       { confirmText: 'Release sahod' },
+    );
+
+  /** Release the sahod before its date, even if some hulog are still unpaid (0020). */
+  const advance = () =>
+    current &&
+    confirmAction(
+      `Advance sahod to ${iAmRecipient ? 'yourself' : slotName(recipients)}?`,
+      `Release ${peso(collected)} now instead of on ${longDate(current.due_date)}.${
+        unpaidKs.length
+          ? ` ${unpaidKs.length} hulog (${peso(unpaidKs.reduce((s, k) => s + Number(k.amount), 0))}) are still unpaid; they stay on record as overdue and can be paid later.`
+          : ''
+      } Everyone will see who received it.`,
+      () => action.mutate({ fn: 'advance_sahod', args: { p_circle: id } }, { onError: (e) => notifyError(e, 'Couldn’t advance the sahod') }),
+      { confirmText: 'Advance sahod', icon: 'fast-forward' },
     );
 
   const run = (title: string, msg: string, fn: string, confirmText: string) =>
@@ -349,30 +364,18 @@ function CircleScreenScreen() {
           {canRelease ? (
             <Button title="Release sahod" icon="gift" variant={toConfirm.length ? 'secondary' : 'brand'} loading={action.isPending} onPress={release} />
           ) : (
+            <Button title="Advance sahod" icon="fast-forward" variant="secondary" loading={action.isPending} onPress={advance} />
+          )}
+          <Button title="Delay sahod" icon="clock" variant="ghost" onPress={() => setDelayOpen(true)} />
+          {!canRelease && (
             <Text variant="small" tone="faint" center>
-              You can release the sahod on {longDate(current.due_date)}, or earlier once everyone has paid.
+              The sahod is on {longDate(current.due_date)}. Release it then, or earlier once everyone has paid.
             </Text>
           )}
         </View>
       )}
 
       <View style={{ flexDirection: 'row', gap: 10, flexWrap: 'wrap' }}>
-        {isAdmin && confirmed.length < roundKs.length && (
-          <Button
-            title={t('circle.nudge')}
-            icon="bell"
-            variant="secondary"
-            size="sm"
-            full={false}
-            loading={nudge.isPending}
-            onPress={() =>
-              nudge.mutate(current.id, {
-                onSuccess: (r) => notify('Reminder sent', `${r.sent} member${r.sent === 1 ? '' : 's'} notified.`, 'success'),
-                onError: (e) => notifyError(e, 'Couldn’t send reminder'),
-              })
-            }
-          />
-        )}
         <Button title="All payments" icon="list" variant="secondary" size="sm" full={false} onPress={() => router.push(`/circle/${id}/round/${current.id}`)} />
         <Button title={openSwaps ? `Turn swaps (${openSwaps})` : 'Turn swaps'} icon="repeat" variant="secondary" size="sm" full={false} onPress={() => router.push(`/circle/${id}/swaps`)} />
       </View>
@@ -502,6 +505,16 @@ function CircleScreenScreen() {
         />
       ) : (
         main
+      )}
+      {current && isAdmin && (
+        <DelaySahodSheet
+          key={current.id + current.due_date}
+          open={delayOpen}
+          onClose={() => setDelayOpen(false)}
+          circleId={id}
+          round={current}
+          next={rounds.find((r) => r.round_no === current.round_no + 1)}
+        />
       )}
       {current && (payK ?? myK) && (
         <PaySheet
