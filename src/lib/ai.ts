@@ -18,6 +18,7 @@ import { goalProgress, iponStreak, planPer } from '@/lib/ipon';
 import { managedSummary, potOfManaged, useManagedCircles } from '@/lib/local';
 import { onTimeStreak } from '@/lib/rewards';
 import { checkConnection, isNetworkError, isOnline, useOnline } from '@/lib/network';
+import { plainText } from '@/lib/plainText';
 import { kv } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import type { PlanFrequency } from '@/lib/types';
@@ -141,8 +142,8 @@ function cleanPlan(raw: unknown): AiPlan {
     amount,
     frequency: freq.includes(p.frequency as PlanFrequency) ? (p.frequency as PlanFrequency) : 'weekly',
     deadline: String(p.deadline),
-    summary: String(p.summary ?? ''),
-    tips: Array.isArray(p.tips) ? p.tips.map(String).slice(0, 3) : [],
+    summary: plainText(String(p.summary ?? '')),
+    tips: Array.isArray(p.tips) ? p.tips.map((t) => plainText(String(t))).slice(0, 3) : [],
   };
 }
 
@@ -157,7 +158,7 @@ export function useAiPlan() {
 export function useAiInsight() {
   const { isOffline } = useAuth();
   return useMutation({
-    mutationFn: (context: string) => callAi<{ insight: string }>({ mode: 'insight', context }, { offlineMode: isOffline }).then((r) => r.insight),
+    mutationFn: (context: string) => callAi<{ insight: string }>({ mode: 'insight', context }, { offlineMode: isOffline }).then((r) => plainText(r.insight)),
   });
 }
 
@@ -195,7 +196,8 @@ export function useChat() {
           { mode: 'chat', context, messages: history.slice(-20).map(({ role, content }) => ({ role, content })) },
           { offlineMode: isOffline },
         );
-        setChat([...chat, { role: 'assistant', content: reply || '…', at: new Date().toISOString() }]);
+        // Plain text only: strip any markdown (**bold**, # headings, tables) the model slips in.
+        setChat([...chat, { role: 'assistant', content: plainText(reply) || '…', at: new Date().toISOString() }]);
       } catch (e) {
         // Drop the unanswered message so the history stays user/assistant alternating.
         setChat(chat.filter((m) => m !== mine));

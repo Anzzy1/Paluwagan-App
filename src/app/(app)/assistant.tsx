@@ -12,6 +12,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { confirmAction } from '@/lib/alert';
 import { useAiContext, useChat, type ChatMessage } from '@/lib/ai';
+import { plainText } from '@/lib/plainText';
 import { withAccount } from '@/components/AccountGate';
 import { useAuth } from '@/lib/auth';
 import { firstName } from '@/lib/format';
@@ -39,7 +40,8 @@ function Bubble({ m }: { m: ChatMessage }) {
       )}
       <View style={[styles.bubble, mine ? { backgroundColor: c.ink, borderBottomRightRadius: 6 } : { backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderBottomLeftRadius: 6 }]}>
         <Text variant="body" color={mine ? c.onInk : c.text} selectable style={{ lineHeight: 22 }}>
-          {m.content}
+          {/* Older saved replies may still contain markdown symbols. */}
+          {mine ? m.content : plainText(m.content)}
         </Text>
       </View>
     </Animated.View>
