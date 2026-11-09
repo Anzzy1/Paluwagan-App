@@ -1,6 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { GestureDetector, GestureHandlerRootView, usePanGesture } from 'react-native-gesture-handler';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { KeyboardAvoidingView, Modal, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -47,19 +46,24 @@ export function Sheet({
   }, [open, p, drag]);
 
   // Pull the top of the sheet (handle + title) down to close it, like iOS sheets.
-  const pan = usePanGesture({
-    enabled: !desktop,
-    activeOffsetY: 6,
-    failOffsetX: [-24, 24],
-    onUpdate: (e) => {
-      // Free downward; a little resistance if pulled up.
-      drag.set(e.translationY > 0 ? e.translationY : e.translationY / 6);
-    },
-    onDeactivate: (e) => {
-      if (e.translationY > 110 || e.velocityY > 900) runOnJS(onClose)();
-      else drag.set(withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) }));
-    },
-  });
+  // PanResponder (built into React Native) works the same on native and mobile Safari.
+  const pan = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4 && Math.abs(g.dy) > Math.abs(g.dx),
+        onPanResponderTerminationRequest: () => false,
+        // Free downward; a little resistance if pulled up.
+        onPanResponderMove: (_, g) => drag.set(g.dy > 0 ? g.dy : g.dy / 6),
+        onPanResponderRelease: (_, g) => {
+          // vy is px per ms here, so 0.9 ≈ a quick flick.
+          if (g.dy > 110 || g.vy > 0.9) onClose();
+          else drag.set(withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) }));
+        },
+        onPanResponderTerminate: () => drag.set(withTiming(0, { duration: 200 })),
+      }),
+    [drag, onClose],
+  );
 
   const panelStyle = useAnimatedStyle(() =>
     desktop
@@ -71,8 +75,6 @@ export function Sheet({
   if (!mounted) return null;
   return (
     <Modal transparent visible animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      {/* Gestures inside a Modal need their own root view. */}
-      <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: c.overlay }, backdropStyle]}>
           <Pressable style={{ flex: 1 }} onPress={onClose} accessibilityLabel="Close" />
@@ -85,8 +87,8 @@ export function Sheet({
               { backgroundColor: c.surface, borderColor: c.border, paddingBottom: desktop ? 24 : Math.max(insets.bottom, 20) },
               panelStyle,
             ]}>
-            <GestureDetector gesture={pan} touchAction={desktop ? undefined : 'none'}>
-              <View>
+            {/* touchAction stops mobile Safari from scrolling the page instead of dragging. */}
+            <View {...(desktop ? {} : pan.panHandlers)} style={desktop ? undefined : ({ touchAction: 'none' } as never)}>
                 {!desktop && (
                   <View style={styles.grab} accessibilityLabel="Drag down to close">
                     <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
@@ -101,15 +103,13 @@ export function Sheet({
                     {desktop && <IconButton icon="x" size={34} onPress={onClose} label="Close" />}
                   </View>
                 )}
-              </View>
-            </GestureDetector>
+            </View>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
               {children}
             </ScrollView>
           </Animated.View>
         </View>
       </KeyboardAvoidingView>
-      </GestureHandlerRootView>
     </Modal>
   );
 }
