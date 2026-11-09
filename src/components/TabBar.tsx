@@ -25,7 +25,8 @@ const PAD_Y = 5;
 const ICON_H = 26;
 /** Gap between the pill and the tab edges. */
 const PILL_INSET = 1;
-const SPRING = { damping: 21, stiffness: 210, mass: 0.8 };
+/** Critically damped: glides and stops without bouncing. */
+const SPRING = { damping: 26, stiffness: 210, mass: 0.8 };
 
 type TabButtonProps = TabTriggerSlotProps & { icon: NavIconName; label: string; index: number; featured?: boolean; onFocused: (i: number) => void };
 

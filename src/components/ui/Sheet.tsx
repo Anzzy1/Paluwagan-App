@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { IconButton } from '@/components/ui/bits';
@@ -32,8 +32,8 @@ export function Sheet({
 
   useEffect(() => {
     if (open) {
-      // One soft settle (~5px overshoot) instead of a visible bounce.
-      p.set(withSpring(1, { damping: 27, stiffness: 260 }));
+      // Slides straight up and stops: no bounce.
+      p.set(withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }));
     } else {
       p.set(
         withTiming(0, { duration: 180, easing: Easing.in(Easing.quad) }, (done) => {

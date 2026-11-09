@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useCallback, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnimatedMascot } from '@/components/AnimatedMascot';
@@ -30,7 +30,7 @@ function Toast({ r }: { r: Reaction }) {
   useEffect(() => {
     haptic('success');
     y.set(-220);
-    y.set(withSpring(0, { damping: 22, stiffness: 180 }));
+    y.set(withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) }));
     timer.set(1);
     timer.set(withTiming(0, { duration: SHOW_MS, easing: Easing.linear }));
     const t = setTimeout(close, SHOW_MS);
