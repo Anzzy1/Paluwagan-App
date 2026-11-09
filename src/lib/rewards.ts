@@ -49,7 +49,7 @@ export function homeTip(circles: MyCircle[], firstName: string): Tip {
       mood: 'happy',
       pose: 'coin',
       text: `Hi ${firstName}! I’m Ipon. Start a paluwagan with people you trust, and I’ll keep everyone on track.`,
-      cta: { label: 'Create a paluwagan', href: '/create' },
+      // No create button here: it made the home band tall on phones. Create lives in quick actions.
     };
   }
   const dues = circles
