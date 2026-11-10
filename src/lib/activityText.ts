@@ -48,7 +48,7 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
       return {
         icon: 'log-out',
         tone: 'neutral',
-        text: `${who} ${p.user_id && p.user_id !== a.actor ? 'approved a member leaving' : 'left the paluwagan'}${Number(p.refund) > 0 ? ` with a ${peso(Number(p.refund))} refund` : p.forced ? ' without a refund' : ''}${p.open_slot ? '. Their slot is open for a replacement.' : ''}`,
+        text: `${who} ${p.user_id && p.user_id !== a.actor ? 'approved a member leaving' : 'left the paluwagan'}${Number(p.refund) > 0 ? ` with a ${peso(Number(p.refund))} refund` : p.forced ? ' without a refund' : ''}${Number(p.split) > 0 ? `. ${peso(Number(p.split))} is split among ${p.split_count} members (${peso(Number(p.each))} each)` : ''}${p.open_slot ? '. Their slot is open for a replacement.' : ''}`,
       };
     case 'leave_requested':
       return { icon: 'log-out', tone: 'warning', text: `${who} asked to leave the paluwagan${p.reason ? `: “${p.reason}”` : ''}` };

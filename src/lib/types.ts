@@ -27,9 +27,11 @@ export type FundAdjustment = {
   id: string;
   circle_id: string;
   round_id: string | null;
-  kind: 'deduction' | 'refund';
+  kind: 'deduction' | 'refund' | 'split';
   amount: number;
   reason: string;
+  /** split (0024): how many members share it. */
+  split_count?: number | null;
   user_id: string | null;
   created_by: string | null;
   created_at: string;

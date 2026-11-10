@@ -170,6 +170,7 @@ function LeaveSheet({ open, onClose, data, me }: { open: boolean; onClose: () =>
   const [reason, setReason] = useState('');
   const paid = paidIn(data, me.id);
   const active = data.circle.status === 'active';
+  const others = data.members.filter((m) => m.status === 'approved' && m.id !== me.id).length;
   const done = () => {
     haptic('success');
     onClose();
@@ -179,7 +180,7 @@ function LeaveSheet({ open, onClose, data, me }: { open: boolean; onClose: () =>
   const force = () =>
     confirmAction(
       'Leave without a refund?',
-      `${paid > 0 ? `You’ve paid ${peso(paid)}. You won’t get it back, and ` : ''}you leave right away${active ? '; your slot opens for a replacement' : ''}. This can’t be undone.`,
+      `${paid > 0 ? `You’ve paid ${peso(paid)}. You won’t get it back: it’s split among the ${others} members who stay (${peso(Math.round((paid / Math.max(others, 1)) * 100) / 100)} each). ` : ''}You leave right away${active ? ' and your slot opens for a replacement' : ''}. This can’t be undone.`,
       () => action.mutate({ fn: 'force_leave', args: { p_circle: data.circle.id } }, { onSuccess: done, onError: (e) => notifyError(e, 'Couldn’t leave') }),
       { confirmText: 'Leave now', destructive: true },
     );
@@ -191,7 +192,7 @@ function LeaveSheet({ open, onClose, data, me }: { open: boolean; onClose: () =>
             tone="info"
             icon="message-circle"
             title="Ask the admin first"
-            body={`The admin decides with you how much of your ${peso(paid)} you get back. Talk it over in the group chat; the admin records the refund when approving.${active ? ' Your slot then opens for a replacement.' : ''}`}
+            body={`The admin decides with you how much of your ${peso(paid)} you get back. Talk it over in the group chat; the admin records the refund when approving. Anything you don’t take back is split among the members who stay.${active ? ' Your slot then opens for a replacement.' : ''}`}
           />
           <Input label="Reason (optional)" placeholder="e.g. Moving abroad" value={reason} onChangeText={setReason} maxLength={200} />
           <Button title="Ask the admin to leave" icon="send" loading={action.isPending} onPress={ask} />
@@ -209,10 +210,14 @@ function LeaveRequestCard({ data, member }: { data: CircleDetail; member: Member
   const [refund, setRefund] = useState(String(paid));
   const n = Number(refund);
   const ok = refund.trim() !== '' && n >= 0;
+  const rest = Math.max(paid - (n || 0), 0);
+  const stay = data.members.filter((m) => m.status === 'approved' && m.id !== member.id).length;
+  const each = stay > 0 ? Math.round((rest / stay) * 100) / 100 : 0;
+  const splitText = rest > 0 && stay > 0 ? ` The other ${peso(rest)} is split among the ${stay} members who stay (${peso(each)} each).` : '';
   const approve = () =>
     confirmAction(
       `Let ${firstName(nameOf(member))} leave?`,
-      `${n > 0 ? `Record a ${peso(n)} refund (taken out of the fund). Hand it over yourself.` : 'No refund.'}${data.circle.status === 'active' ? ' Their slot opens for a replacement.' : ''}`,
+      `${n > 0 ? `Record a ${peso(n)} refund (taken out of the fund). Hand it over yourself.` : 'No refund.'}${splitText}${data.circle.status === 'active' ? ' Their slot opens for a replacement.' : ''}`,
       () =>
         action.mutate(
           { fn: 'approve_leave', args: { p_member: member.id, p_refund: n } },
@@ -237,7 +242,7 @@ function LeaveRequestCard({ data, member }: { data: CircleDetail; member: Member
         </View>
         <Chip label={`Paid ${peso(paid)}`} tone="neutral" />
       </View>
-      <Input label="Refund you agreed on" prefix="₱" value={refund} onChangeText={(v) => setRefund(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" hint="0 if they’re not taking anything back" />
+      <Input label="Refund you agreed on" prefix="₱" value={refund} onChangeText={(v) => setRefund(v.replace(/[^\d.]/g, ''))} keyboardType="decimal-pad" hint={rest > 0 && stay > 0 ? `${peso(rest)} not taken back is split: ${peso(each)} each to ${stay} members` : '0 if they’re not taking anything back'} />
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <Button title="Approve" icon="check" variant="brand" size="md" full={false} style={{ flex: 1 }} disabled={!ok} loading={action.isPending} onPress={approve} />
         <Button title="Decline" variant="secondary" size="md" full={false} style={{ flex: 1 }} onPress={decline} />

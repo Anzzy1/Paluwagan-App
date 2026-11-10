@@ -55,7 +55,16 @@ export function DeductionSheet({
   );
 }
 
-export type AdjustmentRow = { id: string; kind: 'deduction' | 'refund'; amount: number; reason: string; at: string; who?: string };
+export type AdjustmentRow = { id: string; kind: 'deduction' | 'refund' | 'split'; amount: number; reason: string; at: string; who?: string; splitCount?: number | null };
+
+const label = (r: AdjustmentRow) => {
+  if (r.kind === 'refund') return `Refund${r.who ? ` to ${r.who}` : ''}`;
+  if (r.kind === 'split') {
+    const n = r.splitCount ?? 0;
+    return `${r.who ? `${r.who}’s` : 'Left-behind'} hulog split among ${n} ${n === 1 ? 'member' : 'members'}${n > 0 ? ` (${peso(Math.round((r.amount / n) * 100) / 100)} each)` : ''}`;
+  }
+  return r.reason;
+};
 
 /** "Less: ..." lines under the collected amount. The admin can remove a deduction. */
 export function AdjustmentLines({ rows, onRemove }: { rows: AdjustmentRow[]; onRemove?: (row: AdjustmentRow) => void }) {
@@ -65,9 +74,9 @@ export function AdjustmentLines({ rows, onRemove }: { rows: AdjustmentRow[]; onR
     <View style={{ gap: 6 }}>
       {rows.map((r) => (
         <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Feather name={r.kind === 'refund' ? 'corner-up-left' : 'minus-circle'} size={14} color={c.warning} />
+          <Feather name={r.kind === 'refund' ? 'corner-up-left' : r.kind === 'split' ? 'users' : 'minus-circle'} size={14} color={c.warning} />
           <Text variant="small" tone="muted" style={{ flex: 1 }} numberOfLines={2}>
-            {r.kind === 'refund' ? `Refund${r.who ? ` to ${r.who}` : ''}` : r.reason} · {shortDate(r.at.slice(0, 10))}
+            {label(r)} · {shortDate(r.at.slice(0, 10))}
           </Text>
           <Text variant="smallBold" tone="warning" style={{ fontVariant: ['tabular-nums'] }}>
             −{peso(r.amount)}

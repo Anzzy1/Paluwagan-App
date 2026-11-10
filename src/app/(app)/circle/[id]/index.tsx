@@ -359,7 +359,7 @@ function CircleScreenScreen() {
         </Text>
       </View>
       <AdjustmentLines
-        rows={roundAdj.map((a) => ({ id: a.id, kind: a.kind, amount: Number(a.amount), reason: a.reason, at: a.created_at, who: members.find((m) => m.user_id === a.user_id)?.profiles?.full_name }))}
+        rows={roundAdj.map((a) => ({ id: a.id, kind: a.kind, amount: Number(a.amount), reason: a.reason, at: a.created_at, who: members.find((m) => m.user_id === a.user_id)?.profiles?.full_name, splitCount: a.split_count }))}
         onRemove={isAdmin ? (r) => action.mutate({ fn: 'remove_deduction', args: { p_id: r.id } }, { onError: (e) => notifyError(e, 'Couldn’t remove it') }) : undefined}
       />
       <ProgressBar progress={roundPot ? collected / roundPot : 0} color={c.success} height={8} />

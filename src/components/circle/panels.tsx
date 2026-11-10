@@ -344,12 +344,18 @@ export function ReplacementAdmin({ data }: { data: CircleDetail }) {
           No requests yet.
         </Text>
       )}
-      <Button
-        title="Stop looking for a replacement"
-        variant="ghost"
-        size="sm"
-        onPress={() => action.mutate({ fn: 'cancel_replacement', args: { p_circle: data.circle.id } }, { onError: onErr })}
-      />
+      {leaving?.status === 'left' ? (
+        <Text variant="small" tone="warning">
+          {name} already left, so someone has to take over this slot. Its sahod can’t be released until they do.
+        </Text>
+      ) : (
+        <Button
+          title="Stop looking for a replacement"
+          variant="ghost"
+          size="sm"
+          onPress={() => action.mutate({ fn: 'cancel_replacement', args: { p_circle: data.circle.id } }, { onError: onErr })}
+        />
+      )}
     </Card>
   );
 }

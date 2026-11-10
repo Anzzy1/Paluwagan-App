@@ -87,5 +87,18 @@ begin
     exception when raise_exception then null; end;
   end if;
 
+  -- 0024: the slot of someone who left can't be abandoned, and the join screen shows the current admin
+  perform pg_temp.login(b);
+  begin perform cancel_replacement(cid); assert false, 'left slot cannot be abandoned';
+  exception when raise_exception then null; end;
+  assert (select replacing_member from circles where id = cid) = mid, 'slot still open';
+  perform pg_temp.login((select user_id from circle_members where id = mid));
+  begin perform request_join(code, false); assert false, 'the one who left cannot re-request their open slot';
+  exception when raise_exception then null; end;
+  assert (select status from circle_members where id = mid) = 'left', 'their row is untouched';
+  perform pg_temp.login(d);
+  assert (select admin_name from preview_circle(code)) = (select full_name from profiles where id = b), 'preview shows the current admin';
+  assert not exists (select 1 from fund_adjustments where circle_id = cid and kind = 'split'), 'nothing paid in, nothing to split';
+
   raise notice '✅ admin hand-over, leave, fund and pay info assertions passed';
 end $$;
