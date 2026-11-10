@@ -32,15 +32,13 @@ import { plainText } from '@/lib/plainText';
 import { useColors, useIsDark, useIsDesktop } from '@/lib/prefs';
 import { circleTints, font, radius, type CircleTint } from '@/theme/tokens';
 
-type Suggestion = { q: string; label: string; icon: IconName; tint: CircleTint };
+type Suggestion = { q: string; icon: IconName; tint: CircleTint };
 
+// Kept to three short starters so the empty chat stays compact.
 const SUGGESTIONS: Suggestion[] = [
-  { q: 'What do I need to pay this week?', label: 'Dues', icon: 'calendar', tint: 'mango' },
-  { q: 'Am I on track for my ipon goals?', label: 'Goals', icon: 'target', tint: 'leaf' },
-  { q: 'How can I save ₱10,000 in 3 months?', label: 'Plan', icon: 'trending-up', tint: 'sky' },
-  { q: 'When is my next payout and what should I do with it?', label: 'Payout', icon: 'gift', tint: 'grape' },
-  { q: 'Give me a budget tip for kinsenas pay.', label: 'Budget', icon: 'pie-chart', tint: 'coral' },
-  { q: 'Is a paluwagan with 10% interest safe?', label: 'Safety', icon: 'shield', tint: 'blush' },
+  { q: 'What do I need to pay this week?', icon: 'calendar', tint: 'mango' },
+  { q: 'Am I on track for my ipon goals?', icon: 'target', tint: 'leaf' },
+  { q: 'How can I save ₱10,000 in 3 months?', icon: 'trending-up', tint: 'sky' },
 ];
 
 /** Short follow-ups shown above the composer once a conversation has started. */
@@ -139,27 +137,17 @@ function Bubble({ m, showAvatar, showTime }: { m: ChatMessage; showAvatar: boole
 
 function SuggestionTile({ s, index, onPress }: { s: Suggestion; index: number; onPress: () => void }) {
   const c = useColors();
-  const dark = useIsDark();
   const t = circleTints[s.tint];
   return (
-    <Animated.View entering={FadeInDown.delay(120 + index * 60).duration(320)} style={styles.tileWrap}>
-      <PressableScale
-        onPress={onPress}
-        hapticOnPress={false}
-        style={[styles.tile, { backgroundColor: c.surface, borderColor: c.border, shadowColor: c.shadow, shadowOpacity: dark ? 0 : 0.05 }]}>
-        <View style={styles.tileHead}>
-          <LinearGradient colors={t.grad as unknown as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tileIcon}>
-            <Feather name={s.icon} size={16} color="#FFFFFF" />
-          </LinearGradient>
-          <View style={[styles.tileTag, { backgroundColor: dark ? t.dark : t.light }]}>
-            <Text variant="overline" color={t.strong} style={{ fontSize: 10, letterSpacing: 0.8 }}>
-              {s.label}
-            </Text>
-          </View>
-        </View>
-        <Text variant="smallBold" style={{ lineHeight: 19 }}>
+    <Animated.View entering={FadeInDown.delay(100 + index * 60).duration(300)}>
+      <PressableScale onPress={onPress} hapticOnPress={false} style={[styles.tile, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <LinearGradient colors={t.grad as unknown as [string, string]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.tileIcon}>
+          <Feather name={s.icon} size={14} color="#FFFFFF" />
+        </LinearGradient>
+        <Text variant="smallBold" numberOfLines={1} style={{ flex: 1 }}>
           {s.q}
         </Text>
+        <Feather name="arrow-up-right" size={16} color={c.textFaint} />
       </PressableScale>
     </Animated.View>
   );
@@ -209,8 +197,8 @@ function AssistantScreen() {
       <LinearGradient colors={band} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: (desktop ? 0 : insets.top) + 10 }]}>
         <BandScene />
         <View style={[styles.col, styles.headerInner]}>
-          <PressableScale onPress={goBack} accessibilityLabel="Close" hapticOnPress={false} style={styles.glassBtn}>
-            <Feather name={desktop ? 'arrow-left' : 'chevron-down'} size={20} color="#FFFFFF" />
+          <PressableScale onPress={goBack} accessibilityLabel="Back" hapticOnPress={false} style={styles.backBtn}>
+            <Feather name="arrow-left" size={22} color={band[1]} />
           </PressableScale>
           <View style={styles.headerAvatar}>
             <AnimatedMascot size={46} mood={send.isPending ? 'neutral' : 'happy'} trigger={messages.length} busy={send.isPending} action="wave" idle={false} />
@@ -246,20 +234,20 @@ function AssistantScreen() {
         keyboardShouldPersistTaps="handled">
         <View style={[styles.col, { gap: 10 }]}>
           {messages.length === 0 && (
-            <View style={{ alignItems: 'center', gap: 6 }}>
+            <View style={{ alignItems: 'center', gap: 4 }}>
               <Animated.View entering={FadeIn.duration(400)} style={styles.heroWrap}>
                 <LinearGradient colors={[c.featureA, c.featureB]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroBlob} />
-                <AnimatedMascot size={124} mood="happy" action="wave" repeatEvery={7000} />
+                <AnimatedMascot size={92} mood="happy" action="wave" repeatEvery={7000} />
               </Animated.View>
               <Animated.View entering={FadeInDown.delay(60).duration(320)} style={{ alignItems: 'center', gap: 6 }}>
-                <Text center style={{ fontFamily: font.cuteBold, fontSize: 26, lineHeight: 32 }}>
+                <Text center style={{ fontFamily: font.cuteBold, fontSize: 22, lineHeight: 28 }}>
                   Hi {firstName(profile?.full_name)}!
                 </Text>
-                <Text tone="muted" center style={{ maxWidth: 420 }}>
-                  Ask me anything about your money. I can see your paluwagan, dues, payouts and ipon goals, so my tips fit your real situation.
+                <Text variant="small" tone="muted" center style={{ maxWidth: 360 }}>
+                  Ask me anything about your paluwagan, dues, payouts and ipon goals.
                 </Text>
               </Animated.View>
-              <View style={[styles.overlineRow, { marginTop: 14 }]}>
+              <View style={[styles.overlineRow, { marginTop: 10 }]}>
                 <Feather name="zap" size={13} color={c.brandText} />
                 <Text variant="overline" tone="brand">
                   Try asking
@@ -365,6 +353,19 @@ const styles = StyleSheet.create({
   col: { width: '100%', maxWidth: 760, alignSelf: 'center' },
   header: { paddingHorizontal: 16, paddingBottom: 30, overflow: 'hidden' },
   headerInner: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  backBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000000',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
+  },
   glassBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.18)' },
   headerAvatar: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.22)', overflow: 'hidden' },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
@@ -375,15 +376,12 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '80%', paddingHorizontal: 16, paddingVertical: 11, borderRadius: 22 },
   mine: { borderBottomRightRadius: 6 },
   theirs: { borderWidth: 1, borderBottomLeftRadius: 6, shadowRadius: 14, shadowOffset: { width: 0, height: 4 }, flexShrink: 1 },
-  heroWrap: { width: 170, height: 150, alignItems: 'center', justifyContent: 'flex-end' },
-  heroBlob: { position: 'absolute', width: 150, height: 150, borderRadius: 75, top: 0 },
+  heroWrap: { width: 124, height: 110, alignItems: 'center', justifyContent: 'flex-end' },
+  heroBlob: { position: 'absolute', width: 108, height: 108, borderRadius: 54, top: 0 },
   overlineRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8, width: '100%', maxWidth: 640 },
-  tileWrap: { flexBasis: '47%', flexGrow: 1 },
-  tile: { padding: 14, gap: 10, borderRadius: radius.lg, borderWidth: 1, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, minHeight: 110 },
-  tileHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  tileIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  tileTag: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill },
+  tiles: { gap: 8, marginTop: 6, width: '100%', maxWidth: 440 },
+  tile: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingLeft: 8, paddingRight: 12, borderRadius: radius.pill, borderWidth: 1 },
+  tileIcon: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   error: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: radius.md },
   retry: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
   composerWrap: { paddingHorizontal: 16, paddingTop: 8 },
