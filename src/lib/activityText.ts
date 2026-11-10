@@ -52,6 +52,17 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
       };
     case 'leave_requested':
       return { icon: 'log-out', tone: 'warning', text: `${who} asked to leave the paluwagan${p.reason ? `: “${p.reason}”` : ''}` };
+    case 'leave_reviewed':
+      return {
+        icon: 'users',
+        tone: 'neutral',
+        text:
+          Number(p.split) > 0
+            ? `${who} confirmed that ${peso(Number(p.split))} left behind by a member is split among ${p.split_count} members (${peso(Math.round((Number(p.split) / Math.max(Number(p.split_count) || 1, 1)) * 100) / 100)} each)`
+            : Number(p.paid) > 0
+              ? `${who} decided not to split what a member who left had paid in`
+              : `${who} reviewed a member leaving`,
+      };
     case 'leave_declined':
       return { icon: 'message-circle', tone: 'neutral', text: `${who} declined a leave request${p.note ? `: “${p.note}”` : ''}` };
     case 'admin_offered':
@@ -69,7 +80,7 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
     case 'circle_locked':
       return { icon: 'lock', tone: 'info', text: `${who} locked the paluwagan and published the draw commitment` };
     case 'circle_deleted':
-      return { icon: 'trash-2', tone: 'danger', text: `${who} deleted the paluwagan` };
+      return { icon: 'trash-2', tone: 'danger', text: p.everyone_left ? `${who} left as the last member, so the paluwagan was deleted` : `${who} deleted the paluwagan` };
     case 'circle_restored':
       return { icon: 'rotate-ccw', tone: 'success', text: `${who} restored the paluwagan` };
     case 'circle_paused':

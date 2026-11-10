@@ -46,6 +46,8 @@ export function MembershipPanel({ data, userId }: { data: CircleDetail; userId: 
   const offeredTo = members.find((m) => m.user_id === circle.admin_offer_to);
   const offeredBy = data.members.find((m) => m.user_id === circle.admin_offer_by);
   const requests = isAdmin ? members.filter((m) => m.leave_requested_at && m.role !== 'admin') : [];
+  const forcedLeft = isAdmin ? data.members.filter((m) => m.status === 'left' && m.left_forced && !m.left_reviewed_at) : [];
+  const alone = members.length === 1;
   const leavable = circle.status === 'forming' || circle.status === 'active';
   const showSelf = circle.status !== 'completed';
 
@@ -72,6 +74,9 @@ export function MembershipPanel({ data, userId }: { data: CircleDetail; userId: 
       {requests.map((m) => (
         <LeaveRequestCard key={m.id} data={data} member={m} />
       ))}
+      {forcedLeft.map((m) => (
+        <ForcedLeaveCard key={m.id} data={data} member={m} />
+      ))}
 
       {showSelf && (
         <Card style={{ gap: 10 }}>
@@ -83,6 +88,26 @@ export function MembershipPanel({ data, userId }: { data: CircleDetail; userId: 
                   Waiting for {nameOf(offeredTo)} to accept the admin role. Until then, you’re still the admin.
                 </Text>
                 <Button title="Cancel hand-over" variant="secondary" size="md" onPress={() => run('cancel_admin_offer', { p_circle: circle.id }, 'Couldn’t cancel')} />
+              </>
+            ) : alone ? (
+              <>
+                <Text variant="small" tone="muted">
+                  You’re the only member left. If you leave, the paluwagan is deleted. You can still restore it from your Deleted history.
+                </Text>
+                <Button
+                  title="Leave and delete paluwagan"
+                  icon="trash-2"
+                  variant="ghost"
+                  size="md"
+                  onPress={() =>
+                    confirmAction(
+                      'Leave and delete this paluwagan?',
+                      'You’re the last member, so leaving deletes it. You can restore it from your Deleted history.',
+                      () => run('force_leave', { p_circle: circle.id }, 'Couldn’t leave'),
+                      { confirmText: 'Leave and delete', destructive: true },
+                    )
+                  }
+                />
               </>
             ) : (
               <>
@@ -247,6 +272,65 @@ function LeaveRequestCard({ data, member }: { data: CircleDetail; member: Member
         <Button title="Approve" icon="check" variant="brand" size="md" full={false} style={{ flex: 1 }} disabled={!ok} loading={action.isPending} onPress={approve} />
         <Button title="Decline" variant="secondary" size="md" full={false} style={{ flex: 1 }} onPress={decline} />
       </View>
+    </Card>
+  );
+}
+
+/** Admin: someone left without a refund. By default what they paid in is split; keep it or change it (0025). */
+function ForcedLeaveCard({ data, member }: { data: CircleDetail; member: Member }) {
+  const c = useColors();
+  const action = useCircleAction(data.circle.id);
+  const paid = paidIn(data, member.id);
+  const split = (data.adjustments ?? []).find((a) => a.kind === 'split' && a.user_id === member.user_id && !!member.left_at && a.created_at >= member.left_at);
+  const current = split ? Number(split.amount) : 0;
+  const count = split?.split_count ?? data.members.filter((m) => m.status === 'approved').length;
+  const [value, setValue] = useState(String(current));
+  const n = Number(value);
+  const ok = value.trim() !== '' && n >= 0 && n <= paid;
+  const each = count > 0 ? Math.round((n / count) * 100) / 100 : 0;
+  const save = (amount: number) =>
+    action.mutate(
+      { fn: 'review_left', args: { p_member: member.id, p_split: amount } },
+      { onSuccess: () => haptic('success'), onError: (e) => notifyError(e, 'Couldn’t save') },
+    );
+  return (
+    <Card style={{ gap: 10, borderWidth: 1, borderColor: c.warning }}>
+      <View style={styles.titleRow}>
+        <Avatar name={member.profiles?.full_name} seed={member.user_id} uri={member.profiles?.avatar_url} size={34} />
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyBold">{nameOf(member)} left without a refund</Text>
+          <Text variant="caption" tone="faint">
+            {member.left_at ? timeAgo(member.left_at) : ''}
+          </Text>
+        </View>
+        <Chip label={`Paid ${peso(paid)}`} tone="neutral" />
+      </View>
+      {paid > 0 ? (
+        <>
+          <Text variant="small" tone="muted">
+            What they paid in stays in the paluwagan and is split among the {count} members, taken out of what’s been collected. Change it if you agreed on something else (for example, giving part of it back).
+          </Text>
+          <Input
+            label="Amount split among the members"
+            prefix="₱"
+            value={value}
+            onChangeText={(v) => setValue(v.replace(/[^\d.]/g, ''))}
+            keyboardType="decimal-pad"
+            hint={n > paid ? `They only paid in ${peso(paid)}` : n > 0 ? `${peso(each)} each to ${count} members` : 'Nothing is split'}
+          />
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Button title={`Keep ${peso(current)} split`} icon="check" variant="brand" size="md" full={false} style={{ flex: 1.3 }} loading={action.isPending} onPress={() => save(current)} />
+            <Button title="Save change" variant="secondary" size="md" full={false} style={{ flex: 1 }} disabled={!ok || n === current} onPress={() => save(n)} />
+          </View>
+        </>
+      ) : (
+        <>
+          <Text variant="small" tone="muted">
+            They hadn’t paid anything in yet, so there’s nothing to split.
+          </Text>
+          <Button title="Got it" icon="check" variant="secondary" size="md" loading={action.isPending} onPress={() => save(0)} />
+        </>
+      )}
     </Card>
   );
 }

@@ -45,3 +45,4 @@ run < supabase/tests/08_advance_delay_test.sql
 run < supabase/tests/09_advance_amount_test.sql
 run < supabase/tests/10_repeat_test.sql
 run < supabase/tests/11_admin_leave_fund_test.sql
+run < supabase/tests/12_force_leave_review_test.sql

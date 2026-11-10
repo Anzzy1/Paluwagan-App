@@ -113,6 +113,9 @@ export type Member = {
   leave_requested_at?: string | null;
   leave_reason?: string | null;
   left_at?: string | null;
+  /** 0025: left without asking the admin (force leave), and whether the admin has reviewed it. */
+  left_forced?: boolean;
+  left_reviewed_at?: string | null;
   profiles: Profile | null;
 };
 

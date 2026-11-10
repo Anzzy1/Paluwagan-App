@@ -122,6 +122,8 @@ export type Inbox = {
   swaps: Record<string, number>;
   /** circle id -> members asking to leave (admin only). */
   leaves: Record<string, number>;
+  /** circle id -> members who left without a refund, waiting for the admin's review (0025). */
+  leftForced: Record<string, number>;
 };
 
 /** Things waiting on the user in their online paluwagan, for Notifications. */
@@ -134,16 +136,17 @@ export function useInbox() {
     queryKey: ['inbox', userId, adminIds.join(','), memberIds.join(',')],
     enabled: !!userId,
     queryFn: async (): Promise<Inbox> => {
-      const empty: Inbox = { joinRequests: {}, proofs: {}, swaps: {}, leaves: {} };
+      const empty: Inbox = { joinRequests: {}, proofs: {}, swaps: {}, leaves: {}, leftForced: {} };
       if (demoState.on) return empty;
       const count = (rows: { circle_id: string }[]) =>
         rows.reduce<Record<string, number>>((acc, r) => ((acc[r.circle_id] = (acc[r.circle_id] ?? 0) + 1), acc), {});
       const none = Promise.resolve({ data: [], error: null });
-      const [joins, proofs, swaps, leaves] = await Promise.all([
+      const [joins, proofs, swaps, leaves, forced] = await Promise.all([
         adminIds.length ? supabase.from('circle_members').select('circle_id').in('circle_id', adminIds).eq('status', 'pending') : none,
         adminIds.length ? supabase.from('contributions').select('circle_id').in('circle_id', adminIds).eq('status', 'submitted') : none,
         memberIds.length ? supabase.from('swap_requests').select('circle_id').in('to_member', memberIds).eq('status', 'pending') : none,
         adminIds.length ? supabase.from('circle_members').select('circle_id').in('circle_id', adminIds).eq('status', 'approved').not('leave_requested_at', 'is', null) : none,
+        adminIds.length ? supabase.from('circle_members').select('circle_id').in('circle_id', adminIds).eq('status', 'left').eq('left_forced', true).is('left_reviewed_at', null) : none,
       ]);
       return {
         joinRequests: count(must(joins) as { circle_id: string }[]),
@@ -151,6 +154,8 @@ export function useInbox() {
         swaps: count(must(swaps) as { circle_id: string }[]),
         // Before migration 0023 the column doesn't exist yet.
         leaves: leaves.error ? {} : count((leaves.data ?? []) as { circle_id: string }[]),
+        // Before migration 0025 the columns don't exist yet.
+        leftForced: forced.error ? {} : count((forced.data ?? []) as { circle_id: string }[]),
       };
     },
   });

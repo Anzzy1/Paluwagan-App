@@ -16,4 +16,11 @@ export const kv = {
       /* ignore */
     }
   },
+  remove(key: string) {
+    try {
+      globalThis.localStorage?.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  },
 };

@@ -63,6 +63,12 @@ const AuthContext = createContext<AuthState | null>(null);
 /** Minimum password length for sign-up and password changes (Supabase's own minimum is 6). */
 export const MIN_PASSWORD = 8;
 
+/**
+ * Set while a password reset code has been used but the new password isn't saved yet.
+ * If the app closes in between, the next start signs out instead of opening the app.
+ */
+export const RECOVERY_KEY = 'password-reset-pending-v1';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(isSupabaseConfigured);
@@ -90,7 +96,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       // No automatic guest any more: without a session the user picks log in or offline.
-      const { data } = await supabase.auth.getSession();
+      let { data } = await supabase.auth.getSession();
+      if (kv.get(RECOVERY_KEY) === '1') {
+        // A reset that was never finished: the code signed them in, but no new password was set.
+        kv.remove(RECOVERY_KEY);
+        if (data.session) await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+        data = { session: null };
+      }
       if (cancelled) return;
       setSession(data.session);
       setInitializing(false);

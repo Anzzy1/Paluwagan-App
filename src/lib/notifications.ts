@@ -92,6 +92,8 @@ function online(list: MyCircle[], inbox: Inbox | undefined): AppNotification[] {
     if (proofs) out.push({ ...base, id: `proofs-${circle.id}`, action: true, tone: 'warning', icon: 'file-text', title: `${plural(proofs, 'payment')} to review`, body: 'Check the receipts and confirm or reject them.', rank: 3 });
     if (joins) out.push({ ...base, id: `joins-${circle.id}`, action: true, tone: 'info', icon: 'user-plus', title: `${plural(joins, 'join request')}`, body: 'Approve or decline who can join.', rank: 4 });
     const leaves = inbox?.leaves?.[circle.id] ?? 0;
+    const forced = inbox?.leftForced?.[circle.id] ?? 0;
+    if (forced) out.push({ ...base, id: `left-forced-${circle.id}`, action: true, tone: 'warning', icon: 'log-out', title: `${plural(forced, 'member')} left without a refund`, body: 'What they paid in is split among the members by default. Keep it or change the amount.', rank: 3 });
     if (leaves) out.push({ ...base, id: `leaves-${circle.id}`, action: true, tone: 'warning', icon: 'log-out', title: `${plural(leaves, 'member')} asking to leave`, body: 'Agree on their refund, then approve, or decline and talk it over in the chat.', rank: 3 });
     if (circle.admin_offer_to && circle.admin_offer_to === mc.membership.user_id) {
       out.push({ ...base, id: `admin-offer-${circle.id}`, action: true, tone: 'info', icon: 'shield', title: 'Become the admin?', body: 'The admin wants to hand the paluwagan over to you. Tap to accept or decline.', rank: 2 });
@@ -161,7 +163,7 @@ const MEMBER_TYPES = new Set([
   'payment_confirmed', 'payment_rejected', 'nudge_sent', 'member_approved', 'draw_completed', 'draw_redone', 'draw_revealed', 'order_set', 'circle_locked',
   'circle_paused', 'circle_resumed', 'round_completed', 'round_released', 'sahod_advanced', 'sahod_balance_released', 'sahod_delayed', 'payment_covered', 'member_replaced', 'circle_completed', 'circle_deleted', 'circle_restored',
   'swap_requested', 'swap_accepted', 'swap_declined', 'swap_approved', 'swap_rejected',
-  'repeat_requested', 'repeat_cancelled', 'repeat_started', 'admin_transferred', 'fund_deducted', 'leave_declined',
+  'repeat_requested', 'repeat_cancelled', 'repeat_started', 'admin_transferred', 'fund_deducted', 'leave_declined', 'leave_reviewed',
 ]);
 const ADMIN_TYPES = new Set(['member_requested', 'proof_submitted', 'member_left', 'repeat_answered', 'leave_requested']);
 const UPDATE_DAYS = 14;

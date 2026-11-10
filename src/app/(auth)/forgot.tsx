@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { AuthShell } from '@/components/AuthShell';
@@ -9,7 +9,8 @@ import { PasswordInput } from '@/components/ui/PasswordInput';
 import { haptic, PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { notify, notifyError } from '@/lib/alert';
-import { MIN_PASSWORD, useAuth } from '@/lib/auth';
+import { MIN_PASSWORD, RECOVERY_KEY, useAuth } from '@/lib/auth';
+import { kv } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 
 const RESEND_SECONDS = 60;
@@ -49,8 +50,20 @@ export default function ForgotPassword() {
     const t = setTimeout(() => setWait((w) => w - 1), 1000);
     return () => clearTimeout(t);
   }, [wait]);
-  // Leaving this screen ends the reset (if the code was already used, they're simply logged in).
-  useEffect(() => () => setRecovering(false), [setRecovering]);
+  /** Code used but the new password not saved yet: leaving now signs them out again. */
+  const unfinished = useRef(false);
+  useEffect(
+    () => () => {
+      if (unfinished.current) {
+        unfinished.current = false;
+        kv.remove(RECOVERY_KEY);
+        void supabase.auth.signOut({ scope: 'local' }).finally(() => setRecovering(false));
+      } else {
+        setRecovering(false);
+      }
+    },
+    [setRecovering],
+  );
 
   const target = email.trim().toLowerCase();
   const emailOk = /\S+@\S+\.\S+/.test(target);
@@ -81,11 +94,15 @@ export default function ForgotPassword() {
         haptic('warning');
         return notifyError(friendly(error), 'Code not accepted');
       }
+      unfinished.current = true;
+      kv.set(RECOVERY_KEY, '1');
       setVerified(true);
     }
     const { error } = await supabase.auth.updateUser({ password });
     setSaving(false);
     if (error) return notifyError(friendly(error), 'Couldn’t save password');
+    unfinished.current = false;
+    kv.remove(RECOVERY_KEY);
     haptic('success');
     notify('Password changed', 'You’re logged in. Next time, use your email and this new password.', 'success');
     setRecovering(false); // opens the app
