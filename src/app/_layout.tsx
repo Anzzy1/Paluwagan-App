@@ -38,7 +38,7 @@ export default function RootLayout() {
 }
 
 function RootNavigator() {
-  const { session, initializing, profile, profileLoading, guestError, isOffline } = useAuth();
+  const { session, initializing, profile, profileLoading, guestError, isOffline, recovering } = useAuth();
   const dark = useIsDark();
   const c = useColors();
   const ready = !initializing && !profileLoading;
@@ -49,7 +49,8 @@ function RootNavigator() {
 
   if (!ready) return null;
 
-  const signedIn = !!session;
+  // While resetting a password the code signs them in, but they stay on the reset screen until it's saved.
+  const signedIn = !!session && !recovering;
   const profileDone = !!profile?.full_name;
   const navTheme = dark ? DarkTheme : DefaultTheme;
 

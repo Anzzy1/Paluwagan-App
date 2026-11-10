@@ -27,6 +27,12 @@ type AuthState = {
   enterDemo: () => void;
   /** Using the app without an account: only managed (offline) paluwagan on this device. */
   isOffline: boolean;
+  /**
+   * True during "Forgot password": the reset code signs the user in, but they stay on the
+   * reset screen until the new password is saved.
+   */
+  recovering: boolean;
+  setRecovering: (on: boolean) => void;
   /** Start (or go back to) offline mode, with no account. */
   goOffline: () => void;
   /** Leave offline mode to log in or create an account. Offline paluwagan stay on this device. */
@@ -63,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [guestError, setGuestError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
   const [offline, setOffline] = useState(() => kv.get(OFFLINE_KEY) === '1');
+  const [recovering, setRecovering] = useState(false);
   const qc = useQueryClient();
   const saveOffline = (on: boolean) => {
     kv.set(OFFLINE_KEY, on ? '1' : '0');
@@ -173,6 +180,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsDemo(true);
     },
     isOffline: offline && !session && !isDemo,
+    recovering,
+    setRecovering,
     goOffline: () => saveOffline(true),
     exitOffline: () => {
       demoState.on = false;

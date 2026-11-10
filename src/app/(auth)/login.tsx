@@ -26,7 +26,7 @@ function sendError(e: { message: string }): Error {
 /** Plain-language version of sign-up / log-in errors. */
 function authError(e: { message: string }): Error {
   const m = e.message;
-  if (/invalid login credentials/i.test(m)) return new Error('Wrong email or password. If you used to log in with a code, tap “Forgot password?”, then set a password in Settings.');
+  if (/invalid login credentials/i.test(m)) return new Error('Wrong email or password. Forgot it? Tap “Forgot password?” to get a code and set a new one.');
   if (/email not confirmed/i.test(m)) return new Error('Please confirm your email first. Check your inbox for the code we sent when you signed up.');
   if (/already registered|already exists/i.test(m)) return new Error('This email already has an account. Log in instead.');
   if (/password/i.test(m) && /(short|weak|characters)/i.test(m)) return new Error(`Please use a stronger password (at least ${MIN_PASSWORD} characters).`);
@@ -43,7 +43,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sendingCode, setSendingCode] = useState(false);
 
   const target = email.trim().toLowerCase();
   const emailOk = /\S+@\S+\.\S+/.test(target);
@@ -68,15 +67,8 @@ export default function Login() {
     if (error) notifyError(authError(error), 'Couldn’t log in');
   };
 
-  /** Fallback for forgotten passwords and accounts made before passwords existed. */
-  const emailCode = async () => {
-    if (!emailOk) return notifyError(new Error('Type your email address first.'), 'Email needed');
-    setSendingCode(true);
-    const { error } = await supabase.auth.signInWithOtp({ email: target, options: { shouldCreateUser: false, emailRedirectTo: redirect() } });
-    setSendingCode(false);
-    if (error) return notifyError(/signups not allowed|not found/i.test(error.message) ? new Error('No account uses this email yet. Create one instead.') : sendError(error), 'Couldn’t send code');
-    router.push({ pathname: '/verify', params: { mode: 'email', target } });
-  };
+  /** Forgot password: email → code → new password (also for accounts made before passwords existed). */
+  const forgot = () => router.push({ pathname: '/forgot', params: emailOk ? { email: target } : {} });
 
   return (
     <AuthShell
@@ -123,9 +115,9 @@ export default function Login() {
       )}
       <Button title={signup ? 'Create account' : 'Log in'} iconRight="arrow-right" onPress={submit} disabled={!valid} loading={loading} />
       {!signup && (
-        <PressableScale onPress={emailCode} disabled={sendingCode} hapticOnPress={false} style={{ alignSelf: 'center', paddingVertical: 4 }}>
+        <PressableScale onPress={forgot} hapticOnPress={false} style={{ alignSelf: 'center', paddingVertical: 4 }}>
           <Text variant="smallBold" tone="brand">
-            {sendingCode ? 'Sending code…' : 'Forgot password?'}
+            Forgot password?
           </Text>
         </PressableScale>
       )}
