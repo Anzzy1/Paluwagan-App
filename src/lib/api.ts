@@ -7,18 +7,7 @@ import { addLocalDeposit, deleteLocalDeposit, deleteLocalGoal, isLocalId, saveLo
 import { useOnline } from '@/lib/network';
 import { isRevealed } from '@/lib/derive';
 import { supabase } from '@/lib/supabase';
-import type {
-  Activity,
-  Circle,
-  CirclePreview,
-  Contribution,
-  Deposit,
-  Frequency,
-  Goal,
-  Member,
-  Round,
-  Swap,
-} from '@/lib/types';
+import type { Activity, Circle, CirclePreview, Contribution, Deposit, Frequency, FundAdjustment, Goal, Member, Round, Swap } from '@/lib/types';
 
 const MEMBER_SELECT = '*, profiles(*)';
 
@@ -93,6 +82,8 @@ export type CircleDetail = {
   rounds: Round[];
   contributions: Contribution[];
   swaps: Swap[];
+  /** Deductions and refunds taken out of the fund (0023). */
+  adjustments?: FundAdjustment[];
 };
 
 export function useCircle(id: string | undefined) {
@@ -101,12 +92,13 @@ export function useCircle(id: string | undefined) {
     enabled: !!id,
     queryFn: async ({ queryKey }): Promise<CircleDetail> => {
       if (demoState.on) return demoQuery(queryKey) as never;
-      const [c, m, r, k, s] = await Promise.all([
+      const [c, m, r, k, s, f] = await Promise.all([
         supabase.from('circles').select('*').eq('id', id!).single(),
         supabase.from('circle_members').select(MEMBER_SELECT).eq('circle_id', id!).order('joined_at'),
         supabase.from('rounds').select('*').eq('circle_id', id!).order('round_no'),
         supabase.from('contributions').select('*').eq('circle_id', id!),
         supabase.from('swap_requests').select('*').eq('circle_id', id!).order('created_at', { ascending: false }),
+        supabase.from('fund_adjustments').select('*').eq('circle_id', id!).order('created_at'),
       ]);
       return {
         circle: must(c) as Circle,
@@ -114,6 +106,8 @@ export function useCircle(id: string | undefined) {
         rounds: must(r) as Round[],
         contributions: must(k) as Contribution[],
         swaps: must(s) as Swap[],
+        // Before migration 0023 the table doesn't exist yet: just no adjustments.
+        adjustments: f.error ? [] : (f.data as FundAdjustment[]),
       };
     },
   });
@@ -126,6 +120,8 @@ export type Inbox = {
   proofs: Record<string, number>;
   /** circle id -> turn swap requests sent to me. */
   swaps: Record<string, number>;
+  /** circle id -> members asking to leave (admin only). */
+  leaves: Record<string, number>;
 };
 
 /** Things waiting on the user in their online paluwagan, for Notifications. */
@@ -138,20 +134,23 @@ export function useInbox() {
     queryKey: ['inbox', userId, adminIds.join(','), memberIds.join(',')],
     enabled: !!userId,
     queryFn: async (): Promise<Inbox> => {
-      const empty: Inbox = { joinRequests: {}, proofs: {}, swaps: {} };
+      const empty: Inbox = { joinRequests: {}, proofs: {}, swaps: {}, leaves: {} };
       if (demoState.on) return empty;
       const count = (rows: { circle_id: string }[]) =>
         rows.reduce<Record<string, number>>((acc, r) => ((acc[r.circle_id] = (acc[r.circle_id] ?? 0) + 1), acc), {});
       const none = Promise.resolve({ data: [], error: null });
-      const [joins, proofs, swaps] = await Promise.all([
+      const [joins, proofs, swaps, leaves] = await Promise.all([
         adminIds.length ? supabase.from('circle_members').select('circle_id').in('circle_id', adminIds).eq('status', 'pending') : none,
         adminIds.length ? supabase.from('contributions').select('circle_id').in('circle_id', adminIds).eq('status', 'submitted') : none,
         memberIds.length ? supabase.from('swap_requests').select('circle_id').in('to_member', memberIds).eq('status', 'pending') : none,
+        adminIds.length ? supabase.from('circle_members').select('circle_id').in('circle_id', adminIds).eq('status', 'approved').not('leave_requested_at', 'is', null) : none,
       ]);
       return {
         joinRequests: count(must(joins) as { circle_id: string }[]),
         proofs: count(must(proofs) as { circle_id: string }[]),
         swaps: count(must(swaps) as { circle_id: string }[]),
+        // Before migration 0023 the column doesn't exist yet.
+        leaves: leaves.error ? {} : count((leaves.data ?? []) as { circle_id: string }[]),
       };
     },
   });

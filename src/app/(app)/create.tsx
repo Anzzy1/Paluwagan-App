@@ -14,6 +14,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { Columns, Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { notifyError } from '@/lib/alert';
+import { emptyPayInfo, PayInfoFields, savePayInfo, type PayInfoValue } from '@/components/circle/PayInfo';
 import { useCreateCircle } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { createManagedCircle, evenPayout, payoutPlan, roundDueDate, type PayoutSchedule } from '@/lib/local';
@@ -247,6 +248,7 @@ export default function CreateCircle() {
   const [pickedSahod, setPickedSahod] = useState<{ key: string; date: string } | null>(null);
   const [pickSahod, setPickSahod] = useState(false);
   const [password, setPassword] = useState('');
+  const [payInfo, setPayInfo] = useState<PayInfoValue>(emptyPayInfo);
   const [showPw, setShowPw] = useState(false);
 
   const [kind, setKind] = useState<'online' | 'managed'>(isOffline ? 'managed' : 'online');
@@ -333,7 +335,20 @@ export default function CreateCircle() {
         first_payout_date: payout?.first_date ?? null,
         password,
       },
-      { onSuccess: (id) => router.replace(`/circle/${id}`), onError: (e) => notifyError(e, 'Couldn’t create paluwagan') },
+      {
+        onSuccess: async (id) => {
+          // Where to pay is optional; if saving it fails the paluwagan still exists and the admin can add it later.
+          if (payInfo.method || payInfo.note.trim()) {
+            try {
+              await savePayInfo(id, payInfo);
+            } catch (e) {
+              notifyError(e, 'Paluwagan created, but the payment details weren’t saved');
+            }
+          }
+          router.replace(`/circle/${id}`);
+        },
+        onError: (e) => notifyError(e, 'Couldn’t create paluwagan'),
+      },
     );
 
   const footer = (
@@ -738,6 +753,22 @@ export default function CreateCircle() {
                   ? 'Use at least 4 characters.'
                   : 'Tell it to members privately, not in the same message as the invite link. You can change it later.'}
               </Text>
+            </Card>
+          )}
+          {!managed && (
+            <Card style={{ gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={[styles.schedIcon, { backgroundColor: c.brandSoft, marginBottom: 0 }]}>
+                  <Feather name="smartphone" size={17} color={c.brand} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text variant="h3">Where members pay (optional)</Text>
+                  <Text variant="small" tone="muted">
+                    Show your GCash, Maya or bank details and QR code, or leave it as face to face.
+                  </Text>
+                </View>
+              </View>
+              <PayInfoFields value={payInfo} onChange={setPayInfo} />
             </Card>
           )}
           <Input

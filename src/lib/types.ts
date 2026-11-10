@@ -20,6 +20,21 @@ export type Profile = {
   push_token: string | null;
 };
 
+export type PayMethod = 'gcash' | 'maya' | 'bank' | 'other';
+
+/** Money taken out of the collected fund (0023): a deduction, or a refund to someone who left. */
+export type FundAdjustment = {
+  id: string;
+  circle_id: string;
+  round_id: string | null;
+  kind: 'deduction' | 'refund';
+  amount: number;
+  reason: string;
+  user_id: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type Circle = {
   id: string;
   name: string;
@@ -62,6 +77,15 @@ export type Circle = {
   repeat_waiting?: number | null;
   /** The new paluwagan, once started. */
   repeat_circle?: string | null;
+  /** Hand over admin (0023): the member (user id) offered the admin role. */
+  admin_offer_to?: string | null;
+  admin_offer_by?: string | null;
+  /** Where to pay (0023). No method = they pay face to face / agree in the chat. */
+  pay_method?: PayMethod | null;
+  pay_name?: string | null;
+  pay_number?: string | null;
+  pay_note?: string | null;
+  pay_qr_path?: string | null;
   seed_hash: string | null;
   seed: string | null;
   draw_order: string[] | null;
@@ -83,6 +107,10 @@ export type Member = {
   joined_at: string;
   /** Answer to "start again?" (0022): null = not answered. */
   repeat_vote?: boolean | null;
+  /** Asked the admin to leave (0023). */
+  leave_requested_at?: string | null;
+  leave_reason?: string | null;
+  left_at?: string | null;
   profiles: Profile | null;
 };
 

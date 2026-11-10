@@ -6,6 +6,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 
 import { AnimatedMascot } from '@/components/AnimatedMascot';
 import { AdvanceSahodSheet } from '@/components/circle/AdvanceSahodSheet';
+import { AdjustmentLines, DeductionSheet } from '@/components/circle/Deductions';
 import { ConfirmSheet } from '@/components/circle/Lifecycle';
 import { StartAgainSheet } from '@/components/circle/RepeatPanel';
 import { DateHistory } from '@/components/managed/DateHistory';
@@ -22,6 +23,7 @@ import { Text } from '@/components/ui/Text';
 import { confirmAction } from '@/lib/alert';
 import { dateTime, daysUntil, longDate, parseDate, payoutShort, peso, relativeDue, shortDate, timeAgo, todayISO, toISODate } from '@/lib/format';
 import {
+  addManagedDeduction,
   addMember,
   advancePreview,
   advanceSahod,
@@ -41,8 +43,10 @@ import {
   roundShort,
   releasePayout,
   sahodBalances,
+  removeManagedDeduction,
   removeMember,
   repeatManaged,
+  roundDeductions,
   togglePaid,
   undoSahod,
   useManagedCircle,
@@ -246,7 +250,9 @@ function SahodCard({ circle }: { circle: LocalCircle }) {
   const r = s.current!;
   const name = s.recipient?.name ?? 'the recipient';
   const pot = potOfManaged(circle, r);
-  const got = collected(circle, r);
+  const deductions = roundDeductions(circle, r);
+  // Collected minus anything taken out of it.
+  const got = collected(circle, r) - deductions.total;
   const missing = roundShort(circle, r);
   const fullyFunded = missing === 0;
   const daysLeft = daysUntil(r.due_date);
@@ -255,6 +261,7 @@ function SahodCard({ circle }: { circle: LocalCircle }) {
 
   const [delayOpen, setDelayOpen] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [deductOpen, setDeductOpen] = useState(false);
   const preview = advancePreview(circle);
   const go = (amount: number) => {
     releasePayout(circle.id, r.round_no);
@@ -262,7 +269,15 @@ function SahodCard({ circle }: { circle: LocalCircle }) {
     reactToPayout(name, amount, r.round_no < circle.rounds.length ? r.round_no + 1 : null);
   };
   const release = () => {
-    if (fullyFunded) confirmAction(`Release sahod to ${name}?`, `Hand over ${peso(pot)} and move to the next payout.`, () => go(pot), { confirmText: 'Release sahod', icon: 'gift' });
+    if (fullyFunded) {
+      const give = pot - deductions.total;
+      confirmAction(
+        `Release sahod to ${name}?`,
+        `Hand over ${peso(give)}${deductions.total ? ` (${peso(pot)} less ${peso(deductions.total)} deducted)` : ''} and move to the next payout.`,
+        () => go(give),
+        { confirmText: 'Release sahod', icon: 'gift' },
+      );
+    }
     else confirmAction('Not fully funded yet', `${peso(missing)} of hulog is still unpaid for this payout. Release ${peso(got)} anyway?`, () => go(got), { confirmText: 'Release anyway', destructive: true });
   };
   const advance = (given: number, resume: string | null) => {
@@ -298,7 +313,11 @@ function SahodCard({ circle }: { circle: LocalCircle }) {
             {peso(got)} of {peso(pot)}
           </Text>
         </View>
-        <ProgressBar progress={pot ? got / pot : 0} height={10} color={c.success} />
+        <ProgressBar progress={pot ? Math.max(0, got) / pot : 0} height={10} color={c.success} />
+        <AdjustmentLines
+          rows={deductions.rows.map((a) => ({ id: a.id, kind: 'deduction' as const, amount: a.amount, reason: a.reason, at: a.at }))}
+          onRemove={(row) => removeManagedDeduction(circle.id, row.id)}
+        />
         {multi && (
           <Text variant="caption" tone="faint">
             {r.dates.length} hulog of {peso(circle.amount)} from {circle.members.length} members · {shortDate(r.dates[0])} to {shortDate(r.dates[r.dates.length - 1])}
@@ -318,7 +337,18 @@ function SahodCard({ circle }: { circle: LocalCircle }) {
           </>
         )}
         <Button title="Delay sahod" icon="clock" variant="ghost" size="md" full={false} onPress={() => setDelayOpen(true)} />
+        <Button title="Deduction" icon="minus-circle" variant="ghost" size="md" full={false} onPress={() => setDeductOpen(true)} />
       </View>
+      <DeductionSheet
+        open={deductOpen}
+        onClose={() => setDeductOpen(false)}
+        collected={got}
+        onConfirm={(amount, reason) => {
+          addManagedDeduction(circle.id, r.round_no, amount, reason);
+          setDeductOpen(false);
+          haptic('light');
+        }}
+      />
       <UndoSahod circle={circle} />
       <DelaySahodSheet key={`${r.round_no}-${r.due_date}`} circle={circle} round={r} name={name} open={delayOpen} onClose={() => setDelayOpen(false)} />
       <AdvanceSahodSheet

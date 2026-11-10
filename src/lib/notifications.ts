@@ -91,6 +91,11 @@ function online(list: MyCircle[], inbox: Inbox | undefined): AppNotification[] {
     const swaps = inbox?.swaps[circle.id] ?? 0;
     if (proofs) out.push({ ...base, id: `proofs-${circle.id}`, action: true, tone: 'warning', icon: 'file-text', title: `${plural(proofs, 'payment')} to review`, body: 'Check the receipts and confirm or reject them.', rank: 3 });
     if (joins) out.push({ ...base, id: `joins-${circle.id}`, action: true, tone: 'info', icon: 'user-plus', title: `${plural(joins, 'join request')}`, body: 'Approve or decline who can join.', rank: 4 });
+    const leaves = inbox?.leaves?.[circle.id] ?? 0;
+    if (leaves) out.push({ ...base, id: `leaves-${circle.id}`, action: true, tone: 'warning', icon: 'log-out', title: `${plural(leaves, 'member')} asking to leave`, body: 'Agree on their refund, then approve, or decline and talk it over in the chat.', rank: 3 });
+    if (circle.admin_offer_to && circle.admin_offer_to === mc.membership.user_id) {
+      out.push({ ...base, id: `admin-offer-${circle.id}`, action: true, tone: 'info', icon: 'shield', title: 'Become the admin?', body: 'The admin wants to hand the paluwagan over to you. Tap to accept or decline.', rank: 2 });
+    }
     if (swaps) out.push({ ...base, id: `swaps-${circle.id}`, action: true, tone: 'info', icon: 'repeat', title: `${plural(swaps, 'turn swap request')}`, body: 'Someone wants to trade payout turns with you.', rank: 5, href: `/circle/${circle.id}/swaps` as Href });
   }
   return out;
@@ -156,9 +161,9 @@ const MEMBER_TYPES = new Set([
   'payment_confirmed', 'payment_rejected', 'nudge_sent', 'member_approved', 'draw_completed', 'draw_redone', 'draw_revealed', 'order_set', 'circle_locked',
   'circle_paused', 'circle_resumed', 'round_completed', 'round_released', 'sahod_advanced', 'sahod_balance_released', 'sahod_delayed', 'payment_covered', 'member_replaced', 'circle_completed', 'circle_deleted', 'circle_restored',
   'swap_requested', 'swap_accepted', 'swap_declined', 'swap_approved', 'swap_rejected',
-  'repeat_requested', 'repeat_cancelled', 'repeat_started',
+  'repeat_requested', 'repeat_cancelled', 'repeat_started', 'admin_transferred', 'fund_deducted', 'leave_declined',
 ]);
-const ADMIN_TYPES = new Set(['member_requested', 'proof_submitted', 'member_left', 'repeat_answered']);
+const ADMIN_TYPES = new Set(['member_requested', 'proof_submitted', 'member_left', 'repeat_answered', 'leave_requested']);
 const UPDATE_DAYS = 14;
 
 export function buildUpdates(activity: Activity[], list: MyCircle[], userId: string | null): AppUpdate[] {

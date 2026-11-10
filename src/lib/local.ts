@@ -75,6 +75,8 @@ export type LocalCircle = {
   draw_style: DrawStyle | null;
   drawn_at: string | null;
   rounds: LocalRound[];
+  /** Money taken out of a round's collected fund, with the reason. */
+  adjustments?: { id: string; round_no: number; amount: number; reason: string; at: string }[];
   /** Sahod actions that can be undone, most recent last. */
   sahod_history?: SahodAction[];
   /** Date (YYYY-MM-DD) the paluwagan was paused, or null while running. */
@@ -329,6 +331,31 @@ export function repeatManaged(id: string, name: string, start: string): string |
   update(id, (x) => log(x, `Started again as “${name.trim() || c.name}” from ${shortDate(start)}`));
   update(newId, (x) => log(x, `Started again from “${c.name}” with the same ${c.members.length} members`));
   return newId;
+}
+
+/** Record money taken out of what's been collected for a round. */
+export function addManagedDeduction(id: string, roundNo: number, amount: number, reason: string) {
+  if (!(amount > 0) || !reason.trim()) return;
+  update(id, (c) =>
+    log(
+      { ...c, adjustments: [...(c.adjustments ?? []), { id: uid(), round_no: roundNo, amount, reason: reason.trim(), at: new Date().toISOString() }] },
+      `${peso(amount)} taken out of the fund: ${reason.trim()}`,
+    ),
+  );
+}
+
+export function removeManagedDeduction(id: string, adjId: string) {
+  update(id, (c) => {
+    const a = c.adjustments?.find((x) => x.id === adjId);
+    if (!a) return c;
+    return log({ ...c, adjustments: c.adjustments!.filter((x) => x.id !== adjId) }, `Deduction removed: ${peso(a.amount)} (${a.reason})`);
+  });
+}
+
+/** Deductions recorded for a round, and their total. */
+export function roundDeductions(c: LocalCircle, r: LocalRound) {
+  const rows = (c.adjustments ?? []).filter((a) => a.round_no === r.round_no);
+  return { rows, total: rows.reduce((s, a) => s + a.amount, 0) };
 }
 
 export function addMember(id: string, name: string) {

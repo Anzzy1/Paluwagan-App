@@ -11,6 +11,9 @@ import { SahodBalances } from '@/components/circle/SahodBalances';
 import { HulogChecklist } from '@/components/circle/HulogChecklist';
 import { FormingAdmin, InvitePanel, MembersList, ReplacementAdmin, RulesPanel, SlotsProgress, Timeline } from '@/components/circle/panels';
 import { DeleteCircleButton, DeletedPanel, PauseCircleButton, PausedPanel } from '@/components/circle/Lifecycle';
+import { AdjustmentLines, DeductionSheet } from '@/components/circle/Deductions';
+import { MembershipPanel } from '@/components/circle/MembershipPanel';
+import { PayInfoCard, PayInfoSheet } from '@/components/circle/PayInfo';
 import { PaySheet } from '@/components/circle/PaySheet';
 import { RepeatPanel } from '@/components/circle/RepeatPanel';
 import { Notice, ProgressBar, PurposeIcon, Segmented } from '@/components/ui/bits';
@@ -108,6 +111,8 @@ function CircleScreenScreen() {
   const [payOpen, setPayOpen] = useState(false);
   const [delayOpen, setDelayOpen] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [deductOpen, setDeductOpen] = useState(false);
+  const [payInfoOpen, setPayInfoOpen] = useState(false);
   /** A hulog picked from the checklist to pay (defaults to my next one). */
   const [payK, setPayK] = useState<Contribution | null>(null);
   const tint = useTint(q.data?.circle.color);
@@ -148,6 +153,9 @@ function CircleScreenScreen() {
   const roundKs = current ? contributions.filter((k) => k.round_id === current.id) : [];
   const confirmed = roundKs.filter((k) => k.status === 'confirmed');
   const collected = confirmed.reduce((s, k) => s + Number(k.amount), 0);
+  // Deductions and refunds taken out of this round's fund (0023).
+  const roundAdj = current ? (data.adjustments ?? []).filter((a) => a.round_id === current.id) : [];
+  const roundAdjTotal = roundAdj.reduce((s, a) => s + Number(a.amount), 0);
   const openSwaps = data.swaps.filter((s) => s.status === 'pending' || s.status === 'accepted').length;
   const approvedMembers = members.filter((m) => m.status === 'approved');
   /** People who joined (a head count). */
@@ -174,7 +182,7 @@ function CircleScreenScreen() {
   const release = () =>
     current &&
     confirmAction(
-      `Release ${peso(collected)} to ${iAmRecipient ? 'yourself' : slotName(recipients)}?`,
+      `Release ${peso(collected - roundAdjTotal)} to ${iAmRecipient ? 'yourself' : slotName(recipients)}?`,
       `${iAmRecipient ? 'You are' : `${slotName(recipients)} is`} the recipient for round ${current.round_no}. Everyone will see who received this sahod.${
         unpaidKs.length
           ? ` ${unpaidKs.length} hulog (${peso(unpaidKs.reduce((s, k) => s + Number(k.amount), 0))}) are still unpaid; they stay on record as overdue, can still be paid later, and count against those members’ Trust Score.`
@@ -276,7 +284,7 @@ function CircleScreenScreen() {
           </Text>
         </View>
       ) : (
-        <Button title={t('circle.leave')} variant="ghost" onPress={() => run('Leave this paluwagan?', 'You can request to join again while it’s still open.', 'leave_circle', 'Leave')} />
+        null
       )}
       {deleteButton}
     </>
@@ -343,12 +351,17 @@ function CircleScreenScreen() {
           Collected for this round
         </Text>
         <Text variant="display" style={{ fontVariant: ['tabular-nums'] }}>
-          {peso(collected)}
+          {peso(collected - roundAdjTotal)}
         </Text>
         <Text variant="small" tone="muted">
           of {peso(roundPot)} · {confirmed.length} of {roundKs.length} payments confirmed
+          {roundAdjTotal > 0 ? ` · ${peso(collected)} before deductions` : ''}
         </Text>
       </View>
+      <AdjustmentLines
+        rows={roundAdj.map((a) => ({ id: a.id, kind: a.kind, amount: Number(a.amount), reason: a.reason, at: a.created_at, who: members.find((m) => m.user_id === a.user_id)?.profiles?.full_name }))}
+        onRemove={isAdmin ? (r) => action.mutate({ fn: 'remove_deduction', args: { p_id: r.id } }, { onError: (e) => notifyError(e, 'Couldn’t remove it') }) : undefined}
+      />
       <ProgressBar progress={roundPot ? collected / roundPot : 0} color={c.success} height={8} />
       {perRound > 1 && todayKs.length > 0 && (
         <View style={[styles.today, { backgroundColor: c.surfaceAlt }]}>
@@ -381,6 +394,7 @@ function CircleScreenScreen() {
             <Button title="Advance sahod" icon="fast-forward" variant="secondary" loading={action.isPending} onPress={() => setAdvanceOpen(true)} />
           )}
           <Button title="Delay sahod" icon="clock" variant="ghost" onPress={() => setDelayOpen(true)} />
+          <Button title="Record a deduction" icon="minus-circle" variant="ghost" onPress={() => setDeductOpen(true)} />
           {!canRelease && (
             <Text variant="small" tone="faint" center>
               The sahod is on {longDate(current.due_date)}. Release it then, or earlier once everyone has paid.
@@ -481,6 +495,16 @@ function CircleScreenScreen() {
           }}
         />
       )}
+      {revealed && circle.status === 'active' && <PayInfoCard circle={circle} />}
+      {isAdmin && !circle.deleted_at && circle.status !== 'completed' && (
+        <Button
+          title={circle.pay_method || circle.pay_note ? 'Edit where members pay' : 'Add where members pay (optional)'}
+          icon="smartphone"
+          variant="ghost"
+          size="md"
+          onPress={() => setPayInfoOpen(true)}
+        />
+      )}
       {isAdmin && circle.status === 'active' && circle.replacing_member && <ReplacementAdmin data={data} />}
       {isAdmin && circle.status === 'active' && !anyonePaid && (
         <Button
@@ -503,6 +527,7 @@ function CircleScreenScreen() {
         />
       )}
       {isAdmin && circle.status === 'active' && !circle.paused_at && <PauseCircleButton circle={circle} />}
+      <MembershipPanel data={data} userId={userId} />
       {completed}
       {tabBody}
     </>
@@ -523,6 +548,21 @@ function CircleScreenScreen() {
         />
       ) : (
         main
+      )}
+      {isAdmin && <PayInfoSheet open={payInfoOpen} onClose={() => setPayInfoOpen(false)} circle={circle} />}
+      {current && isAdmin && (
+        <DeductionSheet
+          open={deductOpen}
+          onClose={() => setDeductOpen(false)}
+          collected={collected - roundAdjTotal}
+          loading={action.isPending}
+          onConfirm={(amount, reason) =>
+            action.mutate(
+              { fn: 'add_deduction', args: { p_circle: id, p_amount: amount, p_reason: reason } },
+              { onSuccess: () => setDeductOpen(false), onError: (e) => notifyError(e, 'Couldn’t record the deduction') },
+            )
+          }
+        />
       )}
       {current && isAdmin && (
         <AdvanceSahodSheet

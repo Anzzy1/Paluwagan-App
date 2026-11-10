@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
+import { PayInfoCard } from '@/components/circle/PayInfo';
 import { Avatar, Input, Notice } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -95,7 +96,8 @@ export function PaySheet({
       <Text variant="overline" tone="faint">
         Step 1 · Send to the admin
       </Text>
-      {recipients.map((m) => (
+      <PayInfoCard circle={circle} compact />
+      {!circle.pay_method && recipients.map((m) => (
         <Card key={m.id} style={styles.recipient}>
           <Avatar name={m.profiles?.full_name} seed={m.user_id} uri={m.profiles?.avatar_url} size={40} />
           <View style={{ flex: 1 }}>

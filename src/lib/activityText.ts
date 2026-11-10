@@ -45,7 +45,25 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
     case 'member_rejected':
       return { icon: 'user-x', tone: 'neutral', text: `${who} declined a join request` };
     case 'member_left':
-      return { icon: 'log-out', tone: 'neutral', text: `${who} left the paluwagan` };
+      return {
+        icon: 'log-out',
+        tone: 'neutral',
+        text: `${who} ${p.user_id && p.user_id !== a.actor ? 'approved a member leaving' : 'left the paluwagan'}${Number(p.refund) > 0 ? ` with a ${peso(Number(p.refund))} refund` : p.forced ? ' without a refund' : ''}${p.open_slot ? '. Their slot is open for a replacement.' : ''}`,
+      };
+    case 'leave_requested':
+      return { icon: 'log-out', tone: 'warning', text: `${who} asked to leave the paluwagan${p.reason ? `: “${p.reason}”` : ''}` };
+    case 'leave_declined':
+      return { icon: 'message-circle', tone: 'neutral', text: `${who} declined a leave request${p.note ? `: “${p.note}”` : ''}` };
+    case 'admin_offered':
+      return { icon: 'shield', tone: 'info', text: `${who} offered the admin role to another member` };
+    case 'admin_offer_declined':
+      return { icon: 'shield', tone: 'neutral', text: `${who} declined to become the admin` };
+    case 'admin_transferred':
+      return { icon: 'shield', tone: 'brand', text: `${who} is now the admin of this paluwagan` };
+    case 'fund_deducted':
+      return { icon: 'minus-circle', tone: 'warning', text: `${who} recorded ${peso(Number(p.amount ?? 0))} taken out of the fund: “${p.reason}”` };
+    case 'fund_deduction_removed':
+      return { icon: 'rotate-ccw', tone: 'neutral', text: `${who} removed a ${peso(Number(p.amount ?? 0))} deduction (“${p.reason}”)` };
     case 'hati_paired':
       return { icon: 'users', tone: 'info', text: `${who} paired a split slot` };
     case 'circle_locked':
