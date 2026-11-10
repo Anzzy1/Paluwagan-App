@@ -141,7 +141,9 @@ function CircleScreenScreen() {
   // Members pay the admin, who confirms payments and releases each sahod (0018).
   const admins = members.filter((m) => m.role === 'admin' && m.status === 'approved');
   const iAmRecipient = !!current && me?.slot_group === current.slot_group;
-  const myK = myNextContribution(contributions, current, me?.id);
+  // My next hulog: one still running for an advanced sahod comes first (its dates are earlier), else this round's.
+  const myUnpaid = me ? unpaid(contributions.filter((k) => k.member_id === me.id), rounds) : [];
+  const myK = myUnpaid.find((x) => x.round.status === 'completed' && x.due >= todayISO())?.k ?? myNextContribution(contributions, current, me?.id);
   const roundKs = current ? contributions.filter((k) => k.round_id === current.id) : [];
   const confirmed = roundKs.filter((k) => k.status === 'confirmed');
   const collected = confirmed.reduce((s, k) => s + Number(k.amount), 0);
@@ -163,8 +165,9 @@ function CircleScreenScreen() {
   const toConfirm = contributions.filter((k) => k.status === 'submitted');
   // The admin releases the sahod on its date, or earlier once everyone has paid (0018).
   const canRelease = isAdmin && !!current && !circle.paused_at && (daysUntil(current.due_date) <= 0 || unpaidKs.length === 0);
-  // My hulog left unpaid in rounds that were already released.
-  const myOverdue = me ? unpaid(contributions.filter((k) => k.member_id === me.id), rounds).filter((x) => x.round.status === 'completed') : [];
+  // My hulog left unpaid in rounds that were already released, and only once their date has passed
+  // (an advance sahod releases a round before its hulog dates, and those aren't overdue yet).
+  const myOverdue = myUnpaid.filter((x) => x.round.status === 'completed' && x.due < today);
   const overdueTotal = myOverdue.reduce((s, x) => s + Number(x.k.amount), 0);
 
   const release = () =>
@@ -549,7 +552,7 @@ function CircleScreenScreen() {
             setPayK(null);
           }}
           circle={circle}
-          round={current}
+          round={rounds.find((r) => r.id === (payK ?? myK)!.round_id) ?? current}
           contribution={(payK ?? myK)!}
           recipients={admins}
         />

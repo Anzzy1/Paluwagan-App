@@ -16,7 +16,7 @@ import { confirmAction, notifyError } from '@/lib/alert';
 import { useCircle, useCircleAction, useReceiptUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { dueOf, hulogInRound, myNextContribution, recipientsOf } from '@/lib/derive';
-import { displayStatus, longDate, peso, potOf, relativeDue, shortDate, timeAgo } from '@/lib/format';
+import { displayStatus, longDate, peso, potOf, relativeDue, shortDate, timeAgo, todayISO } from '@/lib/format';
 import { useColors } from '@/lib/prefs';
 import type { Contribution, Member } from '@/lib/types';
 import { radius } from '@/theme/tokens';
@@ -105,7 +105,7 @@ function RoundScreenScreen() {
         ))}
       </Card>
       {myK && !myK.auto && (myK.status === 'pending' || myK.status === 'rejected') && (
-        <Button title={round.status === 'completed' ? `Pay overdue ${peso(myK.amount)}` : `Pay ${peso(myK.amount)}`} icon="send" onPress={() => setPayOpen(true)} />
+        <Button title={round.status === 'completed' && dueOf(myK, round) < todayISO() ? `Pay overdue ${peso(myK.amount)}` : `Pay ${peso(myK.amount)}`} icon="send" onPress={() => setPayOpen(true)} />
       )}
     </>
   );

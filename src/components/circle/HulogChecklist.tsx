@@ -36,19 +36,24 @@ export function HulogChecklist({
 }) {
   const c = useColors();
   const action = useCircleAction(data.circle.id);
-  const ks = data.contributions.filter((k) => k.round_id === round.id);
-  const dates = [...new Set(ks.map((k) => dueOf(k, round)))].sort();
   const today = todayISO();
+  const roundById = new Map(data.rounds.map((r) => [r.id, r]));
+  const roundOf = (k: Contribution) => roundById.get(k.round_id) ?? round;
+  const due = (k: Contribution) => dueOf(k, roundOf(k));
+  // This round's hulog, plus hulog still running for a sahod that was advanced (released before its dates).
+  const ks = data.contributions.filter((k) => k.round_id === round.id || (roundById.get(k.round_id)?.status === 'completed' && due(k) >= today));
+  const dates = [...new Set(ks.map(due))].sort();
   // Today if it's a hulog day, else the latest past date, else the first one.
   const fallback = dates.includes(today) ? today : ([...dates].reverse().find((d) => d <= today) ?? dates[0]);
   const [picked, setPicked] = useState<string | null>(null);
   const date = picked && dates.includes(picked) ? picked : fallback;
   const memberById = new Map(data.members.map((m) => [m.id, m]));
   const rows = ks
-    .filter((k) => dueOf(k, round) === date)
+    .filter((k) => due(k) === date)
     .sort((a, b) => (memberById.get(a.member_id)?.profiles?.full_name ?? '').localeCompare(memberById.get(b.member_id)?.profiles?.full_name ?? ''));
   const paid = rows.filter((k) => k.status === 'confirmed');
   if (!date || !rows.length) return null;
+  const advanced = rows[0].round_id !== round.id ? roundOf(rows[0]) : null;
 
   const markPaid = (k: Contribution) => {
     const name = memberById.get(k.member_id)?.profiles?.full_name ?? 'this member';
@@ -71,6 +76,7 @@ export function HulogChecklist({
           <Text variant="h3">Hulog · {date === today ? 'today' : shortDate(date)}</Text>
           <Text variant="small" tone="muted">
             {paid.length} of {rows.length} paid · {peso(paid.reduce((s, k) => s + Number(k.amount), 0))} collected
+            {advanced ? ` · for round ${advanced.round_no}’s advance sahod` : ''}
           </Text>
         </View>
       </View>
@@ -78,7 +84,7 @@ export function HulogChecklist({
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dates}>
           {dates.map((d) => {
             const on = d === date;
-            const dayKs = ks.filter((k) => dueOf(k, round) === d);
+            const dayKs = ks.filter((k) => due(k) === d);
             const done = dayKs.every((k) => k.status === 'confirmed');
             return (
               <PressableScale key={d} onPress={() => setPicked(d)} hapticOnPress={false} style={[styles.date, { backgroundColor: on ? c.ink : c.surfaceAlt }]}>
@@ -112,14 +118,14 @@ export function HulogChecklist({
               <StatusChip status="confirmed" />
             ) : isAdmin ? (
               k.status === 'submitted' ? (
-                <Button title="Review" size="sm" variant="secondary" full={false} onPress={() => router.push(`/circle/${data.circle.id}/round/${round.id}`)} />
+                <Button title="Review" size="sm" variant="secondary" full={false} onPress={() => router.push(`/circle/${data.circle.id}/round/${k.round_id}`)} />
               ) : (
                 <Button title="Mark paid" size="sm" full={false} onPress={() => markPaid(k)} loading={action.isPending} />
               )
             ) : mine && unpaid ? (
               <Button title="Pay" size="sm" full={false} onPress={() => onPay(k)} />
             ) : (
-              <StatusChip status={displayStatus(k, round, data.circle)} />
+              <StatusChip status={displayStatus(k, roundOf(k), data.circle)} />
             )}
           </View>
         );
