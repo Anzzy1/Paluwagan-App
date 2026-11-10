@@ -84,6 +84,9 @@ export type Round = {
   due_date: string;
   status: RoundStatus;
   completed_at: string | null;
+  /** Advance sahod (0021): what the recipient got early; the rest is a balance given later. */
+  advance_given?: number | null;
+  balance_released_at?: string | null;
 };
 
 export type Contribution = {

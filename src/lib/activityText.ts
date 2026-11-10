@@ -72,8 +72,22 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
         tone: Number(p.unpaid) > 0 ? 'warning' : 'success',
         text: `${who} released the sahod for round ${p.round_no}${Number(p.unpaid) > 0 ? ` with ${p.unpaid} unpaid hulog (${peso(Number(p.unpaid_amount ?? 0))}) still owed` : ''}`,
       };
-    case 'sahod_advanced':
-      return { icon: 'fast-forward', tone: 'brand', text: `${who} advanced the sahod for round ${p.round_no} (planned for ${p.due})${Number(p.unpaid) > 0 ? ` with ${p.unpaid} unpaid hulog still owed` : ''}` };
+    case 'sahod_advanced': {
+      const given = p.given != null ? Number(p.given) : null;
+      const balance = given != null && p.pot != null ? Number(p.pot) - given : 0;
+      const shift = Number(p.shift ?? 0);
+      return {
+        icon: 'fast-forward',
+        tone: 'brand',
+        text: `${who} advanced the sahod for round ${p.round_no} (planned for ${p.due})${given != null ? `: ${peso(given)} given now` : ''}${
+          balance > 0 ? `, ${peso(balance)} balance to follow` : ''
+        }${shift > 0 ? `. Hulog continues ${p.resume}, later dates moved ${shift} day${shift === 1 ? '' : 's'}` : ''}${
+          given == null && Number(p.unpaid) > 0 ? ` with ${p.unpaid} unpaid hulog still owed` : ''
+        }`,
+      };
+    }
+    case 'sahod_balance_released':
+      return { icon: 'gift', tone: 'success', text: `${who} gave the ${peso(Number(p.amount ?? 0))} sahod balance for round ${p.round_no}` };
     case 'sahod_delayed':
       return { icon: 'clock', tone: 'warning', text: `${who} moved the round ${p.round_no} sahod from ${p.from} to ${p.to}${p.shift_later ? ', and later sahod too' : ''}` };
     case 'payment_covered':

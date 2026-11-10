@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
 import { AnimatedMascot } from '@/components/AnimatedMascot';
+import { AdvanceSahodSheet } from '@/components/circle/AdvanceSahodSheet';
 import { ConfirmSheet } from '@/components/circle/Lifecycle';
 import { DateHistory } from '@/components/managed/DateHistory';
 import { PausedManagedCard, PauseManagedButton } from '@/components/managed/PauseManaged';
@@ -21,9 +22,12 @@ import { confirmAction } from '@/lib/alert';
 import { dateTime, daysUntil, longDate, parseDate, payoutShort, peso, relativeDue, shortDate, timeAgo, todayISO, toISODate } from '@/lib/format';
 import {
   addMember,
+  advancePreview,
+  advanceSahod,
   collected,
   delaySahod,
   deleteManagedCircle,
+  giveBalance,
   hulogToday,
   lastSahodAction,
   managedSummary,
@@ -35,6 +39,7 @@ import {
   potOfManaged,
   roundShort,
   releasePayout,
+  sahodBalances,
   removeMember,
   togglePaid,
   undoSahod,
@@ -247,6 +252,8 @@ function SahodCard({ circle }: { circle: LocalCircle }) {
   const multi = r.dates.length > 1;
 
   const [delayOpen, setDelayOpen] = useState(false);
+  const [advanceOpen, setAdvanceOpen] = useState(false);
+  const preview = advancePreview(circle);
   const go = (amount: number) => {
     releasePayout(circle.id, r.round_no);
     haptic('success');
@@ -256,15 +263,12 @@ function SahodCard({ circle }: { circle: LocalCircle }) {
     if (fullyFunded) confirmAction(`Release sahod to ${name}?`, `Hand over ${peso(pot)} and move to the next payout.`, () => go(pot), { confirmText: 'Release sahod', icon: 'gift' });
     else confirmAction('Not fully funded yet', `${peso(missing)} of hulog is still unpaid for this payout. Release ${peso(got)} anyway?`, () => go(got), { confirmText: 'Release anyway', destructive: true });
   };
-  const advance = () =>
-    confirmAction(
-      `Advance sahod to ${name}?`,
-      `Release ${peso(pot)} ${daysLeft} day${daysLeft === 1 ? '' : 's'} before the sahod date (${longDate(r.due_date)}). ${peso(got)} is collected so far${
-        missing ? `; the remaining ${peso(missing)} of hulog is still collected on its dates.` : '.'
-      }`,
-      () => go(pot),
-      { confirmText: 'Advance sahod', icon: 'fast-forward' },
-    );
+  const advance = (given: number, resume: string | null) => {
+    advanceSahod(circle.id, r.round_no, given, resume);
+    setAdvanceOpen(false);
+    haptic('success');
+    reactToPayout(name, given, r.round_no < circle.rounds.length ? r.round_no + 1 : null);
+  };
 
   return (
     <Card padded={false}>
@@ -308,13 +312,75 @@ function SahodCard({ circle }: { circle: LocalCircle }) {
             <Text variant="caption" tone="muted" style={{ flex: 1, minWidth: 160, alignSelf: 'center' }}>
               Release opens on {longDate(r.due_date)}. Need it sooner? Give it as an advance.
             </Text>
-            <Button title="Advance sahod" icon="fast-forward" variant="secondary" size="md" full={false} onPress={advance} />
+            <Button title="Advance sahod" icon="fast-forward" variant="secondary" size="md" full={false} onPress={() => setAdvanceOpen(true)} />
           </>
         )}
         <Button title="Delay sahod" icon="clock" variant="ghost" size="md" full={false} onPress={() => setDelayOpen(true)} />
       </View>
       <UndoSahod circle={circle} />
       <DelaySahodSheet key={`${r.round_no}-${r.due_date}`} circle={circle} round={r} name={name} open={delayOpen} onClose={() => setDelayOpen(false)} />
+      <AdvanceSahodSheet
+        open={advanceOpen}
+        onClose={() => setAdvanceOpen(false)}
+        name={name}
+        pot={pot}
+        collected={got}
+        dueDate={r.due_date}
+        anchor={preview.anchor}
+        lastSahod={preview.lastSahod}
+        onConfirm={advance}
+      />
+    </Card>
+  );
+}
+
+/** Advanced sahod with part of it still owed to the recipient. */
+function SahodBalances({ circle }: { circle: LocalCircle }) {
+  const c = useColors();
+  const list = sahodBalances(circle);
+  if (!list.length) return null;
+  return (
+    <Card padded={false}>
+      <View style={[styles.dayHead, { borderTopWidth: 0, paddingVertical: 14, backgroundColor: c.goldSoft }]}>
+        <Feather name="clock" size={18} color={c.warning} />
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text variant="h3">Sahod balance owed</Text>
+          <Text variant="caption" tone="muted">
+            Part of an advance sahod still to hand over
+          </Text>
+        </View>
+      </View>
+      {list.map((b) => {
+        const name = b.member?.name ?? 'Member';
+        const pot = potOfManaged(circle, b.round);
+        const got = collected(circle, b.round);
+        const give = () =>
+          confirmAction(
+            `Give ${name} the balance?`,
+            `${peso(b.owed)} (${peso(pot)} sahod, ${peso(b.round.given ?? 0)} given early).${
+              b.ready ? '' : ` ${peso(roundShort(circle, b.round))} of this sahod’s hulog isn’t in yet.`
+            }`,
+            () => {
+              giveBalance(circle.id, b.round.round_no);
+              haptic('success');
+            },
+            { confirmText: `Give ${peso(b.owed)}`, icon: 'gift' },
+          );
+        return (
+          <View key={b.round.round_no} style={[styles.row, { borderTopColor: c.border, flexWrap: 'wrap' }]}>
+            <Avatar name={b.member?.name} seed={b.member?.id} size={36} />
+            <View style={{ flex: 1, minWidth: 150, gap: 2 }}>
+              <Text variant="bodyBold" numberOfLines={1}>
+                {name} · {peso(b.owed)}
+              </Text>
+              <Text variant="caption" tone="faint">
+                Sahod {b.round.round_no} · got {peso(b.round.given ?? 0)} of {peso(pot)} · hulog {peso(got)} of {peso(pot)} in
+              </Text>
+            </View>
+            <Button title="Give balance" icon="gift" size="sm" variant={b.ready ? 'brand' : 'secondary'} full={false} onPress={give} />
+          </View>
+        );
+      })}
     </Card>
   );
 }
@@ -328,8 +394,12 @@ function UndoSahod({ circle, bare }: { circle: LocalCircle; bare?: boolean }) {
     confirmAction(
       'Undo this?',
       last.action.kind === 'release'
-        ? `${last.text} will be marked as not released, and they’ll be next in line again. Hulog already recorded stays as it is.`
-        : `${last.text} will go back to the original date${last.action.changes.length > 1 ? 's' : ''}.`,
+        ? `${last.text} will be marked as not released, and they’ll be next in line again.${
+            last.action.moved?.length ? ' Hulog and sahod dates go back to where they were.' : ''
+          } Hulog already recorded stays as it is.`
+        : last.action.kind === 'balance'
+          ? `${last.text} will be marked as not given yet.`
+          : `${last.text} will go back to the original date${last.action.changes.length > 1 ? 's' : ''}.`,
       () => {
         undoSahod(circle.id);
         haptic('warning');
@@ -443,7 +513,9 @@ function Schedule({ circle }: { circle: LocalCircle }) {
                 Sahod {shortDate(r.due_date)}
                 {r.dates.length > 1 ? ` · ${r.dates.length} hulog` : ''} ·{' '}
                 {r.status === 'completed' && r.payout_at
-                  ? `${releasedEarly(r) ? 'advanced' : 'released'} ${shortDate(r.payout_at.slice(0, 10))}`
+                  ? `${releasedEarly(r) ? 'advanced' : 'released'} ${shortDate(r.payout_at.slice(0, 10))}${
+                      r.given != null && r.given < pot ? ` · ${peso(r.given)}${r.balance_at ? ' + balance' : `, ${peso(pot - r.given)} owed`}` : ''
+                    }`
                   : `${peso(got)} of ${peso(pot)}`}
               </Text>
             </View>
@@ -532,6 +604,7 @@ export default function ManagedCircle() {
         <>
           <HulogToday circle={circle} />
           {circle.status === 'active' && s.current && <SahodCard circle={circle} />}
+          <SahodBalances circle={circle} />
         </>
       )}
       {circle.status === 'completed' && (

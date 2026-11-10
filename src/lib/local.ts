@@ -12,7 +12,7 @@ import * as Crypto from 'expo-crypto';
 import { useSyncExternalStore } from 'react';
 
 import { seededShuffle } from '@/lib/draw';
-import { shortDate, todayISO, toISODate, parseDate } from '@/lib/format';
+import { peso, shortDate, todayISO, toISODate, parseDate } from '@/lib/format';
 import { kv } from '@/lib/storage';
 import type { Frequency } from '@/lib/types';
 import type { CircleTint } from '@/theme/tokens';
@@ -37,11 +37,19 @@ export type LocalRound = {
   /** hulog date -> memberId -> ISO time paid. Everyone pays, the sahod recipient included. */
   paid: Record<string, Record<string, string>>;
   payout_at: string | null;
+  /** Advance sahod: what the recipient actually got (the rest is a balance given later). */
+  given?: number | null;
+  /** When the balance of an advanced sahod was handed over. */
+  balance_at?: string | null;
 };
+
+/** Hulog and sahod dates moved by an advance (so it can be undone). */
+export type DateMove = { round_no: number; dates: [string, string][]; due: [string, string] | null };
 
 /** A sahod change the organiser can undo. */
 export type SahodAction =
-  | { kind: 'release'; round_no: number; at: string; early: boolean }
+  | { kind: 'release'; round_no: number; at: string; early: boolean; given?: number; moved?: DateMove[] }
+  | { kind: 'balance'; round_no: number; at: string; amount: number }
   | { kind: 'delay'; at: string; changes: { round_no: number; from: string; to: string }[] };
 
 export type LocalCircle = {
@@ -402,6 +410,123 @@ export function releasePayout(id: string, roundNo: number) {
 }
 
 /**
+ * The next hulog date nobody has paid yet (today or later). An advance sahod continues hulog
+ * from here, or later if the organiser picks a later day.
+ */
+export function resumeAnchor(c: LocalCircle): string | null {
+  const today = todayISO();
+  return hulogDays(c).find((d) => d.date >= today && paidOn(d.round, d.date) === 0)?.date ?? null;
+}
+
+/** Every hulog date from `from` on, and every sahod not released yet from `from` on, moved by `shift` days. */
+function moveFrom(c: LocalCircle, from: string, shift: number): { rounds: LocalRound[]; moved: DateMove[] } {
+  if (shift <= 0) return { rounds: c.rounds, moved: [] };
+  const moved: DateMove[] = [];
+  const rounds = c.rounds.map((r) => {
+    const map = new Map(r.dates.filter((d) => d >= from).map((d) => [d, plusDays(d, shift)] as [string, string]));
+    const due: [string, string] | null = r.status !== 'completed' && r.due_date >= from ? [r.due_date, plusDays(r.due_date, shift)] : null;
+    if (!map.size && !due) return r;
+    moved.push({ round_no: r.round_no, dates: [...map.entries()], due });
+    return {
+      ...r,
+      dates: r.dates.map((d) => map.get(d) ?? d),
+      paid: Object.fromEntries(Object.entries(r.paid).map(([d, day]) => [map.get(d) ?? d, day])),
+      due_date: due ? due[1] : r.due_date,
+    };
+  });
+  return { rounds, moved };
+}
+
+/** Put dates moved by an advance back where they were. */
+function unmove(rounds: LocalRound[], moved: DateMove[]): LocalRound[] {
+  const byRound = new Map(moved.map((m) => [m.round_no, m]));
+  return rounds.map((r) => {
+    const m = byRound.get(r.round_no);
+    if (!m) return r;
+    const back = new Map(m.dates.map(([from, to]) => [to, from]));
+    return {
+      ...r,
+      dates: r.dates.map((d) => back.get(d) ?? d),
+      paid: Object.fromEntries(Object.entries(r.paid).map(([d, day]) => [back.get(d) ?? d, day])),
+      due_date: m.due ? m.due[0] : r.due_date,
+    };
+  });
+}
+
+/** Where hulog continues after an advance (next unpaid date) and the last sahod date, for the preview. */
+export function advancePreview(c: LocalCircle) {
+  const last = c.rounds[c.rounds.length - 1];
+  return { anchor: resumeAnchor(c), lastSahod: last && last.status !== 'completed' ? last.due_date : null };
+}
+
+/**
+ * Advance sahod: hand over `given` now (the rest of the sahod is a balance, given later) and
+ * continue hulog on `resume`. If that's later than the next unpaid hulog date, every hulog from
+ * then on and every later sahod moves by the same number of days.
+ */
+export function advanceSahod(id: string, roundNo: number, given: number, resume: string | null) {
+  update(id, (c) => {
+    const round = c.rounds.find((r) => r.round_no === roundNo);
+    if (!round || round.status !== 'active' || !(given > 0)) return c;
+    const pot = potOfManaged(c, round);
+    const amount = Math.min(given, pot);
+    const anchor = resumeAnchor(c);
+    const shift = anchor && resume ? Math.max(0, daysBetween(anchor, resume)) : 0;
+    const { rounds: shifted, moved } = anchor ? moveFrom(c, anchor, shift) : { rounds: c.rounds, moved: [] as DateMove[] };
+    const now = new Date().toISOString();
+    const rounds = shifted.map((r) => {
+      if (r.round_no === roundNo) return { ...r, status: 'completed' as const, payout_at: now, given: amount, balance_at: null };
+      if (r.round_no === roundNo + 1) return { ...r, status: 'active' as const };
+      return r;
+    });
+    const done = rounds.every((r) => r.status === 'completed');
+    const name = c.members.find((m) => m.id === round.member_id)?.name ?? 'Member';
+    const parts = [
+      `Advance sahod of ${peso(amount)} given to ${name} (due ${shortDate(round.due_date)})`,
+      amount < pot ? `${peso(pot - amount)} balance to give later` : '',
+      shift > 0 && resume ? `hulog continues ${shortDate(resume)}, dates moved ${shift} day${shift === 1 ? '' : 's'}` : '',
+    ].filter(Boolean);
+    return log(
+      {
+        ...c,
+        rounds,
+        status: done ? 'completed' : c.status,
+        sahod_history: [...(c.sahod_history ?? []), { kind: 'release', round_no: roundNo, at: now, early: true, given: amount, moved }],
+      },
+      parts.join(' · '),
+    );
+  });
+}
+
+export type SahodBalance = { round: LocalRound; member: LocalMember | undefined; owed: number; ready: boolean };
+
+/** Advanced sahod whose balance hasn't been handed over yet. `ready` once the round's hulog are all in. */
+export function sahodBalances(c: LocalCircle): SahodBalance[] {
+  return c.rounds
+    .filter((r) => r.status === 'completed' && r.given != null && !r.balance_at && r.given < potOfManaged(c, r))
+    .map((r) => ({ round: r, member: c.members.find((m) => m.id === r.member_id), owed: potOfManaged(c, r) - r.given!, ready: roundShort(c, r) === 0 }));
+}
+
+/** Hand over the rest of an advanced sahod. */
+export function giveBalance(id: string, roundNo: number) {
+  update(id, (c) => {
+    const r = c.rounds.find((x) => x.round_no === roundNo);
+    if (!r || r.given == null || r.balance_at) return c;
+    const amount = potOfManaged(c, r) - r.given;
+    const now = new Date().toISOString();
+    const name = c.members.find((m) => m.id === r.member_id)?.name ?? 'Member';
+    return log(
+      {
+        ...c,
+        rounds: c.rounds.map((x) => (x.round_no === roundNo ? { ...x, balance_at: now } : x)),
+        sahod_history: [...(c.sahod_history ?? []), { kind: 'balance', round_no: roundNo, at: now, amount }],
+      },
+      `Sahod balance of ${peso(amount)} given to ${name}`,
+    );
+  });
+}
+
+/**
  * Move a sahod to a later date. With `shiftLater`, every later sahod moves by the same
  * number of days so the order and spacing stay the same. Hulog dates don't change.
  */
@@ -436,7 +561,9 @@ export function lastSahodAction(c: LocalCircle): { action: SahodAction; text: st
   const action = c.sahod_history?.[c.sahod_history.length - 1];
   if (!action) return null;
   const nameOf = (roundNo: number) => c.members.find((m) => m.id === c.rounds.find((r) => r.round_no === roundNo)?.member_id)?.name ?? 'Member';
-  if (action.kind === 'release') return { action, text: `${action.early ? 'Advance sahod' : 'Sahod'} released to ${nameOf(action.round_no)}` };
+  if (action.kind === 'release')
+    return { action, text: `${action.early ? 'Advance sahod' : 'Sahod'}${action.given != null ? ` of ${peso(action.given)}` : ''} released to ${nameOf(action.round_no)}` };
+  if (action.kind === 'balance') return { action, text: `Sahod balance of ${peso(action.amount)} given to ${nameOf(action.round_no)}` };
   const first = action.changes[0];
   return { action, text: first ? `${nameOf(first.round_no)}’s sahod moved to ${shortDate(first.to)}` : 'Sahod moved' };
 }
@@ -451,9 +578,14 @@ export function undoSahod(id: string) {
     if (!last) return c;
     const history = (c.sahod_history ?? []).slice(0, -1);
     const { action } = last;
+    if (action.kind === 'balance') {
+      const rounds = c.rounds.map((r) => (r.round_no === action.round_no ? { ...r, balance_at: null } : r));
+      return log({ ...c, rounds, sahod_history: history }, `Undone: ${last.text}`);
+    }
     if (action.kind === 'release') {
-      const rounds = c.rounds.map((r) => {
-        if (r.round_no === action.round_no) return { ...r, status: 'active' as const, payout_at: null };
+      const base = action.moved?.length ? unmove(c.rounds, action.moved) : c.rounds;
+      const rounds = base.map((r) => {
+        if (r.round_no === action.round_no) return { ...r, status: 'active' as const, payout_at: null, given: null, balance_at: null };
         if (r.round_no > action.round_no && r.status === 'active') return { ...r, status: 'upcoming' as const };
         return r;
       });

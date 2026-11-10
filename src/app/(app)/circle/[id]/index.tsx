@@ -5,7 +5,9 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { ActivityList } from '@/components/ActivityList';
+import { AdvanceSahodSheet } from '@/components/circle/AdvanceSahodSheet';
 import { DelaySahodSheet } from '@/components/circle/DelaySahodSheet';
+import { SahodBalances } from '@/components/circle/SahodBalances';
 import { HulogChecklist } from '@/components/circle/HulogChecklist';
 import { FormingAdmin, InvitePanel, MembersList, ReplacementAdmin, RulesPanel, SlotsProgress, Timeline } from '@/components/circle/panels';
 import { DeleteCircleButton, DeletedPanel, PauseCircleButton, PausedPanel } from '@/components/circle/Lifecycle';
@@ -104,6 +106,7 @@ function CircleScreenScreen() {
   const [tab, setTab] = useState<Tab>('timeline');
   const [payOpen, setPayOpen] = useState(false);
   const [delayOpen, setDelayOpen] = useState(false);
+  const [advanceOpen, setAdvanceOpen] = useState(false);
   /** A hulog picked from the checklist to pay (defaults to my next one). */
   const [payK, setPayK] = useState<Contribution | null>(null);
   const tint = useTint(q.data?.circle.color);
@@ -177,19 +180,26 @@ function CircleScreenScreen() {
       { confirmText: 'Release sahod' },
     );
 
-  /** Release the sahod before its date, even if some hulog are still unpaid (0020). */
-  const advance = () =>
-    current &&
-    confirmAction(
-      `Advance sahod to ${iAmRecipient ? 'yourself' : slotName(recipients)}?`,
-      `Release ${peso(collected)} now instead of on ${longDate(current.due_date)}.${
-        unpaidKs.length
-          ? ` ${unpaidKs.length} hulog (${peso(unpaidKs.reduce((s, k) => s + Number(k.amount), 0))}) are still unpaid; they stay on record as overdue and can be paid later.`
-          : ''
-      } Everyone will see who received it.`,
-      () => action.mutate({ fn: 'advance_sahod', args: { p_circle: id } }, { onError: (e) => notifyError(e, 'Couldn’t advance the sahod') }),
-      { confirmText: 'Advance sahod', icon: 'fast-forward' },
+  /** Release the sahod early with the amount actually given and the day hulog continues (0021). */
+  const advance = (given: number, resume: string | null) =>
+    action.mutate(
+      { fn: 'advance_sahod', args: { p_circle: id, p_given: given, p_resume: resume } },
+      { onSuccess: () => setAdvanceOpen(false), onError: (e) => notifyError(e, 'Couldn’t advance the sahod') },
     );
+  // Full sahod for this round, and where hulog continues after an advance: the next date nobody has paid yet.
+  const roundTotal = roundKs.reduce((s, k) => s + Number(k.amount), 0);
+  const resumeAnchor = (() => {
+    const byDate = new Map<string, boolean>();
+    for (const k of contributions) {
+      const r = rounds.find((x) => x.id === k.round_id);
+      if (!r) continue;
+      const d = dueOf(k, r);
+      if (d < today) continue;
+      byDate.set(d, (byDate.get(d) ?? false) || k.status === 'submitted' || k.status === 'confirmed');
+    }
+    return [...byDate.entries()].filter(([, paid]) => !paid).map(([d]) => d).sort()[0] ?? null;
+  })();
+  const lastRound = rounds[rounds.length - 1];
 
   const run = (title: string, msg: string, fn: string, confirmText: string) =>
     confirmAction(title, msg, () => action.mutate({ fn, args: { p_circle: id } }, { onError: (e) => notifyError(e) }), { confirmText });
@@ -364,7 +374,7 @@ function CircleScreenScreen() {
           {canRelease ? (
             <Button title="Release sahod" icon="gift" variant={toConfirm.length ? 'secondary' : 'brand'} loading={action.isPending} onPress={release} />
           ) : (
-            <Button title="Advance sahod" icon="fast-forward" variant="secondary" loading={action.isPending} onPress={advance} />
+            <Button title="Advance sahod" icon="fast-forward" variant="secondary" loading={action.isPending} onPress={() => setAdvanceOpen(true)} />
           )}
           <Button title="Delay sahod" icon="clock" variant="ghost" onPress={() => setDelayOpen(true)} />
           {!canRelease && (
@@ -451,6 +461,7 @@ function CircleScreenScreen() {
         </Card>
       )}
       {activeRound}
+      {revealed && <SahodBalances data={data} isAdmin={!!isAdmin} mySlotGroup={me?.slot_group} />}
       {circle.status === 'active' && current && (
         <HulogChecklist
           data={data}
@@ -505,6 +516,20 @@ function CircleScreenScreen() {
         />
       ) : (
         main
+      )}
+      {current && isAdmin && (
+        <AdvanceSahodSheet
+          open={advanceOpen}
+          onClose={() => setAdvanceOpen(false)}
+          name={iAmRecipient ? 'you' : slotName(recipients)}
+          pot={roundTotal}
+          collected={collected}
+          dueDate={current.due_date}
+          anchor={resumeAnchor}
+          lastSahod={lastRound && lastRound.status !== 'completed' ? lastRound.due_date : null}
+          loading={action.isPending}
+          onConfirm={advance}
+        />
       )}
       {current && isAdmin && (
         <DelaySahodSheet
