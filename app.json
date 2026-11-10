@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {},
     "android": {
+      "package": "com.anzzy1.paluwagan",
       "adaptiveIcon": {
         "backgroundColor": "#1DB954",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -56,7 +57,8 @@
         }
       ],
       "expo-font",
-      "expo-audio"
+      "expo-audio",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
