@@ -48,10 +48,14 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
       return {
         icon: 'log-out',
         tone: 'neutral',
-        text: `${who} ${p.user_id && p.user_id !== a.actor ? 'approved a member leaving' : 'left the paluwagan'}${Number(p.refund) > 0 ? ` with a ${peso(Number(p.refund))} refund` : p.forced ? ' without a refund' : ''}${Number(p.split) > 0 ? `. ${peso(Number(p.split))} is split among ${p.split_count} members (${peso(Number(p.each))} each)` : ''}${p.open_slot ? '. Their slot is open for a replacement.' : ''}`,
+        text: `${who} ${p.user_id && p.user_id !== a.actor ? 'approved a member leaving' : 'left the paluwagan'}${Number(p.refund) > 0 ? ` with a ${peso(Number(p.refund))} refund` : p.forced ? ' without a refund' : ''}${Number(p.split) > 0 ? `. ${peso(Number(p.split))} is split among ${p.split_count} members (${peso(Number(p.each))} each)` : ''}${p.recalculated ? (p.took_whole_slot ? '. Their partner now has the whole slot.' : '. The schedule was recalculated: everyone after them moves up one turn.') : p.open_slot ? '. Their slot is open for a replacement.' : ''}`,
       };
     case 'leave_requested':
       return { icon: 'log-out', tone: 'warning', text: `${who} asked to leave the paluwagan${p.reason ? `: “${p.reason}”` : ''}` };
+    case 'fund_given':
+      return { icon: 'check-circle', tone: 'success', text: `${who} handed over ${peso(Number(p.amount))}${p.kind === 'split' ? ' (a share of money left behind)' : ' (a refund)'}` };
+    case 'fund_given_undone':
+      return { icon: 'rotate-ccw', tone: 'warning', text: `${who} marked ${peso(Number(p.amount))} as not given yet` };
     case 'leave_reviewed':
       return {
         icon: 'users',

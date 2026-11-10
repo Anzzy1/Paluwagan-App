@@ -48,6 +48,8 @@ begin
   exception when raise_exception then null; end;
   perform review_left(lm, 300);
   assert (select amount from fund_adjustments where circle_id = cid and kind = 'split') = 300, 'split changed';
+  assert (select sum(amount) from fund_gives where circle_id = cid) = 300, 'shares add up';
+  assert (select count(*) from fund_gives where circle_id = cid) = 3, 'one share per member';
   assert (select left_reviewed_at from circle_members where id = lm) is not null, 'reviewed';
   begin perform review_left(lm, 300); assert false, 'only once';
   exception when raise_exception then null; end;

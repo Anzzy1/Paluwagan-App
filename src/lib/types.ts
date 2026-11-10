@@ -37,6 +37,17 @@ export type FundAdjustment = {
   created_at: string;
 };
 
+/** 0026: who gets how much of a refund or split, and whether the admin has handed it over. */
+export type FundGive = {
+  id: string;
+  adjustment_id: string;
+  circle_id: string;
+  user_id: string | null;
+  amount: number;
+  given_at: string | null;
+  given_by: string | null;
+};
+
 export type Circle = {
   id: string;
   name: string;

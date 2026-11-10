@@ -163,7 +163,7 @@ const MEMBER_TYPES = new Set([
   'payment_confirmed', 'payment_rejected', 'nudge_sent', 'member_approved', 'draw_completed', 'draw_redone', 'draw_revealed', 'order_set', 'circle_locked',
   'circle_paused', 'circle_resumed', 'round_completed', 'round_released', 'sahod_advanced', 'sahod_balance_released', 'sahod_delayed', 'payment_covered', 'member_replaced', 'circle_completed', 'circle_deleted', 'circle_restored',
   'swap_requested', 'swap_accepted', 'swap_declined', 'swap_approved', 'swap_rejected',
-  'repeat_requested', 'repeat_cancelled', 'repeat_started', 'admin_transferred', 'fund_deducted', 'leave_declined', 'leave_reviewed',
+  'repeat_requested', 'repeat_cancelled', 'repeat_started', 'admin_transferred', 'fund_deducted', 'leave_declined', 'leave_reviewed', 'fund_given', 'fund_given_undone',
 ]);
 const ADMIN_TYPES = new Set(['member_requested', 'proof_submitted', 'member_left', 'repeat_answered', 'leave_requested']);
 const UPDATE_DAYS = 14;

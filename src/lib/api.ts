@@ -7,7 +7,7 @@ import { addLocalDeposit, deleteLocalDeposit, deleteLocalGoal, isLocalId, saveLo
 import { useOnline } from '@/lib/network';
 import { isRevealed } from '@/lib/derive';
 import { supabase } from '@/lib/supabase';
-import type { Activity, Circle, CirclePreview, Contribution, Deposit, Frequency, FundAdjustment, Goal, Member, Round, Swap } from '@/lib/types';
+import type { Activity, Circle, CirclePreview, Contribution, Deposit, Frequency, FundAdjustment, FundGive, Goal, Member, Round, Swap } from '@/lib/types';
 
 const MEMBER_SELECT = '*, profiles(*)';
 
@@ -84,6 +84,8 @@ export type CircleDetail = {
   swaps: Swap[];
   /** Deductions and refunds taken out of the fund (0023). */
   adjustments?: FundAdjustment[];
+  /** Who gets how much of each refund or split, and whether it's been given (0026). */
+  gives?: FundGive[];
 };
 
 export function useCircle(id: string | undefined) {
@@ -92,13 +94,14 @@ export function useCircle(id: string | undefined) {
     enabled: !!id,
     queryFn: async ({ queryKey }): Promise<CircleDetail> => {
       if (demoState.on) return demoQuery(queryKey) as never;
-      const [c, m, r, k, s, f] = await Promise.all([
+      const [c, m, r, k, s, f, g] = await Promise.all([
         supabase.from('circles').select('*').eq('id', id!).single(),
         supabase.from('circle_members').select(MEMBER_SELECT).eq('circle_id', id!).order('joined_at'),
         supabase.from('rounds').select('*').eq('circle_id', id!).order('round_no'),
         supabase.from('contributions').select('*').eq('circle_id', id!),
         supabase.from('swap_requests').select('*').eq('circle_id', id!).order('created_at', { ascending: false }),
         supabase.from('fund_adjustments').select('*').eq('circle_id', id!).order('created_at'),
+        supabase.from('fund_gives').select('*').eq('circle_id', id!),
       ]);
       return {
         circle: must(c) as Circle,
@@ -108,6 +111,8 @@ export function useCircle(id: string | undefined) {
         swaps: must(s) as Swap[],
         // Before migration 0023 the table doesn't exist yet: just no adjustments.
         adjustments: f.error ? [] : (f.data as FundAdjustment[]),
+        // Before migration 0026 the table doesn't exist yet.
+        gives: g.error ? [] : (g.data as FundGive[]),
       };
     },
   });

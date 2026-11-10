@@ -77,8 +77,19 @@ begin
   perform pg_temp.login(b);
   perform approve_leave(mid, 500);
   assert (select status from circle_members where id = mid) = 'left', 'member left';
-  assert (select replacing_member from circles where id = cid) = mid, 'slot open for a replacement';
+  -- 0026: no replacement; the schedule is recalculated without them
+  assert (select replacing_member from circles where id = cid) is null, 'no replacement needed';
+  assert (select count(*) from rounds where circle_id = cid) = 2, 'one turn dropped';
+  assert not exists (select 1 from contributions k join rounds r on r.id = k.round_id
+                      where k.member_id = mid and k.status = 'pending' and r.status <> 'completed'), 'their unpaid hulog dropped';
+  assert (select count(distinct slot_group) from rounds where circle_id = cid) = 2, 'each remaining member has one turn';
+  assert not exists (select 1 from rounds r where circle_id = cid
+                      and not exists (select 1 from circle_members m where m.slot_group = r.slot_group and m.status = 'approved')),
+         'every turn belongs to someone still in';
   assert (select amount from fund_adjustments where circle_id = cid and kind = 'refund') = 500, 'refund recorded';
+  assert (select count(*) from fund_gives where circle_id = cid and given_at is null) = 1, 'refund waiting to be given';
+  perform mark_given((select id from fund_gives where circle_id = cid), true);
+  assert (select given_at from fund_gives where circle_id = cid) is not null, 'marked given';
 
   -- The one who got the sahod can't leave
   perform pg_temp.login((select user_id from circle_members where circle_id = cid and slot_group = first_group and status = 'approved' limit 1));
@@ -87,15 +98,7 @@ begin
     exception when raise_exception then null; end;
   end if;
 
-  -- 0024: the slot of someone who left can't be abandoned, and the join screen shows the current admin
-  perform pg_temp.login(b);
-  begin perform cancel_replacement(cid); assert false, 'left slot cannot be abandoned';
-  exception when raise_exception then null; end;
-  assert (select replacing_member from circles where id = cid) = mid, 'slot still open';
-  perform pg_temp.login((select user_id from circle_members where id = mid));
-  begin perform request_join(code, false); assert false, 'the one who left cannot re-request their open slot';
-  exception when raise_exception then null; end;
-  assert (select status from circle_members where id = mid) = 'left', 'their row is untouched';
+  -- 0024: the join screen shows the current admin
   perform pg_temp.login(d);
   assert (select admin_name from preview_circle(code)) = (select full_name from profiles where id = b), 'preview shows the current admin';
   assert not exists (select 1 from fund_adjustments where circle_id = cid and kind = 'split'), 'nothing paid in, nothing to split';

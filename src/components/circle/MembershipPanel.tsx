@@ -130,7 +130,7 @@ export function MembershipPanel({ data, userId }: { data: CircleDetail; userId: 
             </>
           ) : leavable && gotSahod(data, me) ? (
             <Text variant="small" tone="muted">
-              You already received your sahod, so you need to finish your hulog. If you really can’t continue, talk to the admin about a replacement.
+              You already received your sahod, so you need to finish your hulog. If you really can’t continue, talk to the admin.
             </Text>
           ) : leavable ? (
             <Button title="Leave paluwagan" icon="log-out" variant="ghost" size="md" onPress={() => setLeaveOpen(true)} />
@@ -205,7 +205,7 @@ function LeaveSheet({ open, onClose, data, me }: { open: boolean; onClose: () =>
   const force = () =>
     confirmAction(
       'Leave without a refund?',
-      `${paid > 0 ? `You’ve paid ${peso(paid)}. You won’t get it back: it’s split among the ${others} members who stay (${peso(Math.round((paid / Math.max(others, 1)) * 100) / 100)} each). ` : ''}You leave right away${active ? ' and your slot opens for a replacement' : ''}. This can’t be undone.`,
+      `${paid > 0 ? `You’ve paid ${peso(paid)}. You won’t get it back: it’s split among the ${others} members who stay (${peso(Math.round((paid / Math.max(others, 1)) * 100) / 100)} each). ` : ''}You leave right away${active ? ', and the paluwagan is recalculated without you' : ''}. This can’t be undone.`,
       () => action.mutate({ fn: 'force_leave', args: { p_circle: data.circle.id } }, { onSuccess: done, onError: (e) => notifyError(e, 'Couldn’t leave') }),
       { confirmText: 'Leave now', destructive: true },
     );
@@ -217,7 +217,7 @@ function LeaveSheet({ open, onClose, data, me }: { open: boolean; onClose: () =>
             tone="info"
             icon="message-circle"
             title="Ask the admin first"
-            body={`The admin decides with you how much of your ${peso(paid)} you get back. Talk it over in the group chat; the admin records the refund when approving. Anything you don’t take back is split among the members who stay.${active ? ' Your slot then opens for a replacement.' : ''}`}
+            body={`The admin decides with you how much of your ${peso(paid)} you get back. Talk it over in the group chat; the admin records the refund when approving. Anything you don’t take back is split among the members who stay.${active ? ' The paluwagan is then recalculated without you.' : ''}`}
           />
           <Input label="Reason (optional)" placeholder="e.g. Moving abroad" value={reason} onChangeText={setReason} maxLength={200} />
           <Button title="Ask the admin to leave" icon="send" loading={action.isPending} onPress={ask} />
@@ -242,7 +242,7 @@ function LeaveRequestCard({ data, member }: { data: CircleDetail; member: Member
   const approve = () =>
     confirmAction(
       `Let ${firstName(nameOf(member))} leave?`,
-      `${n > 0 ? `Record a ${peso(n)} refund (taken out of the fund). Hand it over yourself.` : 'No refund.'}${splitText}${data.circle.status === 'active' ? ' Their slot opens for a replacement.' : ''}`,
+      `${n > 0 ? `Record a ${peso(n)} refund (taken out of the fund). Hand it over yourself.` : 'No refund.'}${splitText}${data.circle.status === 'active' ? ' The paluwagan is recalculated without them: their unpaid hulog are dropped and everyone after them gets their sahod one turn earlier.' : ''}`,
       () =>
         action.mutate(
           { fn: 'approve_leave', args: { p_member: member.id, p_refund: n } },

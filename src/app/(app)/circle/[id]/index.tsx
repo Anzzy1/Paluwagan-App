@@ -12,6 +12,7 @@ import { HulogChecklist } from '@/components/circle/HulogChecklist';
 import { FormingAdmin, InvitePanel, MembersList, ReplacementAdmin, RulesPanel, SlotsProgress, Timeline } from '@/components/circle/panels';
 import { DeleteCircleButton, DeletedPanel, PauseCircleButton, PausedPanel } from '@/components/circle/Lifecycle';
 import { AdjustmentLines, DeductionSheet } from '@/components/circle/Deductions';
+import { FundGives } from '@/components/circle/FundGives';
 import { MembershipPanel } from '@/components/circle/MembershipPanel';
 import { PayInfoCard, PayInfoSheet } from '@/components/circle/PayInfo';
 import { PaySheet } from '@/components/circle/PaySheet';
@@ -165,7 +166,8 @@ function CircleScreenScreen() {
   const lockable = joined >= MIN_TO_LOCK;
   const unpaidKs = roundKs.filter((k) => k.status !== 'confirmed');
   const perRound = current ? hulogInRound(contributions, current) : 1;
-  const roundPot = potOf(circle) * perRound;
+  // The round's own hulog (stays right after someone leaves and the paluwagan is recalculated).
+  const roundPot = roundKs.length ? roundKs.reduce((s, k) => s + Number(k.amount), 0) : potOf(circle) * perRound;
   // Today's hulog, for rounds that collect several (e.g. daily hulog, weekly sahod).
   const today = todayISO();
   const todayKs = current ? roundKs.filter((k) => dueOf(k, current) === today) : [];
@@ -527,6 +529,7 @@ function CircleScreenScreen() {
         />
       )}
       {isAdmin && circle.status === 'active' && !circle.paused_at && <PauseCircleButton circle={circle} />}
+      {!circle.deleted_at && <FundGives data={data} userId={userId} />}
       <MembershipPanel data={data} userId={userId} />
       {completed}
       {tabBody}
