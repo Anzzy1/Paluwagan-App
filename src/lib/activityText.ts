@@ -29,7 +29,15 @@ export function describeActivity(a: Activity): { icon: Icon; tone: Tone; text: s
     case 'managed_log':
       return describeManagedLog(String(p.text ?? ''));
     case 'circle_created':
-      return { icon: 'plus-circle', tone: 'brand', text: `${who} created the paluwagan` };
+      return { icon: 'plus-circle', tone: 'brand', text: p.repeat_of ? `${who} started this paluwagan again with the same group` : `${who} created the paluwagan` };
+    case 'repeat_requested':
+      return { icon: 'refresh-cw', tone: 'brand', text: `${who} asked everyone to start the paluwagan again as “${p.name}” on ${p.start}. Members need to answer.` };
+    case 'repeat_answered':
+      return { icon: p.yes ? 'thumbs-up' : 'thumbs-down', tone: p.yes ? 'success' : 'neutral', text: `${who} ${p.yes ? 'is in for' : 'is sitting out'} the next paluwagan` };
+    case 'repeat_cancelled':
+      return { icon: 'x-circle', tone: 'neutral', text: `${who} cancelled starting the paluwagan again` };
+    case 'repeat_started':
+      return { icon: 'refresh-cw', tone: 'success', text: `${who} started “${p.name}” with ${p.members} members. A new draw comes next.` };
     case 'member_requested':
       return { icon: 'user-plus', tone: 'info', text: `${who} requested to join${p.hati ? ' (split slot)' : ''}` };
     case 'member_approved':

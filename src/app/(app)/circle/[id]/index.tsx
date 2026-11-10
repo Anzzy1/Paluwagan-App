@@ -12,6 +12,7 @@ import { HulogChecklist } from '@/components/circle/HulogChecklist';
 import { FormingAdmin, InvitePanel, MembersList, ReplacementAdmin, RulesPanel, SlotsProgress, Timeline } from '@/components/circle/panels';
 import { DeleteCircleButton, DeletedPanel, PauseCircleButton, PausedPanel } from '@/components/circle/Lifecycle';
 import { PaySheet } from '@/components/circle/PaySheet';
+import { RepeatPanel } from '@/components/circle/RepeatPanel';
 import { Notice, ProgressBar, PurposeIcon, Segmented } from '@/components/ui/bits';
 import { Button } from '@/components/ui/Button';
 import { Card, useTint } from '@/components/ui/Card';
@@ -396,7 +397,10 @@ function CircleScreenScreen() {
   );
 
   const completed = circle.status === 'completed' && (
-    <Notice tone="success" icon="flag" title="This paluwagan is complete" body={`All ${rounds.length} rounds have been paid out. Thank you for contributing on time.`} />
+    <>
+      <Notice tone="success" icon="flag" title="This paluwagan is complete" body={`All ${rounds.length} rounds have been paid out. Thank you for contributing on time.`} />
+      <RepeatPanel data={data} userId={userId} isAdmin={!!isAdmin} />
+    </>
   );
 
   const tabs: { value: Tab; label: string }[] = desktop

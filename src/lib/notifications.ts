@@ -42,6 +42,15 @@ function online(list: MyCircle[], inbox: Inbox | undefined): AppNotification[] {
     const href = `/circle/${circle.id}` as Href;
     const base = { circle: circle.name, href };
 
+    // Start again (0022): members answer, then the admin starts the new paluwagan.
+    if (circle.repeat_requested_at && !circle.repeat_circle) {
+      if (mc.membership.repeat_vote == null) {
+        out.push({ ...base, id: `repeat-${circle.id}`, action: true, tone: 'info', icon: 'refresh-cw', title: 'Join the paluwagan again?', body: `The admin wants to start “${circle.repeat_name ?? circle.name}” on ${longDate(circle.repeat_start ?? '')} with the same group and a new draw. Tap to answer.`, rank: 3 });
+      } else if (mc.membership.role === 'admin' && circle.repeat_waiting === 0) {
+        out.push({ ...base, id: `repeat-ready-${circle.id}`, action: true, tone: 'success', icon: 'refresh-cw', title: 'Everyone answered', body: `Start “${circle.repeat_name ?? circle.name}” with the members who said yes.`, rank: 3 });
+      }
+    }
+
     if (circle.paused_at) {
       out.push({ ...base, id: `paused-${circle.id}`, action: false, tone: 'warning', icon: 'pause-circle', title: 'Paluwagan paused', body: circle.pause_reason || 'The admin paused this paluwagan. Reminders are off.', rank: 40 });
       continue;
@@ -147,8 +156,9 @@ const MEMBER_TYPES = new Set([
   'payment_confirmed', 'payment_rejected', 'nudge_sent', 'member_approved', 'draw_completed', 'draw_redone', 'draw_revealed', 'order_set', 'circle_locked',
   'circle_paused', 'circle_resumed', 'round_completed', 'round_released', 'sahod_advanced', 'sahod_balance_released', 'sahod_delayed', 'payment_covered', 'member_replaced', 'circle_completed', 'circle_deleted', 'circle_restored',
   'swap_requested', 'swap_accepted', 'swap_declined', 'swap_approved', 'swap_rejected',
+  'repeat_requested', 'repeat_cancelled', 'repeat_started',
 ]);
-const ADMIN_TYPES = new Set(['member_requested', 'proof_submitted', 'member_left']);
+const ADMIN_TYPES = new Set(['member_requested', 'proof_submitted', 'member_left', 'repeat_answered']);
 const UPDATE_DAYS = 14;
 
 export function buildUpdates(activity: Activity[], list: MyCircle[], userId: string | null): AppUpdate[] {

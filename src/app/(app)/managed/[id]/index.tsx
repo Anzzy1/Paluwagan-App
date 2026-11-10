@@ -7,6 +7,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import { AnimatedMascot } from '@/components/AnimatedMascot';
 import { AdvanceSahodSheet } from '@/components/circle/AdvanceSahodSheet';
 import { ConfirmSheet } from '@/components/circle/Lifecycle';
+import { StartAgainSheet } from '@/components/circle/RepeatPanel';
 import { DateHistory } from '@/components/managed/DateHistory';
 import { PausedManagedCard, PauseManagedButton } from '@/components/managed/PauseManaged';
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
@@ -41,6 +42,7 @@ import {
   releasePayout,
   sahodBalances,
   removeMember,
+  repeatManaged,
   togglePaid,
   undoSahod,
   useManagedCircle,
@@ -385,6 +387,31 @@ function SahodBalances({ circle }: { circle: LocalCircle }) {
   );
 }
 
+/** Finished: run it again with the same members and a new draw. */
+function StartAgainButton({ circle }: { circle: LocalCircle }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button title="Start again with the same members" icon="refresh-cw" variant="brand" size="md" onPress={() => setOpen(true)} style={{ alignSelf: 'stretch' }} />
+      <StartAgainSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        defaultName={circle.name}
+        title="Start again"
+        note={`A new paluwagan is created with the same ${circle.members.length} members (you can still add or remove people), then you run a new draw. This one stays in your list as finished.`}
+        confirmLabel="Create and draw"
+        onConfirm={(name, start) => {
+          const id = repeatManaged(circle.id, name, start);
+          setOpen(false);
+          if (!id) return;
+          haptic('success');
+          router.replace(`/managed/${id}` as Href);
+        }}
+      />
+    </>
+  );
+}
+
 /** "Undo" strip for the most recent sahod release or delay. */
 function UndoSahod({ circle, bare }: { circle: LocalCircle; bare?: boolean }) {
   const c = useColors();
@@ -615,6 +642,7 @@ export default function ManagedCircle() {
             All {circle.rounds.length} payouts have been released. Great job keeping everyone on track.
           </Text>
           <UndoSahod circle={circle} bare />
+          <StartAgainButton circle={circle} />
         </Card>
       )}
       {missedTotal > 0 && tab !== 'dates' && (

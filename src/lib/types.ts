@@ -54,6 +54,14 @@ export type Circle = {
   draw_style?: 'wheel' | 'envelopes' | 'slots' | 'plinko' | 'claw' | null;
   /** When the payout order was declared (migration 0016). Null on a running paluwagan = draw not finished yet. */
   revealed_at?: string | null;
+  /** Start again (0022): the admin asked the members to run it again with a new draw. */
+  repeat_requested_at?: string | null;
+  repeat_name?: string | null;
+  repeat_start?: string | null;
+  /** Members who haven't answered the request yet. */
+  repeat_waiting?: number | null;
+  /** The new paluwagan, once started. */
+  repeat_circle?: string | null;
   seed_hash: string | null;
   seed: string | null;
   draw_order: string[] | null;
@@ -73,6 +81,8 @@ export type Member = {
   slot_no: number | null;
   agreed_at: string | null;
   joined_at: string;
+  /** Answer to "start again?" (0022): null = not answered. */
+  repeat_vote?: boolean | null;
   profiles: Profile | null;
 };
 

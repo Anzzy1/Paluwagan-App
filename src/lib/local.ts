@@ -303,6 +303,34 @@ export function createManagedCircle(input: NewManaged): string {
   return id;
 }
 
+/**
+ * Start a finished paluwagan again: a new one with the same members, amount and schedule
+ * (moved to `start`), ready for a new draw. Returns the new id.
+ */
+export function repeatManaged(id: string, name: string, start: string): string | null {
+  const c = state.find((x) => x.id === id);
+  if (!c) return null;
+  // The first sahod keeps the same distance from the first hulog.
+  const payout = c.payout ? { ...c.payout, first_date: plusDays(c.payout.first_date, daysBetween(c.start_date, start)) } : null;
+  const newId = createManagedCircle({
+    name: name.trim() || c.name,
+    emoji: c.emoji,
+    color: c.color,
+    amount: c.amount,
+    frequency: c.frequency,
+    interval_days: c.interval_days ?? null,
+    start_date: start,
+    payout,
+    late_fee: c.late_fee,
+    grace_days: c.grace_days,
+    notes: c.notes,
+    memberNames: c.members.map((m) => m.name),
+  });
+  update(id, (x) => log(x, `Started again as “${name.trim() || c.name}” from ${shortDate(start)}`));
+  update(newId, (x) => log(x, `Started again from “${c.name}” with the same ${c.members.length} members`));
+  return newId;
+}
+
 export function addMember(id: string, name: string) {
   const n = name.trim();
   if (!n) return;
