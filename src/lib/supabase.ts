@@ -9,7 +9,26 @@ const key = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '';
 
 export const isSupabaseConfigured = Boolean(url && key);
 
+/**
+ * fetch with a time limit. On Android a request on a weak signal can otherwise hang with no
+ * end, leaving screens loading forever. Uploads (receipt photos) get longer.
+ */
+const fetchWithTimeout: typeof fetch = (input, init = {}) => {
+  const href = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const method = (init.method ?? 'GET').toUpperCase();
+  const ms = /\/storage\/v1\/object/.test(href) && method !== 'GET' ? 120_000 : /\/functions\/v1\//.test(href) ? 60_000 : 20_000;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  const outer = init.signal;
+  if (outer) {
+    if (outer.aborted) ctrl.abort();
+    else outer.addEventListener('abort', () => ctrl.abort(), { once: true });
+  }
+  return fetch(input, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(t));
+};
+
 export const supabase = createClient(url || 'https://placeholder.supabase.co', key || 'placeholder', {
+  global: { fetch: fetchWithTimeout },
   auth: {
     storage: globalThis.localStorage,
     autoRefreshToken: true,

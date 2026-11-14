@@ -1,4 +1,4 @@
-import type { Session } from '@supabase/supabase-js';
+import { isAuthRetryableFetchError, type Session } from '@supabase/supabase-js';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
@@ -52,6 +52,31 @@ function cachedProfile(userId: string): Profile | null {
   }
 }
 
+/**
+ * The login saved on this device, read straight from storage. Supabase's own getSession()
+ * tries to renew an expired login first, and without internet that retries for up to a
+ * minute and then reports "signed out". Reading it directly lets the app open at once.
+ */
+function savedSession(): Session | null {
+  try {
+    const key = (supabase.auth as unknown as { storageKey: string }).storageKey;
+    const s = JSON.parse(kv.get(key) ?? 'null') as Session | null;
+    return s?.user?.id && s.refresh_token ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Couldn't reach the server (as opposed to the server saying the login is no longer valid). */
+const isOfflineError = (e: unknown) => !!e && (isAuthRetryableFetchError(e) || isNetworkError(e));
+
+/** Abort a request that hangs on a weak connection instead of waiting forever. */
+function timeout(ms: number) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return { signal: ctrl.signal, done: () => clearTimeout(t) };
+}
+
 const AuthContext = createContext<AuthState | null>(null);
 
 /**
@@ -70,8 +95,10 @@ export const MIN_PASSWORD = 8;
 export const RECOVERY_KEY = 'password-reset-pending-v1';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [initializing, setInitializing] = useState(isSupabaseConfigured);
+  // A finished login on this device opens the app straight away, even offline; the server check runs behind it.
+  const [saved] = useState(() => (isSupabaseConfigured && kv.get(RECOVERY_KEY) !== '1' ? savedSession() : null));
+  const [session, setSession] = useState<Session | null>(saved);
+  const [initializing, setInitializing] = useState(isSupabaseConfigured && !saved);
   const [guestError, setGuestError] = useState<string | null>(null);
   const [isDemo, setIsDemo] = useState(false);
   const [offline, setOffline] = useState(() => kv.get(OFFLINE_KEY) === '1');
@@ -96,18 +123,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     (async () => {
       // No automatic guest any more: without a session the user picks log in or offline.
-      let { data } = await supabase.auth.getSession();
+      const res = await supabase.auth.getSession();
+      let next = res.data.session;
       if (kv.get(RECOVERY_KEY) === '1') {
         // A reset that was never finished: the code signed them in, but no new password was set.
         kv.remove(RECOVERY_KEY);
-        if (data.session) await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
-        data = { session: null };
+        if (next) await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+        next = null;
+      } else if (!next && saved && isOfflineError(res.error)) {
+        // No internet to renew the login: keep the saved one. Supabase renews it once back online.
+        return finish(saved);
       }
-      if (cancelled) return;
-      setSession(data.session);
-      setInitializing(false);
+      finish(next);
     })();
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    function finish(s: Session | null) {
+      if (cancelled) return;
+      setSession(s);
+      setInitializing(false);
+    }
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      // The first event repeats getSession's answer, which can be "no session" just because
+      // there's no internet. The startup check above handles it.
+      if (event === 'INITIAL_SESSION') return;
       setSession(s);
       if (s) kv.set(OFFLINE_KEY, '0');
     });
@@ -115,25 +152,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [saved]);
 
   const userId = isDemo ? DEMO_USER_ID : (session?.user.id ?? null);
 
   const profileQuery = useQuery({
     queryKey: ['profile', userId],
     enabled: !!userId,
+    // Start from the profile saved on this device so the app opens at once; the fresh one loads behind it.
+    initialData: () => (userId && !demoState.on ? (cachedProfile(userId) ?? undefined) : undefined),
+    initialDataUpdatedAt: 0,
+    retry: false,
     queryFn: async ({ queryKey }) => {
       if (demoState.on) return (await demoQuery(queryKey)) as Profile;
       // Recount the Trust Score first so missed hulog show up even before a round is released.
-      // Best effort: ignored if it fails (e.g. before migration 0008 is run).
-      await supabase.rpc('refresh_my_tiwala').then(
-        () => undefined,
-        () => undefined,
-      );
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId!).maybeSingle();
+      // Best effort: ignored if it fails (e.g. before migration 0008 is run) or is slow.
+      const t1 = timeout(5_000);
+      await supabase
+        .rpc('refresh_my_tiwala')
+        .abortSignal(t1.signal)
+        .then(
+          () => undefined,
+          () => undefined,
+        );
+      t1.done();
+      const t2 = timeout(10_000);
+      const { data, error } = await supabase.from('profiles').select('*').eq('id', userId!).abortSignal(t2.signal).maybeSingle();
+      t2.done();
       if (error) {
-        // No internet: keep going with the last profile we saw on this device.
-        if (isNetworkError(error)) {
+        // No internet (or too slow): keep going with the last profile we saw on this device.
+        if (isNetworkError(error) || t2.signal.aborted) {
           const cached = cachedProfile(userId!);
           if (cached) return cached;
         }
